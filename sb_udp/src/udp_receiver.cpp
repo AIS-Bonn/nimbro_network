@@ -143,7 +143,7 @@ void UDPReceiver::run()
 		UDPGenericPacket* generic = (UDPGenericPacket*)buf;
 
 		MessageBuffer::iterator it = std::find_if(m_incompleteMessages.begin(), m_incompleteMessages.end(),
-			[=](const Message& msg) { return msg.id == generic->msg_id(); }
+			[=](const Message& msg) { return msg.valid && msg.id == generic->msg_id(); }
 		);
 
 		Message* msg;
@@ -201,7 +201,7 @@ void UDPReceiver::run()
 			msg->header.topic_type[sizeof(msg->header.topic_type)-1] = 0;
 			msg->header.topic_name[sizeof(msg->header.topic_name)-1] = 0;
 
-			ROS_WARN("Got a packet of type %s, topic %s, %d extra udp packets", msg->header.topic_type, msg->header.topic_name, msg->header.remaining_packets());
+			ROS_WARN("Got a packet of type %s, topic %s, %d extra udp packets (msg id %d)", msg->header.topic_type, msg->header.topic_name, msg->header.remaining_packets(), msg->id);
 
 			// Find topic
 			TopicMap::iterator it = m_topics.find(msg->header.topic_type);
@@ -235,8 +235,8 @@ void UDPReceiver::run()
 				if(memcmp(topic->md5, msg->header.topic_md5, sizeof(topic->md5)) != 0)
 				{
 					ROS_ERROR("Invalid md5 sum for topic type '%s', please make sure msg definitions are up to date", msg->header.topic_type);
+					msg->valid = false;
 					continue;
-					// FIXME make invalid
 				}
 
 				ros::AdvertiseOptions options(
@@ -256,7 +256,7 @@ void UDPReceiver::run()
 
 			topic->publisher.publish(shapeShifter);
 
-			msg->msgs[0] = false;
+			msg->valid = false;
 		}
 	}
 }

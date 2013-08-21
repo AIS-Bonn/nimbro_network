@@ -24,6 +24,7 @@ struct Message
 	Message(uint16_t id)
 	 : id(id)
 	 , size(0)
+	 , valid(true)
 	{}
 
 	uint32_t getLength() const
@@ -37,6 +38,7 @@ struct Message
 	std::vector<uint8_t> payload;
 	size_t size;
 	std::vector<bool> msgs;
+	bool valid;
 };
 
 struct TopicData
