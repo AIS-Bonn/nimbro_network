@@ -2,7 +2,9 @@
 	<node name="send" pkg="sb_udp" type="udp_sender">
 		<param name="destination_addr" value="192.168.178.255" />
 <rosparam>
-topics: [ "/camera/image_raw/compressed" ]
+topics:
+ - name: "/camera/image_raw/compressed"
+   rate: 1
 </rosparam>
 	</node>
 </launch>

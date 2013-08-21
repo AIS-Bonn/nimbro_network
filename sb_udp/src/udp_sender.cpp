@@ -15,6 +15,8 @@
 #include <stdio.h>
 #include <errno.h>
 
+#include <XmlRpcValue.h>
+
 namespace sb_udp
 {
 
@@ -56,8 +58,12 @@ UDPSender::UDPSender()
 
 	for(int32_t i = 0; i < list.size(); ++i)
 	{
-		ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeString);
-		new TopicSender(this, &nh, list[i]);
+		ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeStruct);
+		ROS_ASSERT(list[i].hasMember("name"));
+		ROS_ASSERT(list[i].hasMember("rate"));
+
+
+		new TopicSender(this, &nh, list[i]["name"]);
 	}
 }
 
