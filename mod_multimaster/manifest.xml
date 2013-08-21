@@ -1,0 +1,17 @@
+<package>
+  <description brief="master">
+
+     master
+
+  </description>
+  <author>Wim Meeussen</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/master</url>
+
+  <depend package="rosgraph"/>
+  <depend package="rospy"/>
+
+</package>
+
+
