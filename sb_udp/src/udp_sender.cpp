@@ -63,7 +63,7 @@ UDPSender::UDPSender()
 		ROS_ASSERT(list[i].hasMember("rate"));
 
 
-		new TopicSender(this, &nh, list[i]["name"]);
+		new TopicSender(this, &nh, list[i]["name"], list[i]["rate"]);
 	}
 }
 
