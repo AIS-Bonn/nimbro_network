@@ -103,6 +103,8 @@ UDPReceiver::UDPReceiver()
 	addr.sin_addr.s_addr = inet_addr(baddr.c_str());
 	addr.sin_port = htons(port);
 
+	ROS_INFO("Binding to '%s':%d", baddr.c_str(), port);
+
 	if(bind(m_fd, (sockaddr*)&addr, sizeof(addr)) != 0)
 	{
 		ROS_FATAL("Could not bind socket: %s", strerror(errno));

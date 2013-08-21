@@ -1,30 +1,33 @@
 
 project(sb_udp)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -Wall")
-
 find_package(catkin REQUIRED COMPONENTS
 	roscpp
 	topic_tools
 )
 
+catkin_package()
 include_directories(${catkin_INCLUDE_DIRS})
 
-catkin_package()
-
-add_executable(udp_sender
-	src/topic_sender.cpp
-	src/udp_sender.cpp
+execute_process(
+	COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION
 )
 
-target_link_libraries(udp_sender
-	${catkin_LIBRARIES}
-)
+if (GCC_VERSION VERSION_GREATER 4.7 OR GCC_VERSION VERSION_EQUAL 4.7)
+	add_executable(udp_sender
+		src/topic_sender.cpp
+		src/udp_sender.cpp
+	)
 
-add_executable(udp_receiver
-	src/udp_receiver.cpp
-)
+	target_link_libraries(udp_sender
+		${catkin_LIBRARIES}
+	)
 
-target_link_libraries(udp_receiver
-	${catkin_LIBRARIES}
-)
+	add_executable(udp_receiver
+		src/udp_receiver.cpp
+	)
+
+	target_link_libraries(udp_receiver
+		${catkin_LIBRARIES}
+	)
+endif()
