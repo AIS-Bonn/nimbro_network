@@ -11,7 +11,7 @@ namespace sb_udp
 TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate)
  : m_sender(sender)
 {
-	ROS_ERROR_STREAM("SUbscribing to" << topic);
+	ROS_INFO_STREAM("Subscribing to" << topic);
 	m_subscriber = nh->subscribe(topic, 1, &TopicSender::handleData, this);
 	m_topicName = topic;
 
@@ -26,7 +26,6 @@ void TopicSender::handleData(const topic_tools::ShapeShifter& shapeShifter)
 
 	m_lastTime = now;
 
-	ROS_ERROR("Sending...");
 	uint8_t buf[PACKET_SIZE];
 	uint32_t buf_size = std::min<uint32_t>(PACKET_SIZE, sizeof(UDPFirstPacket) + shapeShifter.size());
 	UDPFirstPacket* first = (UDPFirstPacket*)buf;

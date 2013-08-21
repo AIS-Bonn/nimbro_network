@@ -127,7 +127,7 @@ void UDPReceiver::run()
 {
 	uint8_t buf[PACKET_SIZE];
 
-	ROS_INFO("ready");
+	ROS_INFO("UDP receiver ready");
 	while(1)
 	{
 		ros::spinOnce();
@@ -203,7 +203,7 @@ void UDPReceiver::run()
 			msg->header.topic_type[sizeof(msg->header.topic_type)-1] = 0;
 			msg->header.topic_name[sizeof(msg->header.topic_name)-1] = 0;
 
-			ROS_WARN("Got a packet of type %s, topic %s, %d extra udp packets (msg id %d)", msg->header.topic_type, msg->header.topic_name, msg->header.remaining_packets(), msg->id);
+// 			ROS_WARN("Got a packet of type %s, topic %s, %d extra udp packets (msg id %d)", msg->header.topic_type, msg->header.topic_name, msg->header.remaining_packets(), msg->id);
 
 			// Find topic
 			TopicMap::iterator it = m_topics.find(msg->header.topic_type);
