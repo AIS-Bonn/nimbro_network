@@ -44,7 +44,6 @@ struct Message
 struct TopicData
 {
 	ros::Publisher publisher;
-	topic_tools::ShapeShifter shapeShifter;
 
 	uint32_t md5[4];
 	std::string md5_str;
@@ -67,6 +66,8 @@ private:
 	TopicMap m_topics;
 
 	ros::NodeHandle m_nh;
+	ros::Publisher m_pub_heartbeat;
+	ros::Time m_lastHeartbeatTime;
 };
 
 }

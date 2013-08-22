@@ -12,6 +12,8 @@
 
 #include <topic_tools/shape_shifter.h>
 
+#include <std_msgs/Time.h>
+
 #include <stdio.h>
 
 namespace sb_udp
@@ -84,6 +86,8 @@ UDPReceiver::UDPReceiver()
  : m_incompleteMessages(4)
 {
 	ros::NodeHandle nh("~");
+
+	m_pub_heartbeat = nh.advertise<std_msgs::Time>("heartbeat", 1);
 
 	m_fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if(m_fd < 0)
@@ -259,6 +263,18 @@ void UDPReceiver::run()
 			topic->publisher.publish(shapeShifter);
 
 			msg->valid = false;
+
+
+			// Send heartbeat message
+			ros::Time now = ros::Time::now();
+			if(now - m_lastHeartbeatTime > ros::Duration(1.0))
+			{
+				std_msgs::Time time;
+				time.data = now;
+				m_pub_heartbeat.publish(time);
+
+				m_lastHeartbeatTime = now;
+			}
 		}
 	}
 }
