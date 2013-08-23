@@ -60,10 +60,12 @@ UDPSender::UDPSender()
 	{
 		ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeStruct);
 		ROS_ASSERT(list[i].hasMember("name"));
-		ROS_ASSERT(list[i].hasMember("rate"));
 
+		double rate = 100.0;
+		if(list[i].hasMember("rate"))
+			rate = list[i]["rate"];
 
-		new TopicSender(this, &nh, list[i]["name"], list[i]["rate"]);
+		new TopicSender(this, &nh, list[i]["name"], rate);
 	}
 }
 
