@@ -99,15 +99,12 @@ UDPReceiver::UDPReceiver()
 	int port;
 	nh.param("port", port, 5050);
 
-	std::string baddr;
-	nh.param("address", baddr, std::string("192.168.178.255"));
-
 	sockaddr_in addr;
 	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = inet_addr(baddr.c_str());
+	addr.sin_addr.s_addr = INADDR_ANY;
 	addr.sin_port = htons(port);
 
-	ROS_INFO("Binding to '%s':%d", baddr.c_str(), port);
+	ROS_INFO("Binding to :%d", port);
 
 	if(bind(m_fd, (sockaddr*)&addr, sizeof(addr)) != 0)
 	{
