@@ -27,6 +27,7 @@ void publish(const ros::TimerEvent&)
 {
 	sb_log_transport::LogBlock block;
 
+	block.msgs.resize(buffer.size());
 	std::copy(buffer.begin(), buffer.end(), block.msgs.begin());
 	pub.publish(block);
 }
