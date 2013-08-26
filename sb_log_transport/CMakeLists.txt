@@ -24,6 +24,7 @@ add_executable(log_sender
 target_link_libraries(log_sender
 	${catkin_LIBRARIES}
 )
+add_dependencies(log_sender sb_log_transport_gencpp)
 
 add_executable(log_receiver
 	src/log_receiver.cpp
@@ -31,3 +32,4 @@ add_executable(log_receiver
 target_link_libraries(log_receiver
 	${catkin_LIBRARIES}
 )
+add_dependencies(log_receiver sb_log_transport_gencpp)
