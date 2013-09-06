@@ -32,7 +32,7 @@ void sendTransforms()
 			g_tf->lookupTransform(
 				parentFrame,
 				frame,
-				now,
+				ros::Time(0),
 				transform
 			);
 		}
