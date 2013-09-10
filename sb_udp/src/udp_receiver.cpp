@@ -16,6 +16,8 @@
 
 #include <stdio.h>
 
+#include <ros/names.h>
+
 namespace sb_udp
 {
 
@@ -23,6 +25,13 @@ static std::string getMsgDef(const std::string& type)
 {
 	std::vector<char> buf(1024);
 	int idx = 0;
+
+	std::string error;
+	if(!ros::names::validate(type, error))
+	{
+		ROS_WARN("Got invalid message type '%s'", type.c_str());
+		return "";
+	}
 
 	// FIXME: This is fricking dangerous!
 	FILE* f = popen(("rosmsg show \'" + type + "\'").c_str(), "r");
@@ -54,6 +63,13 @@ static std::string getMd5Sum(const std::string& type)
 {
 	std::vector<char> buf(1024);
 	int idx = 0;
+
+	std::string error;
+	if(!ros::names::validate(type, error))
+	{
+		ROS_WARN("Got invalid message type '%s'", type.c_str());
+		return "";
+	}
 
 	// FIXME: This is fricking dangerous!
 	FILE* f = popen(("rosmsg md5 \'" + type + "\'").c_str(), "r");
