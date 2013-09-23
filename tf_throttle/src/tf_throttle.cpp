@@ -23,7 +23,7 @@ void sendTransforms()
 	BOOST_FOREACH(std::string frame, frames)
 	{
 		std::string parentFrame;
-		if(!g_tf->getParent(frame, now, parentFrame))
+		if(!g_tf->getParent(frame, ros::Time(0), parentFrame))
 			continue;
 
 		tf::StampedTransform transform;
