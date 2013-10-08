@@ -17,9 +17,9 @@ void handleMsg(const sb_log_transport::LogBlock& block)
 	{
 		const sb_log_transport::LogMsg& msg = block.msgs[i];
 
-		uint32_t delta = msg.id - cur_id;
+		int64_t delta = msg.id - cur_id;
 		if((msg.id > cur_id && delta < std::numeric_limits<uint32_t>::max()/2)
-			|| (msg.id < cur_id && delta < std::numeric_limits<uint32_t>::max()/2))
+			|| (msg.id < cur_id && delta > -std::numeric_limits<uint32_t>::max()/2))
 		{
 			cur_id = msg.id;
 			pub.publish(msg.msg);
