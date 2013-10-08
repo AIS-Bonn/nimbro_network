@@ -12,6 +12,8 @@ namespace service_transport
 namespace protocol
 {
 
+#define SB_SERVICE_TRANSPORT_FASTOPEN 0
+
 struct ServiceDescription
 {
 	LEValue<4> md5[4];

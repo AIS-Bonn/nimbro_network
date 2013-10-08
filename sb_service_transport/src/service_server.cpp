@@ -45,15 +45,13 @@ ServiceServer::ServiceServer()
 		throw std::runtime_error("socket error");
 	}
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
+#if SB_SERVICE_TRANSPORT_FASTOPEN && LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
 	int qlen = 10;
 	if(setsockopt(m_fd, SOL_TCP, TCP_FASTOPEN, &qlen, sizeof(qlen)) != 0)
 	{
 		perror("Could not enable TCP fast open");
 		throw std::runtime_error("socket error");
 	}
-#else
-#	warning Your kernel version is too old. sb_service_transport will not operate correctly.
 #endif
 
 	int on = 1;

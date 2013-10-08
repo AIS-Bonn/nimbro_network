@@ -99,14 +99,19 @@ ServiceClient::ServiceClient()
 	req.name_length = 0;
 	req.request_length = 0;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
+#if SB_SERVICE_TRANSPORT_FASTOPEN && LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
 	if(sendto(fd, &req, sizeof(req), MSG_FASTOPEN, (const sockaddr*)&addr, sizeof(addr)) < 0)
 	{
 		perror("Could not connect to server");
 		throw std::runtime_error("socket error");
 	}
 #else
-#	warning Your kernel version is too old. sb_service_transport will not operate correctly.
+	if(connect(fd, (const sockaddr*)&addr, sizeof(addr)) != 0)
+	{
+		perror("Could not connect to server");
+		throw std::runtime_error("socket error");
+	}
+	write(fd, &req, sizeof(req));
 #endif
 
 	protocol::ServiceCallResponse resp;
