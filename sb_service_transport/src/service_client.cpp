@@ -10,6 +10,8 @@
 
 #define DATA_DEBUG 0
 
+#include <linux/version.h>
+
 namespace service_transport
 {
 
@@ -97,11 +99,15 @@ ServiceClient::ServiceClient()
 	req.name_length = 0;
 	req.request_length = 0;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
 	if(sendto(fd, &req, sizeof(req), MSG_FASTOPEN, (const sockaddr*)&addr, sizeof(addr)) < 0)
 	{
 		perror("Could not connect to server");
 		throw std::runtime_error("socket error");
 	}
+#else
+#	warning Your kernel version is too old. sb_service_transport will not operate correctly.
+#endif
 
 	protocol::ServiceCallResponse resp;
 	int ret = sureRead(fd, &resp, sizeof(resp));

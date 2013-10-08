@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/select.h>
+#include <linux/version.h>
 
 #include <ros/master.h>
 #include <ros/init.h>
@@ -44,12 +45,16 @@ ServiceServer::ServiceServer()
 		throw std::runtime_error("socket error");
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
 	int qlen = 10;
 	if(setsockopt(m_fd, SOL_TCP, TCP_FASTOPEN, &qlen, sizeof(qlen)) != 0)
 	{
 		perror("Could not enable TCP fast open");
 		throw std::runtime_error("socket error");
 	}
+#else
+#	warning Your kernel version is too old. sb_service_transport will not operate correctly.
+#endif
 
 	int on = 1;
 	if(setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0)
