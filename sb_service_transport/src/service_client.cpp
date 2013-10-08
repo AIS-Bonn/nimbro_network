@@ -33,6 +33,15 @@ static int sureRead(int fd, void* dest, size_t size)
 	return readBytes;
 }
 
+static void sureWrite(int fd, const void* src, size_t size)
+{
+	if(write(fd, src, size) != (int)size)
+	{
+		perror("Could not write()");
+		throw std::runtime_error("Could not write()");
+	}
+}
+
 class CallbackHelper : public ros::ServiceCallbackHelper
 {
 public:
@@ -53,10 +62,10 @@ public:
 			ROS_INFO(" %d: 0x%02X (%c)", i, params.request.buf.get()[i], params.request.buf.get()[i]);
 #endif
 
-		write(m_fd, &req, sizeof(req));
-		write(m_fd, m_name.c_str(), m_name.length());
-		write(m_fd, &params.request.num_bytes, 4); // FIXME: Not portable
-		write(m_fd, params.request.buf.get(), params.request.num_bytes);
+		sureWrite(m_fd, &req, sizeof(req));
+		sureWrite(m_fd, m_name.c_str(), m_name.length());
+		sureWrite(m_fd, &params.request.num_bytes, 4); // FIXME: Not portable
+		sureWrite(m_fd, params.request.buf.get(), params.request.num_bytes);
 
 		protocol::ServiceCallResponse resp;
 		sureRead(m_fd, &resp, sizeof(resp));
@@ -111,7 +120,7 @@ ServiceClient::ServiceClient()
 		perror("Could not connect to server");
 		throw std::runtime_error("socket error");
 	}
-	write(fd, &req, sizeof(req));
+	sureWrite(fd, &req, sizeof(req));
 #endif
 
 	protocol::ServiceCallResponse resp;

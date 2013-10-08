@@ -36,6 +36,15 @@ static int sureRead(int fd, void* dest, size_t size)
 	return readBytes;
 }
 
+static void sureWrite(int fd, const void* src, size_t size)
+{
+	if(write(fd, src, size) != (int)size)
+	{
+		perror("Could not write()");
+		throw std::runtime_error("Could not write()");
+	}
+}
+
 ClientHandler::ClientHandler(int fd)
  : m_fd(fd)
  , m_thread(boost::bind(&ClientHandler::run, this))
@@ -93,8 +102,8 @@ void ClientHandler::run()
 
 			protocol::ServiceCallResponse resp;
 			resp.response_length = msg_service_response.num_bytes;
-			write(m_fd, &resp, sizeof(resp));
-			write(m_fd, msg_service_response.buf.get(), msg_service_response.num_bytes);
+			sureWrite(m_fd, &resp, sizeof(resp));
+			sureWrite(m_fd, msg_service_response.buf.get(), msg_service_response.num_bytes);
 		}
 	}
 }
@@ -214,8 +223,8 @@ void ClientHandler::sendAvailableServices()
 	protocol::ServiceCallResponse resp;
 	resp.response_length = response.size();
 
-	write(m_fd, &resp, sizeof(resp));
-	write(m_fd, response.data(), response.size());
+	sureWrite(m_fd, &resp, sizeof(resp));
+	sureWrite(m_fd, response.data(), response.size());
 }
 
 bool ClientHandler::handleHeader(const ros::ConnectionPtr& connection, const ros::Header& header)
