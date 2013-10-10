@@ -150,7 +150,7 @@ void ClientHandler::sendAvailableServices()
 		std::string name = service[0];
 		m_gotHeader = false;
 
-		if(name.substr(0, 8) == "/service")
+		if(name.length() > 9 && name.substr(0, 8) == "/service")
 			continue;
 
 		std::string host;
@@ -202,11 +202,24 @@ void ClientHandler::sendAvailableServices()
 
 		protocol::ServiceDescription desc;
 		std::string md5sum, type;
-		ROS_ASSERT(m_headerBuf.getValue("md5sum", md5sum));
-		ROS_ASSERT(m_headerBuf.getValue("type", type));
+		if(!m_headerBuf.getValue("md5sum", md5sum))
+		{
+			ROS_ERROR("missing md5sum on service '%s'", name.c_str());
+			continue;
+		}
+		if(!m_headerBuf.getValue("type", type))
+		{
+			ROS_ERROR("missing type on service '%s'", name.c_str());
+			continue;
+		}
 
 		for(int i = 0; i < 4; ++i)
 		{
+			if(md5sum.length() < 8*i + 8)
+			{
+				ROS_ERROR("wonky md5sum: '%s'", md5sum.c_str());
+				break;
+			}
 			std::string md5_part = md5sum.substr(8*i, 8);
 			uint32_t md5_num = strtol(md5_part.c_str(), 0, 16);
 			desc.md5[i] = md5_num;
@@ -214,6 +227,8 @@ void ClientHandler::sendAvailableServices()
 
 		desc.name_length = name.length();
 		desc.type_length = type.length();
+		
+		ROS_INFO("service '%s'", name.c_str());
 
 		pushIntoVector(&response, &desc, sizeof(desc));
 		pushIntoVector(&response, name.c_str(), name.length());
