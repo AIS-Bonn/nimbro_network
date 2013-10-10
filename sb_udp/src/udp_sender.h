@@ -5,6 +5,7 @@
 #define UDP_SENDER_H
 
 #include <arpa/inet.h>
+#include <ros/time.h>
 
 namespace sb_udp
 {
@@ -21,6 +22,8 @@ private:
 	uint16_t m_msgID;
 	int m_fd;
 	sockaddr_in m_addr;
+	ros::Time m_lastTime;
+	int m_sleepCounter;
 };
 
 }

@@ -102,6 +102,23 @@ uint16_t UDPSender::allocateMessageID()
 
 bool UDPSender::send(void* data, uint32_t size)
 {
+	ros::Time now = ros::Time::now();
+	ros::Duration delta = now - m_lastTime;
+
+	if(delta < ros::Duration(0.008))
+	{
+		m_sleepCounter++;
+		delta.sleep();
+
+		if(m_sleepCounter > 125)
+		{
+			m_sleepCounter = 0;
+			ROS_ERROR("UDPSender: the 8ms rate limit is limiting communication. Please send fewer data or increase the limit!");
+		}
+	}
+	else
+		m_sleepCounter = 0;
+
 	if(sendto(m_fd, data, size, 0, (sockaddr*)&m_addr, sizeof(m_addr)) != size)
 	{
 		ROS_ERROR("Could not send data of size %d: %s", size, strerror(errno));
