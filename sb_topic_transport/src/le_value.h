@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <endian.h>
 
-namespace sb_udp
+namespace sb_topic_transport
 {
 
 template<int Width>

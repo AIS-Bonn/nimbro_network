@@ -7,7 +7,7 @@
 #include <ros/subscriber.h>
 #include <topic_tools/shape_shifter.h>
 
-namespace sb_udp
+namespace sb_topic_transport
 {
 	class UDPSender;
 

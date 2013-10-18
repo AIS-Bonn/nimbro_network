@@ -5,7 +5,7 @@
 #include "udp_sender.h"
 #include "udp_packet.h"
 
-namespace sb_udp
+namespace sb_topic_transport
 {
 
 TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate)
@@ -57,7 +57,7 @@ void TopicSender::handleData(const topic_tools::ShapeShifter& shapeShifter)
 	std::string md5 = shapeShifter.getMD5Sum();
 	for(int i = 0; i < 4; ++i)
 	{
-		std::string md5_part = md5.substr(4*i, 4);
+		std::string md5_part = md5.substr(8*i, 8);
 		uint32_t md5_num = strtol(md5_part.c_str(), 0, 16);
 		first->header.topic_md5[i] = md5_num;
 	}

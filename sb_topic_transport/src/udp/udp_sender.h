@@ -7,7 +7,7 @@
 #include <arpa/inet.h>
 #include <ros/time.h>
 
-namespace sb_udp
+namespace sb_topic_transport
 {
 
 class UDPSender

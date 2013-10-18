@@ -17,7 +17,7 @@
 
 #include <XmlRpcValue.h>
 
-namespace sb_udp
+namespace sb_topic_transport
 {
 
 UDPSender::UDPSender()
@@ -134,7 +134,7 @@ int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "udp_sender");
 
-	sb_udp::UDPSender sender;
+	sb_topic_transport::UDPSender sender;
 
 	ros::spin();
 

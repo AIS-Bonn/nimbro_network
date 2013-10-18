@@ -16,7 +16,7 @@
 
 #include "udp_packet.h"
 
-namespace sb_udp
+namespace sb_topic_transport
 {
 
 struct Message

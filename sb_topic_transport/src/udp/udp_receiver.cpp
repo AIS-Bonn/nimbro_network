@@ -18,85 +18,10 @@
 
 #include <ros/names.h>
 
-namespace sb_udp
+#include "../topic_info.h"
+
+namespace sb_topic_transport
 {
-
-static std::string getMsgDef(const std::string& type)
-{
-	std::vector<char> buf(1024);
-	int idx = 0;
-
-	std::string error;
-	if(!ros::names::validate(type, error))
-	{
-		ROS_WARN("Got invalid message type '%s'", type.c_str());
-		return "";
-	}
-
-	// FIXME: This is fricking dangerous!
-	FILE* f = popen(("rosmsg show \'" + type + "\'").c_str(), "r");
-
-	while(!feof(f))
-	{
-		buf.resize(idx + 1024);
-		size_t size = fread(buf.data() + idx, 1, 1024, f);
-		if(size == 0)
-			break;
-
-		idx += size;
-	}
-
-	int exit_code = pclose(f);
-
-	if(exit_code != 0)
-	{
-		ROS_WARN("Could not get msg def for type '%s'", type.c_str());
-		return "";
-	}
-	else
-	{
-		return std::string(buf.data(), idx);
-	}
-}
-
-static std::string getMd5Sum(const std::string& type)
-{
-	std::vector<char> buf(1024);
-	int idx = 0;
-
-	std::string error;
-	if(!ros::names::validate(type, error))
-	{
-		ROS_WARN("Got invalid message type '%s'", type.c_str());
-		return "";
-	}
-
-	// FIXME: This is fricking dangerous!
-	FILE* f = popen(("rosmsg md5 \'" + type + "\'").c_str(), "r");
-
-	while(!feof(f))
-	{
-		buf.resize(idx + 1024);
-		size_t size = fread(buf.data() + idx, 1, 1024, f);
-		if(size == 0)
-			break;
-
-		idx += size;
-	}
-
-	int exit_code = pclose(f);
-
-	if(exit_code != 0)
-	{
-		fprintf(stderr, "Could not get md5 sum for type '%s'\n", type.c_str());
-		return "";
-	}
-	else
-	{
-		std::string ret(buf.data(), idx-1);
-		return ret;
-	}
-}
 
 UDPReceiver::UDPReceiver()
  : m_incompleteMessages(4)
@@ -240,13 +165,13 @@ void UDPReceiver::run()
 			// Compare md5
 			if(memcmp(topic->md5, msg->header.topic_md5, sizeof(topic->md5)) != 0)
 			{
-				topic->msg_def = getMsgDef(msg->header.topic_type);
-				topic->md5_str = getMd5Sum(msg->header.topic_type);
+				topic->msg_def = topic_info::getMsgDef(msg->header.topic_type);
+				topic->md5_str = topic_info::getMd5Sum(msg->header.topic_type);
 
 				ROS_WARN_STREAM("Got " << topic->msg_def << topic->md5_str << "end");
 				for(int i = 0; i < 4; ++i)
 				{
-					std::string md5_part = topic->md5_str.substr(4*i, 4);
+					std::string md5_part = topic->md5_str.substr(8*i, 8);
 					uint32_t md5_num = strtol(md5_part.c_str(), 0, 16);
 					topic->md5[i] = md5_num;
 				}
@@ -299,7 +224,7 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "udp_receiver", ros::init_options::NoSigintHandler);
 	ros::NodeHandle nh;
 
-	sb_udp::UDPReceiver recv;
+	sb_topic_transport::UDPReceiver recv;
 	recv.run();
 
 	return 0;

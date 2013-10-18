@@ -1,7 +1,7 @@
 <package>
-	<name>sb_udp</name>
+	<name>sb_topic_transport</name>
 	<version>0.0.0</version>
-	<description>Contains nodes for UDP communication between ROS masters</description>
+	<description>Contains nodes for TCP/UDP communication between ROS masters</description>
 
 	<maintainer email="max.schwarz@uni-bonn.de">Max Schwarz</maintainer>
 

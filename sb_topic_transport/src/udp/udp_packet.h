@@ -4,9 +4,9 @@
 #ifndef UDP_PACKET_H
 #define UDP_PACKET_H
 
-#include "le_value.h"
+#include "../le_value.h"
 
-namespace sb_udp
+namespace sb_topic_transport
 {
 
 const int PACKET_SIZE = 1024;
