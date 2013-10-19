@@ -23,6 +23,12 @@ static bool sureRead(int fd, void* dest, ssize_t size)
 		return false;
 	}
 
+	if(ret == 0)
+	{
+		// Client has closed connection (ignore silently)
+		return false;
+	}
+
 	if(ret != size)
 	{
 		ROS_ERROR("Invalid read size %d (expected %d)", (int)ret, (int)size);
@@ -211,9 +217,13 @@ void TCPReceiver::ClientHandler::run()
 				type,
 				topic_info::getMsgDef(type)
 			);
+			options.latch = true;
+
 			m_pub[topic] = nh.advertise(options);
 			it = m_pub.find(topic);
 		}
+
+		ros::spinOnce();
 
 		it->second.publish(shifter);
 
