@@ -23,6 +23,7 @@ private:
 	{
 	public:
 		ClientHandler(int fd);
+		~ClientHandler();
 		void start();
 		void run();
 

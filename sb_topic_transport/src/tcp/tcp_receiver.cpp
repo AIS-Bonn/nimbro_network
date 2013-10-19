@@ -104,6 +104,11 @@ TCPReceiver::ClientHandler::ClientHandler(int fd)
 	m_thread = boost::thread(boost::bind(&ClientHandler::start, this));
 }
 
+TCPReceiver::ClientHandler::~ClientHandler()
+{
+	close(m_fd);
+}
+
 class VectorStream
 {
 public:
@@ -187,6 +192,13 @@ void TCPReceiver::ClientHandler::run()
 		}
 
 		it->second.publish(shifter);
+
+		uint8_t ack = 1;
+		if(write(m_fd, &ack, 1) != 1)
+		{
+			ROS_ERROR("Could not write(): %s", strerror(errno));
+			return;
+		}
 	}
 }
 
