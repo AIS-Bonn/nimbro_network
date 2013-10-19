@@ -1,0 +1,7 @@
+<launch>
+	<arg name="port" default="5050" />
+
+	<node name="recv" pkg="sb_topic_transport" type="tcp_receiver" output="screen">
+		<param name="port" value="$(arg port)" />
+	</node>
+</launch>

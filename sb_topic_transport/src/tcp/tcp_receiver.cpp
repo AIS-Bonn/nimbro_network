@@ -13,6 +13,26 @@
 namespace sb_topic_transport
 {
 
+static bool sureRead(int fd, void* dest, ssize_t size)
+{
+	ssize_t ret = read(fd, dest, size);
+
+	if(ret < 0)
+	{
+		ROS_ERROR("Could not read(): %s", strerror(errno));
+		return false;
+	}
+
+	if(ret != size)
+	{
+		ROS_ERROR("Invalid read size %d (expected %d)", (int)ret, (int)size);
+		return false;
+	}
+
+	return true;
+}
+
+
 TCPReceiver::TCPReceiver()
  : m_nh("~")
 {
@@ -31,7 +51,14 @@ TCPReceiver::TCPReceiver()
 	addr.sin_addr.s_addr = INADDR_ANY;
 	addr.sin_port = htons(port);
 
-	ROS_INFO("Binding to :%d", port);
+	int on = 1;
+	if(setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0)
+	{
+		ROS_FATAL("Could not enable SO_REUSEADDR: %s", strerror(errno));
+		throw std::runtime_error(strerror(errno));
+	}
+
+	ROS_DEBUG("Binding to :%d", port);
 
 	if(bind(m_fd, (sockaddr*)&addr, sizeof(addr)) != 0)
 	{
@@ -137,28 +164,19 @@ void TCPReceiver::ClientHandler::run()
 	{
 		TCPHeader header;
 
-		if(read(m_fd, &header, sizeof(header)) != sizeof(header))
-		{
-			ROS_ERROR("Could not read(): %s", strerror(errno));
+		if(!sureRead(m_fd, &header, sizeof(header)))
 			return;
-		}
 
 		std::vector<char> buf(header.topic_len + 1);
-		if(read(m_fd, buf.data(), header.topic_len) != header.topic_len)
-		{
-			ROS_ERROR("Could not read(): %s", strerror(errno));
+		if(!sureRead(m_fd, buf.data(), header.topic_len))
 			return;
-		}
 		buf[buf.size()-1] = 0;
 
 		std::string topic(buf.data());
 
 		buf.resize(header.type_len+1);
-		if(read(m_fd, buf.data(), header.type_len) != header.type_len)
-		{
-			ROS_ERROR("Could not read(): %s", strerror(errno));
+		if(!sureRead(m_fd, buf.data(), header.type_len))
 			return;
-		}
 		buf[buf.size()-1] = 0;
 
 		std::string type(buf.data());
@@ -167,27 +185,33 @@ void TCPReceiver::ClientHandler::run()
 		topic_info::unpackMD5(header.topic_md5sum, &md5);
 
 		std::vector<uint8_t> data(header.data_len);
-		if(read(m_fd, data.data(), header.data_len) != header.data_len)
-		{
-			ROS_ERROR("Could not read(): %s", strerror(errno));
+		if(!sureRead(m_fd, data.data(), header.data_len))
 			return;
-		}
 
 		topic_tools::ShapeShifter shifter;
 		VectorStream stream(&data);
 		shifter.read(stream);
 
-		ROS_INFO("Got message from topic '%s' (type '%s', md5 '%s')", topic.c_str(), type.c_str(), md5.c_str());
+		ROS_DEBUG("Got message from topic '%s' (type '%s', md5 '%s')", topic.c_str(), type.c_str(), md5.c_str());
+
+		shifter.morph(md5, type, "", "");
 
 		std::map<std::string, ros::Publisher>::iterator it = m_pub.find(topic);
 		if(it == m_pub.end())
 		{
-			ROS_INFO("Advertising new topic '%s'", topic.c_str());
+			ROS_DEBUG("Advertising new topic '%s'", topic.c_str());
+			std::string msgDef = topic_info::getMsgDef(type);
 
 			ros::NodeHandle nh;
-			ros::Publisher pub = shifter.advertise(nh, topic, 1);
 
-			m_pub[topic] = pub;
+			ros::AdvertiseOptions options(
+				topic,
+				2,
+				md5,
+				type,
+				topic_info::getMsgDef(type)
+			);
+			m_pub[topic] = nh.advertise(options);
 			it = m_pub.find(topic);
 		}
 
