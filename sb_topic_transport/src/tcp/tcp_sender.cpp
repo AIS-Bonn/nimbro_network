@@ -124,7 +124,7 @@ void TCPSender::send(const std::string& topic, const topic_tools::ShapeShifter& 
 	shifter.write(stream);
 
 	// Try to send the packet
-	while(1)
+	for(int tries = 0; tries < 10; ++tries)
 	{
 		if(m_fd == -1)
 		{
@@ -152,7 +152,11 @@ void TCPSender::send(const std::string& topic, const topic_tools::ShapeShifter& 
 			m_fd = -1;
 			continue;
 		}
+
+		return;
 	}
+
+	ROS_ERROR("Could not send TCP packet. Dropping message from topic %s!", topic.c_str());
 }
 
 }
