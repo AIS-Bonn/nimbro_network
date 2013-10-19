@@ -109,6 +109,7 @@ void TCPSender::send(const std::string& topic, const topic_tools::ShapeShifter& 
 
 	topic_info::packMD5(md5, header.topic_md5sum);
 
+	ROS_DEBUG("Sending header with topic_len %d, type_len %d, data_len %d", header.topic_len(), header.type_len(), header.data_len());
 	push(&header, sizeof(header), &packet);
 
 	// Topic name
@@ -120,7 +121,7 @@ void TCPSender::send(const std::string& topic, const topic_tools::ShapeShifter& 
 	// Data
 	uint32_t pos = packet.size();
 	packet.resize(pos + size);
-	PtrStream stream(packet.data());
+	PtrStream stream(packet.data() + pos);
 	shifter.write(stream);
 
 	// Try to send the packet

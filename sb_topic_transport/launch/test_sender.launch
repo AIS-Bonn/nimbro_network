@@ -1,0 +1,13 @@
+<launch>
+	<arg name="address" />
+	<arg name="port" default="5050" />
+
+	<node name="send" pkg="sb_topic_transport" type="tcp_sender" output="screen">
+		<param name="address" value="$(arg addr)" />
+		<param name="port" value="$(arg port)" />
+<rosparam>
+topics:
+ - /test
+</rosparam>
+	</node>
+</launch>
