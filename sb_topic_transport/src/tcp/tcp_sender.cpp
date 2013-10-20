@@ -39,18 +39,22 @@ TCPSender::TCPSender()
 
 	for(int32_t i = 0; i < list.size(); ++i)
 	{
-		ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeStruct);
-		std::string topic = list[i]["name"];
+		XmlRpc::XmlRpcValue& entry = list[i];
+
+		ROS_ASSERT(entry.getType() == XmlRpc::XmlRpcValue::TypeStruct);
+		ROS_ASSERT(entry.hasMember("name"));
+
+		std::string topic = entry["name"];
 		int flags = 0;
 
-		if(list[i].hasMember("compress") && ((bool)list[i]["compress"]) == true)
+		if(entry.hasMember("compress") && ((bool)entry["compress"]) == true)
 			flags |= TCP_FLAG_COMPRESSED;
 
 		boost::function<void(const topic_tools::ShapeShifter&)> func;
 		func = boost::bind(&TCPSender::send, this, topic, flags, _1);
 
 		m_subs.push_back(
-			m_nh.subscribe<const topic_tools::ShapeShifter>((std::string)list[i], 20, func)
+			m_nh.subscribe<const topic_tools::ShapeShifter>(topic, 20, func)
 		);
 	}
 }

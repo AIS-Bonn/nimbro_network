@@ -7,7 +7,7 @@
 		<param name="port" value="$(arg port)" />
 <rosparam>
 topics:
- - name: /test
+ - name: "/test"
    compress: true
 </rosparam>
 	</node>
