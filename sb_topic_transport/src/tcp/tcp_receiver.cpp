@@ -134,6 +134,7 @@ void TCPReceiver::run()
 
 TCPReceiver::ClientHandler::ClientHandler(int fd)
  : m_fd(fd)
+ , m_uncompressBuf(1024)
  , m_running(true)
 {
 	m_thread = boost::thread(boost::bind(&ClientHandler::start, this));
@@ -198,6 +199,8 @@ void TCPReceiver::ClientHandler::run()
 
 		topic_tools::ShapeShifter shifter;
 
+		ROS_INFO("Got msg with flags: %d", header.flags());
+
 		if(header.flags() & TCP_FLAG_COMPRESSED)
 		{
 			int ret = 0;
@@ -209,8 +212,9 @@ void TCPReceiver::ClientHandler::run()
 
 				if(ret == BZ_OUTBUFF_FULL)
 				{
-					ROS_INFO("Increasing buffer size...");
-					m_uncompressBuf.resize(m_uncompressBuf.size() * 2);
+					len = 4 * m_uncompressBuf.size();
+					ROS_INFO("Increasing buffer size to %d KiB", (int)len / 1024);
+					m_uncompressBuf.resize(len);
 					continue;
 				}
 				else
@@ -222,6 +226,8 @@ void TCPReceiver::ClientHandler::run()
 				ROS_ERROR("Could not decompress bz2 data, dropping msg");
 				continue;
 			}
+
+			ROS_INFO("decompress %d KiB to %d KiB", (int)data.size() / 1024, (int)len / 1024);
 
 			VectorStream stream(&m_uncompressBuf);
 			shifter.read(stream);
