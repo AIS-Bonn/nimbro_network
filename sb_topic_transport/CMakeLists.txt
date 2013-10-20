@@ -15,6 +15,9 @@ execute_process(
 )
 
 if (GCC_VERSION VERSION_GREATER 4.7 OR GCC_VERSION VERSION_EQUAL 4.7)
+	find_library(BZ2_LIBRARY bz2 REQUIRED)
+
+
 	set(CMAKE_CXX_FLAGS "-Wall -std=c++11")
 	add_executable(udp_sender
 		src/udp/topic_sender.cpp
@@ -40,6 +43,7 @@ if (GCC_VERSION VERSION_GREATER 4.7 OR GCC_VERSION VERSION_EQUAL 4.7)
 	)
 	target_link_libraries(tcp_sender
 		${catkin_LIBRARIES}
+		${BZ2_LIBRARY}
 	)
 
 	add_executable(tcp_receiver
@@ -48,6 +52,7 @@ if (GCC_VERSION VERSION_GREATER 4.7 OR GCC_VERSION VERSION_EQUAL 4.7)
 	)
 	target_link_libraries(tcp_receiver
 		${catkin_LIBRARIES}
+		${BZ2_LIBRARY}
 	)
 else()
 	message(WARNING "C++11 not supported, compiler version ${GCC_VERSION}")

@@ -4,6 +4,8 @@
 #include "tcp_sender.h"
 #include "../topic_info.h"
 
+#include <bzlib.h>
+
 namespace sb_topic_transport
 {
 
@@ -37,10 +39,15 @@ TCPSender::TCPSender()
 
 	for(int32_t i = 0; i < list.size(); ++i)
 	{
-		ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeString);
+		ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeStruct);
+		std::string topic = list[i]["name"];
+		int flags = 0;
+
+		if(list[i].hasMember("compress") && ((bool)list[i]["compress"]) == true)
+			flags |= TCP_FLAG_COMPRESSED;
 
 		boost::function<void(const topic_tools::ShapeShifter&)> func;
-		func = boost::bind(&TCPSender::send, this, (std::string)list[i], _1);
+		func = boost::bind(&TCPSender::send, this, topic, flags, _1);
 
 		m_subs.push_back(
 			m_nh.subscribe<const topic_tools::ShapeShifter>((std::string)list[i], 20, func)
@@ -83,46 +90,73 @@ private:
 	uint8_t* m_ptr;
 };
 
-static void push(const void* data, size_t size, std::vector<uint8_t>* dest)
-{
-	int pos = dest->size();
-	dest->resize(pos + size);
-	memcpy(dest->data() + pos, data, size);
-}
-
-void TCPSender::send(const std::string& topic, const topic_tools::ShapeShifter& shifter)
+void TCPSender::send(const std::string& topic, int flags, const topic_tools::ShapeShifter& shifter)
 {
 	std::string type = shifter.getDataType();
 	std::string md5 = shifter.getMD5Sum();
 	uint32_t size = shifter.size();
 
-	std::vector<uint8_t> packet;
-	packet.reserve(
-		sizeof(TCPHeader) + topic.length() + type.length() + size
+	uint32_t maxDataSize = size;
+
+	if(flags & TCP_FLAG_COMPRESSED)
+		maxDataSize = size + size / 100 + 1200; // taken from bzip2 docs
+
+	m_packet.resize(
+		sizeof(TCPHeader) + topic.length() + type.length() + maxDataSize
 	);
 
-	// Header
-	TCPHeader header;
-	header.topic_len = topic.length();
-	header.type_len = type.length();
-	header.data_len = size;
+	TCPHeader* header = (TCPHeader*)m_packet.data();
 
-	topic_info::packMD5(md5, header.topic_md5sum);
+	// Fill in topic & type
+	uint8_t* wptr = m_packet.data() + sizeof(TCPHeader);
 
-	ROS_DEBUG("Sending header with topic_len %d, type_len %d, data_len %d", header.topic_len(), header.type_len(), header.data_len());
-	push(&header, sizeof(header), &packet);
+	memcpy(wptr, topic.c_str(), topic.length());
+	wptr += topic.length();
 
-	// Topic name
-	push(topic.c_str(), topic.length(), &packet);
+	memcpy(wptr, type.c_str(), type.length());
+	wptr += type.length();
 
-	// Type name
-	push(type.c_str(), type.length(), &packet);
+	if(flags & TCP_FLAG_COMPRESSED)
+	{
+		unsigned int len = m_packet.size() - (wptr - m_packet.data());
 
-	// Data
-	uint32_t pos = packet.size();
-	packet.resize(pos + size);
-	PtrStream stream(packet.data() + pos);
-	shifter.write(stream);
+		m_compressionBuf.resize(shifter.size());
+		PtrStream stream(m_compressionBuf.data());
+		shifter.write(stream);
+
+		if(BZ2_bzBuffToBuffCompress((char*)wptr, &len, (char*)m_compressionBuf.data(), m_compressionBuf.size(), 7, 0, 30) == BZ_OK)
+		{
+			header->data_len = len;
+			wptr += len;
+			size = len;
+		}
+		else
+		{
+			ROS_ERROR("Could not compress with bzip2 library, sending uncompressed");
+			flags &= ~TCP_FLAG_COMPRESSED;
+			memcpy(wptr, m_compressionBuf.data(), m_compressionBuf.size());
+			header->data_len = m_compressionBuf.size();
+			wptr += m_compressionBuf.size();
+		}
+	}
+	else
+	{
+		PtrStream stream(wptr);
+		shifter.write(stream);
+		header->data_len = size;
+		wptr += size;
+	}
+
+	header->topic_len = topic.length();
+	header->type_len = type.length();
+	header->data_len = size;
+	header->flags = flags;
+	topic_info::packMD5(md5, header->topic_md5sum);
+
+	// Resize to final size
+	m_packet.resize(
+		wptr - m_packet.data()
+	);
 
 	// Try to send the packet
 	for(int tries = 0; tries < 10; ++tries)
@@ -136,7 +170,7 @@ void TCPSender::send(const std::string& topic, const topic_tools::ShapeShifter& 
 			}
 		}
 
-		if(write(m_fd, packet.data(), packet.size()) != (int)packet.size())
+		if(write(m_fd, m_packet.data(), m_packet.size()) != (int)m_packet.size())
 		{
 			ROS_WARN("Could not send data, trying again");
 			close(m_fd);

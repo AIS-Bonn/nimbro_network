@@ -32,6 +32,7 @@ private:
 		int m_fd;
 		boost::thread m_thread;
 		std::map<std::string, ros::Publisher> m_pub;
+		std::vector<uint8_t> m_uncompressBuf;
 		bool m_running;
 	};
 

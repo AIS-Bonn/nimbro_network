@@ -10,6 +10,8 @@
 #include "../topic_info.h"
 #include <topic_tools/shape_shifter.h>
 
+#include <bzlib.h>
+
 namespace sb_topic_transport
 {
 
@@ -195,8 +197,40 @@ void TCPReceiver::ClientHandler::run()
 			return;
 
 		topic_tools::ShapeShifter shifter;
-		VectorStream stream(&data);
-		shifter.read(stream);
+
+		if(header.flags() & TCP_FLAG_COMPRESSED)
+		{
+			int ret = 0;
+			unsigned int len = m_uncompressBuf.size();
+
+			while(1)
+			{
+				int ret = BZ2_bzBuffToBuffDecompress((char*)m_uncompressBuf.data(), &len, (char*)data.data(), data.size(), 0, 0);
+
+				if(ret == BZ_OUTBUFF_FULL)
+				{
+					ROS_INFO("Increasing buffer size...");
+					m_uncompressBuf.resize(m_uncompressBuf.size() * 2);
+					continue;
+				}
+				else
+					break;
+			}
+
+			if(ret != BZ_OK)
+			{
+				ROS_ERROR("Could not decompress bz2 data, dropping msg");
+				continue;
+			}
+
+			VectorStream stream(&m_uncompressBuf);
+			shifter.read(stream);
+		}
+		else
+		{
+			VectorStream stream(&data);
+			shifter.read(stream);
+		}
 
 		ROS_DEBUG("Got message from topic '%s' (type '%s', md5 '%s')", topic.c_str(), type.c_str(), md5.c_str());
 
@@ -217,13 +251,14 @@ void TCPReceiver::ClientHandler::run()
 				type,
 				topic_info::getMsgDef(type)
 			);
+
+			// It will take subscribers some time to connect to our publisher.
+			// Therefore, latch messages so they will not be lost.
 			options.latch = true;
 
 			m_pub[topic] = nh.advertise(options);
 			it = m_pub.find(topic);
 		}
-
-		ros::spinOnce();
 
 		it->second.publish(shifter);
 

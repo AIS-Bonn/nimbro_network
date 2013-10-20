@@ -9,12 +9,18 @@
 namespace sb_topic_transport
 {
 
+enum TCPFlag
+{
+	TCP_FLAG_COMPRESSED = (1 << 0)
+};
+
 struct TCPHeader
 {
 	LEValue<2> topic_len;
 	LEValue<2> type_len;
 	LEValue<4> data_len;
 	LEValue<4> topic_md5sum[4];
+	LEValue<4> flags;
 } __attribute__((packed));
 
 }

@@ -21,12 +21,14 @@ public:
 
 	bool connect();
 
-	void send(const std::string& topic, const topic_tools::ShapeShifter& shifter);
+	void send(const std::string& topic, int flags, const topic_tools::ShapeShifter& shifter);
 private:
 	ros::NodeHandle m_nh;
 	int m_fd;
 	sockaddr_in m_addr;
 	std::vector<ros::Subscriber> m_subs;
+	std::vector<uint8_t> m_packet;
+	std::vector<uint8_t> m_compressionBuf;
 };
 
 }
