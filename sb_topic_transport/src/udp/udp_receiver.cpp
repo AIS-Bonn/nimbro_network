@@ -117,23 +117,34 @@ void UDPReceiver::run()
 			throw std::runtime_error(strerror(errno));
 		}
 
-// 		ROS_WARN("packet");
+		Message* msg;
 
 		UDPGenericPacket* generic = (UDPGenericPacket*)buf;
 
 		MessageBuffer::iterator it = std::find_if(m_incompleteMessages.begin(), m_incompleteMessages.end(),
-			[=](const Message& msg) { return msg.valid && msg.id == generic->msg_id(); }
+			[=](const Message& msg) { return msg.id == generic->msg_id(); }
 		);
 
-		Message* msg;
 		if(it == m_incompleteMessages.end())
 		{
-			// New message
+			// Insert a new message
 			m_incompleteMessages.push_front(Message(generic->msg_id()));
-			msg = &(*m_incompleteMessages.begin());
+			it = m_incompleteMessages.begin();
+
+			// Erase messages that are too old (after index 31)
+			MessageBuffer::iterator itr = m_incompleteMessages.begin();
+			MessageBuffer::iterator it_end = m_incompleteMessages.end();
+			for(int i = 0; i < 32; ++i)
+			{
+				itr++;
+				if(itr == it_end)
+					break;
+			}
+
+			m_incompleteMessages.erase(itr, it_end);
 		}
-		else
-			msg = &*it;
+
+		msg = &*it;
 
 		if(generic->frag_id == 0)
 		{
@@ -183,10 +194,10 @@ void UDPReceiver::run()
 // 			ROS_WARN("Got a packet of type %s, topic %s, %d extra udp packets (msg id %d)", msg->header.topic_type, msg->header.topic_name, msg->header.remaining_packets(), msg->id);
 
 			// Find topic
-			TopicMap::iterator it = m_topics.find(msg->header.topic_type);
+			TopicMap::iterator topic_it = m_topics.find(msg->header.topic_type);
 
 			TopicData* topic;
-			if(it == m_topics.end())
+			if(topic_it == m_topics.end())
 			{
 				m_topics.insert(std::pair<std::string, TopicData>(
 					msg->header.topic_name,
@@ -195,7 +206,7 @@ void UDPReceiver::run()
 				topic = &m_topics[msg->header.topic_name];
 			}
 			else
-				topic = &it->second;
+				topic = &topic_it->second;
 
 			// Compare md5
 			if(memcmp(topic->md5, msg->header.topic_md5, sizeof(topic->md5)) != 0)
@@ -214,7 +225,7 @@ void UDPReceiver::run()
 				if(memcmp(topic->md5, msg->header.topic_md5, sizeof(topic->md5)) != 0)
 				{
 					ROS_ERROR("Invalid md5 sum for topic type '%s', please make sure msg definitions are up to date", msg->header.topic_type);
-					msg->valid = false;
+					m_incompleteMessages.erase(it);
 					continue;
 				}
 
@@ -246,8 +257,7 @@ void UDPReceiver::run()
 
 			topic->publisher.publish(shapeShifter);
 
-			msg->valid = false;
-
+			m_incompleteMessages.erase(it);
 
 			// Send heartbeat message
 			ros::Time now = ros::Time::now();

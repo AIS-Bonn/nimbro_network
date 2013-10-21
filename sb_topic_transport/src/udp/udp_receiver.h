@@ -12,7 +12,7 @@
 
 #include <topic_tools/shape_shifter.h>
 
-#include <boost/circular_buffer.hpp>
+#include <list>
 
 #include "udp_packet.h"
 
@@ -24,7 +24,6 @@ struct Message
 	Message(uint16_t id)
 	 : id(id)
 	 , size(0)
-	 , valid(true)
 	{}
 
 	Message()
@@ -43,7 +42,6 @@ struct Message
 	std::vector<uint8_t> payload;
 	size_t size;
 	std::vector<bool> msgs;
-	bool valid;
 };
 
 struct TopicData
@@ -64,7 +62,7 @@ public:
 	void run();
 private:
 	typedef std::map<std::string, TopicData> TopicMap;
-	typedef boost::circular_buffer<Message> MessageBuffer;
+	typedef std::list<Message> MessageBuffer;
 
 	int m_fd;
 	MessageBuffer m_incompleteMessages;
