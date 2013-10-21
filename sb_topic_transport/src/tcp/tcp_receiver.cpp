@@ -17,9 +17,10 @@ namespace sb_topic_transport
 
 static bool sureRead(int fd, void* dest, ssize_t size)
 {
+	uint8_t* destWPtr = (uint8_t*)dest;
 	while(size != 0)
 	{
-		ssize_t ret = read(fd, dest, size);
+		ssize_t ret = read(fd, destWPtr, size);
 
 		if(ret < 0)
 		{
@@ -34,6 +35,7 @@ static bool sureRead(int fd, void* dest, ssize_t size)
 		}
 
 		size -= ret;
+		destWPtr += ret;
 	}
 
 	return true;
@@ -207,7 +209,7 @@ void TCPReceiver::ClientHandler::run()
 
 			while(1)
 			{
-				int ret = BZ2_bzBuffToBuffDecompress((char*)m_uncompressBuf.data(), &len, (char*)data.data(), data.size(), 0, 0);
+				ret = BZ2_bzBuffToBuffDecompress((char*)m_uncompressBuf.data(), &len, (char*)data.data(), data.size(), 0, 0);
 
 				if(ret == BZ_OUTBUFF_FULL)
 				{
@@ -222,11 +224,12 @@ void TCPReceiver::ClientHandler::run()
 
 			if(ret != BZ_OK)
 			{
-				ROS_ERROR("Could not decompress bz2 data, dropping msg");
+				ROS_ERROR("Could not decompress bz2 data (reason %d), dropping msg", ret);
 				continue;
 			}
 
-			ROS_INFO("decompress %d KiB to %d KiB", (int)data.size() / 1024, (int)len / 1024);
+			ROS_INFO("decompress %d KiB (%d) to %d KiB (%d)", (int)data.size() / 1024, (int)data.size(), (int)len / 1024, (int)len);
+			m_uncompressBuf.resize(len);
 
 			VectorStream stream(&m_uncompressBuf);
 			shifter.read(stream);
