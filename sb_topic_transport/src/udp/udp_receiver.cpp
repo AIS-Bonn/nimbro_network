@@ -20,8 +20,43 @@
 
 #include "../topic_info.h"
 
+#include <bzlib.h>
+
 namespace sb_topic_transport
 {
+
+bool Message::decompress(Message* dest)
+{
+	unsigned int destLen = 1024;
+	dest->payload.resize(destLen);
+
+	while(1)
+	{
+		int ret = BZ2_bzBuffToBuffDecompress((char*)dest->payload.data(), &destLen, (char*)payload.data(), payload.size(), 0, 0);
+
+		if(ret == BZ_OUTBUFF_FULL)
+		{
+			destLen *= 2;
+			dest->payload.resize(destLen);
+			continue;
+		}
+
+		if(ret != BZ_OK)
+		{
+			ROS_ERROR("Could not decompress message");
+			return false;
+		}
+
+		break;
+	}
+
+	dest->payload.resize(destLen);
+	dest->header = header;
+	dest->id = id;
+	dest->size = destLen;
+	return true;
+}
+
 
 UDPReceiver::UDPReceiver()
  : m_incompleteMessages(4)
@@ -196,7 +231,18 @@ void UDPReceiver::run()
 			topic_tools::ShapeShifter shapeShifter;
 
 			shapeShifter.morph(topic->md5_str, msg->header.topic_type, topic->msg_def, "");
-			shapeShifter.read(*msg);
+
+			if(msg->header.flags & UDP_FLAG_COMPRESSED)
+			{
+				if(!msg->decompress(&m_decompressedMessage))
+				{
+					ROS_ERROR("Could not decompress message, dropping");
+					continue;
+				}
+				shapeShifter.read(m_decompressedMessage);
+			}
+			else
+				shapeShifter.read(*msg);
 
 			topic->publisher.publish(shapeShifter);
 

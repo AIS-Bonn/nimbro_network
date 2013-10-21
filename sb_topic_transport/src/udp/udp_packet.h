@@ -17,6 +17,11 @@ enum PacketType
 	PACKET_DATA
 };
 
+enum UDPFlag
+{
+	UDP_FLAG_COMPRESSED = (1 << 0)
+};
+
 struct UDPGenericPacket
 {
 	LEValue<2> frag_id;
@@ -33,6 +38,7 @@ struct UDPFirstPacket
 		char topic_type[64];
 		LEValue<4> topic_md5[4];
 		LEValue<2> remaining_packets;
+		LEValue<2> flags;
 	} __attribute__((packed));
 
 	enum { MaxDataSize = PACKET_SIZE - sizeof(Header) };

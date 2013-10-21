@@ -5,11 +5,14 @@
 #include "udp_sender.h"
 #include "udp_packet.h"
 
+#include <bzlib.h>
+
 namespace sb_topic_transport
 {
 
-TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate)
+TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate, int flags)
  : m_sender(sender)
+ , m_flags(flags)
 {
 	ROS_INFO_STREAM("Subscribing to" << topic);
 	m_subscriber = nh->subscribe(topic, 1, &TopicSender::handleData, this);
@@ -24,20 +27,42 @@ void TopicSender::handleData(const topic_tools::ShapeShifter& shapeShifter)
 	if(now - m_lastTime < m_durationBetweenPackets)
 		return;
 
+	uint32_t size = shapeShifter.size();
+	if(size > m_buf.size())
+		m_buf.resize(size);
+	shapeShifter.write(*this);
+
+	if(m_flags & UDP_FLAG_COMPRESSED)
+	{
+		unsigned int len = size + size / 100 + 1200;
+		m_compressionBuf.resize(len);
+		int ret = BZ2_bzBuffToBuffCompress((char*)m_compressionBuf.data(), &len, (char*)m_buf.data(), size, 3, 0, 30);
+		if(ret == BZ_OK)
+		{
+			m_buf.swap(m_compressionBuf);
+			size = len;
+		}
+		else
+		{
+			ROS_ERROR("Could not compress data, sending uncompressed");
+		}
+	}
+
 	m_lastTime = now;
 
 	uint8_t buf[PACKET_SIZE];
-	uint32_t buf_size = std::min<uint32_t>(PACKET_SIZE, sizeof(UDPFirstPacket) + shapeShifter.size());
+	uint32_t buf_size = std::min<uint32_t>(PACKET_SIZE, sizeof(UDPFirstPacket) + size);
 	UDPFirstPacket* first = (UDPFirstPacket*)buf;
 
 	uint16_t msg_id = m_sender->allocateMessageID();
 
 	first->header.frag_id = 0;
 	first->header.msg_id = msg_id;
+	first->header.flags = m_flags;
 
 	// Calculate number of packets
 	first->header.remaining_packets = std::max<uint32_t>(0,
-		(shapeShifter.size() - UDPFirstPacket::MaxDataSize + (UDPDataPacket::MaxDataSize-1)) / UDPDataPacket::MaxDataSize
+		(size - UDPFirstPacket::MaxDataSize + (UDPDataPacket::MaxDataSize-1)) / UDPDataPacket::MaxDataSize
 	);
 
 	strncpy(first->header.topic_name, m_topicName.c_str(), sizeof(first->header.topic_name));
@@ -61,11 +86,6 @@ void TopicSender::handleData(const topic_tools::ShapeShifter& shapeShifter)
 		uint32_t md5_num = strtol(md5_part.c_str(), 0, 16);
 		first->header.topic_md5[i] = md5_num;
 	}
-
-	uint32_t size = shapeShifter.size();
-	if(size > m_buf.size())
-		m_buf.resize(size);
-	shapeShifter.write(*this);
 
 	uint8_t* rptr = m_buf.data();
 	uint32_t psize = std::min<uint32_t>(UDPFirstPacket::MaxDataSize, size);

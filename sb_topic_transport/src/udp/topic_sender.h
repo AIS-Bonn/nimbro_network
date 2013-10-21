@@ -14,7 +14,7 @@ namespace sb_topic_transport
 	class TopicSender
 	{
 	public:
-		TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate);
+		TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate, int flags);
 
 		void handleData(const topic_tools::ShapeShifter& shapeShifter);
 
@@ -24,7 +24,9 @@ namespace sb_topic_transport
 		UDPSender* m_sender;
 		ros::Subscriber m_subscriber;
 		std::string m_topicName;
+		int m_flags;
 		std::vector<uint8_t> m_buf;
+		std::vector<uint8_t> m_compressionBuf;
 		ros::Duration m_durationBetweenPackets;
 		ros::Time m_lastTime;
 	};

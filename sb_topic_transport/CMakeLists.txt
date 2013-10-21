@@ -26,6 +26,7 @@ if (GCC_VERSION VERSION_GREATER 4.7 OR GCC_VERSION VERSION_EQUAL 4.7)
 
 	target_link_libraries(udp_sender
 		${catkin_LIBRARIES}
+		${BZ2_LIBRARY}
 	)
 
 	add_executable(udp_receiver
@@ -35,6 +36,7 @@ if (GCC_VERSION VERSION_GREATER 4.7 OR GCC_VERSION VERSION_EQUAL 4.7)
 
 	target_link_libraries(udp_receiver
 		${catkin_LIBRARIES}
+		${BZ2_LIBRARY}
 	)
 
 	add_executable(tcp_sender

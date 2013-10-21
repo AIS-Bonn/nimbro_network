@@ -3,6 +3,7 @@
 
 #include "udp_sender.h"
 #include "topic_sender.h"
+#include "udp_packet.h"
 
 #include <ros/init.h>
 #include <ros/node_handle.h>
@@ -83,11 +84,16 @@ UDPSender::UDPSender()
 		ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeStruct);
 		ROS_ASSERT(list[i].hasMember("name"));
 
+		int flags = 0;
+
 		double rate = 100.0;
 		if(list[i].hasMember("rate"))
 			rate = list[i]["rate"];
 
-		new TopicSender(this, &nh, list[i]["name"], rate);
+		if(list[i].hasMember("compress") && ((bool)list[i]["compress"]))
+			flags |= UDP_FLAG_COMPRESSED;
+
+		new TopicSender(this, &nh, list[i]["name"], rate, flags);
 	}
 }
 

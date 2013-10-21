@@ -27,11 +27,16 @@ struct Message
 	 , valid(true)
 	{}
 
+	Message()
+	{}
+
 	uint32_t getLength() const
 	{ return size; }
 
 	uint8_t* getData()
 	{ return payload.data(); }
+
+	bool decompress(Message* dest);
 
 	uint16_t id;
 	UDPFirstPacket::Header header;
@@ -68,6 +73,8 @@ private:
 	ros::NodeHandle m_nh;
 	ros::Publisher m_pub_heartbeat;
 	ros::Time m_lastHeartbeatTime;
+
+	Message m_decompressedMessage;
 };
 
 }
