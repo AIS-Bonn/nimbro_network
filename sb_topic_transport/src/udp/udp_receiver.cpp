@@ -236,6 +236,7 @@ void UDPReceiver::run()
 					msg->header.topic_type,
 					topic->msg_def
 				);
+				options.latch = 1;
 				topic->publisher = m_nh.advertise(options);
 			}
 
