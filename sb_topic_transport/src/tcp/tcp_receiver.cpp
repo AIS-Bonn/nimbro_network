@@ -17,24 +17,23 @@ namespace sb_topic_transport
 
 static bool sureRead(int fd, void* dest, ssize_t size)
 {
-	ssize_t ret = read(fd, dest, size);
-
-	if(ret < 0)
+	while(size != 0)
 	{
-		ROS_ERROR("Could not read(): %s", strerror(errno));
-		return false;
-	}
+		ssize_t ret = read(fd, dest, size);
 
-	if(ret == 0)
-	{
-		// Client has closed connection (ignore silently)
-		return false;
-	}
+		if(ret < 0)
+		{
+			ROS_ERROR("Could not read(): %s", strerror(errno));
+			return false;
+		}
 
-	if(ret != size)
-	{
-		ROS_ERROR("Invalid read size %d (expected %d)", (int)ret, (int)size);
-		return false;
+		if(ret == 0)
+		{
+			// Client has closed connection (ignore silently)
+			return false;
+		}
+
+		size -= ret;
 	}
 
 	return true;
