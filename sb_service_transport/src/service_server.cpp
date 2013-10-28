@@ -39,10 +39,17 @@ ServiceServer::ServiceServer()
 	addr.sin_addr.s_addr = INADDR_ANY;
 	addr.sin_port = htons(6050);
 
-	if(bind(m_fd, (const sockaddr*)&addr, sizeof(addr)) != 0)
+	int on = 1;
+	if(setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0)
 	{
-		perror("Could not bind to port 6050");
+		perror("Could not enable SO_REUSEADDR");
 		throw std::runtime_error("socket error");
+	}
+
+	while(bind(m_fd, (const sockaddr*)&addr, sizeof(addr)) != 0)
+	{
+		perror("Could not bind to port 6050, trying again");
+		sleep(2);
 	}
 
 #if SB_SERVICE_TRANSPORT_FASTOPEN && LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
@@ -53,13 +60,6 @@ ServiceServer::ServiceServer()
 		throw std::runtime_error("socket error");
 	}
 #endif
-
-	int on = 1;
-	if(setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0)
-	{
-		perror("Could not enable SO_REUSEADDR");
-		throw std::runtime_error("socket error");
-	}
 
 	if(listen(m_fd, 10) != 0)
 	{
