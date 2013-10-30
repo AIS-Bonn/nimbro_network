@@ -115,10 +115,10 @@ ServiceClient::ServiceClient()
 		throw std::runtime_error("socket error");
 	}
 #else
-	if(connect(fd, (const sockaddr*)&addr, sizeof(addr)) != 0)
+	while(connect(fd, (const sockaddr*)&addr, sizeof(addr)) != 0)
 	{
-		perror("Could not connect to server");
-		throw std::runtime_error("socket error");
+		ROS_WARN("ServiceClient could not connect to server '%s': %s", server.c_str(), strerror(errno));
+		sleep(1);
 	}
 	sureWrite(fd, &req, sizeof(req));
 #endif
