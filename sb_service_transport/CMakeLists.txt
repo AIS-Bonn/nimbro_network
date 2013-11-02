@@ -1,7 +1,7 @@
 
 project(sb_service_transport)
 
-find_package(catkin REQUIRED COMPONENTS roscpp topic_tools)
+find_package(catkin REQUIRED COMPONENTS roscpp roslib topic_tools)
 
 catkin_package()
 

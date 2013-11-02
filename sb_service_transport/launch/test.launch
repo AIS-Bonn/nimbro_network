@@ -1,0 +1,12 @@
+<launch>
+	<node name="client" pkg="sb_service_transport" type="service_client" output="screen">
+		<param name="server" value="0.0.0.0" />
+<rosparam>
+
+services:
+  - name: "/mission_control/updateMission"
+    type: "sb_mission_control/UpdateMission"
+
+</rosparam>
+	</node>
+</launch>
