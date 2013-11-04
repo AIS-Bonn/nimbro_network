@@ -6,6 +6,8 @@
 
 #include <bzlib.h>
 
+#include <netinet/tcp.h>
+
 namespace sb_topic_transport
 {
 
@@ -75,6 +77,13 @@ bool TCPSender::connect()
 	if(::connect(m_fd, (sockaddr*)&m_addr, sizeof(m_addr)) != 0)
 	{
 		ROS_ERROR("Could not connect: %s", strerror(errno));
+		return false;
+	}
+
+	int timeout = 8000;
+	if(setsockopt(m_fd, SOL_TCP, TCP_USER_TIMEOUT, &timeout, sizeof(timeout)) != 0)
+	{
+		ROS_ERROR("Could not set TCP_USER_TIMEOUT: %s", strerror(errno));
 		return false;
 	}
 

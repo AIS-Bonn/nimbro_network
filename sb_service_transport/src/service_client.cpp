@@ -198,6 +198,13 @@ bool ServiceClient::call(const std::string& name, ros::ServiceCallbackHelperCall
 				m_fd = -1;
 				continue;
 			}
+
+			int timeout = 8000;
+			if(setsockopt(m_fd, SOL_TCP, TCP_USER_TIMEOUT, &timeout, sizeof(timeout)) != 0)
+			{
+				ROS_ERROR("Could not set TCP_USER_TIMEOUT: %s", strerror(errno));
+				return false;
+			}
 		}
 
 		try
