@@ -262,10 +262,13 @@ void TCPReceiver::ClientHandler::run()
 
 			// It will take subscribers some time to connect to our publisher.
 			// Therefore, latch messages so they will not be lost.
-			options.latch = true;
+			// No, this is often unexpected. Instead, wait before publishing.
+// 			options.latch = true;
 
 			m_pub[topic] = nh.advertise(options);
 			it = m_pub.find(topic);
+
+			sleep(1);
 		}
 
 		it->second.publish(shifter);
