@@ -85,6 +85,7 @@ UDPSender::UDPSender()
 		ROS_ASSERT(list[i].hasMember("name"));
 
 		int flags = 0;
+		bool resend = false;
 
 		double rate = 100.0;
 		if(list[i].hasMember("rate"))
@@ -93,7 +94,10 @@ UDPSender::UDPSender()
 		if(list[i].hasMember("compress") && ((bool)list[i]["compress"]))
 			flags |= UDP_FLAG_COMPRESSED;
 
-		new TopicSender(this, &nh, list[i]["name"], rate, flags);
+		if(list[i].hasMember("resend") && ((bool)list[i]["resend"]))
+			resend = true;
+
+		new TopicSender(this, &nh, list[i]["name"], rate, resend, flags);
 	}
 }
 
