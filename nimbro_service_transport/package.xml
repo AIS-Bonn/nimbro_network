@@ -1,7 +1,7 @@
 <package>
-	<name>tf_throttle</name>
+	<name>nimbro_service_transport</name>
 	<version>1.0.0</version>
-	<description>Throttles TF output down to bandwidth suitable for wifi</description>
+	<description>Calls services on a different master with minimal latency</description>
 
 	<maintainer email="max.schwarz@uni-bonn.de">Max Schwarz</maintainer>
 
@@ -9,10 +9,7 @@
 
 	<buildtool_depend>catkin</buildtool_depend>
 	<build_depend>roscpp</build_depend>
-	<build_depend>tf</build_depend>
+	<build_depend>topic_tools</build_depend>
 	<run_depend>roscpp</run_depend>
-	<run_depend>tf</run_depend>
-
-	<export>
-	</export>
+	<run_depend>topic_tools</run_depend>
 </package>
