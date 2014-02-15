@@ -1,4 +1,0 @@
-local_pubs: []
-foreign_pubs: [/tf,/cloud_filter/output,/ekf_ptam/odometry]
-local_services: []
-foreign_services: []

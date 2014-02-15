@@ -1,9 +1,0 @@
-<launch>
-  <node pkg="mod_multimaster" type="master_sync.py" name="master_sync" output="screen"> 
-    <param name="foreign_master" value="http://modboard:11311" />      
-    <rosparam command="load" file="$(find mod_multimaster)/config/kopter_comm.yaml" />
-  </node>
-
-  <param name="robot_description" command="$(find xacro)/xacro.py $(find mod_definition)/urdf/octocopter/octocopter.urdf.xacro" />
-
-</launch>
