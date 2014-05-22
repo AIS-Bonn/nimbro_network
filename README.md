@@ -38,7 +38,7 @@ Features
     * Optional rate-limiting for each topic
 * Service transport:
     * TCP protocol with minimal latency (support for TCP Fast-Open is included)
-    * Helper nodes:
+* Additional nodes:
     * Special nimbro_log_transport node for transporting the ROS log over a
       lossy connection
     * Special tf_throttle node for creating & transferring TF snapshots at pre-
