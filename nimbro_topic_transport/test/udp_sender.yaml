@@ -1,0 +1,4 @@
+topics:
+ - name: "/test_topic"
+ - name: "/throttled_topic"
+   rate: 1.0

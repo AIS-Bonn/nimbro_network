@@ -4,6 +4,7 @@ project(nimbro_topic_transport)
 find_package(catkin REQUIRED COMPONENTS
 	roscpp
 	topic_tools
+	rostest
 )
 
 catkin_package()
@@ -61,3 +62,10 @@ target_link_libraries(tcp_receiver
 	${BZ2_LIBRARY}
 )
 
+# Tests
+add_rostest_gtest(test_comm test/topic_transport.test
+	test/test_comm.cpp
+)
+target_link_libraries(test_comm
+	${catkin_LIBRARIES}
+)
