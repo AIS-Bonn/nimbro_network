@@ -6,6 +6,7 @@
 
 #include <boost/thread.hpp>
 #include <ros/header.h>
+#include <ros/connection.h>
 
 namespace service_transport
 {
