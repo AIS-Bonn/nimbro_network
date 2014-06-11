@@ -117,6 +117,8 @@ void UDPReceiver::run()
 			throw std::runtime_error(strerror(errno));
 		}
 
+		ROS_DEBUG("packet");
+
 		Message* msg;
 
 		UDPGenericPacket* generic = (UDPGenericPacket*)buf;
@@ -181,6 +183,8 @@ void UDPReceiver::run()
 
 		if(generic->frag_id >= msg->msgs.size())
 			msg->msgs.resize(generic->frag_id+1, false);
+
+		ROS_DEBUG("fragment: %d of msg %d", generic->frag_id, generic->msg_id);
 		msg->msgs[generic->frag_id] = true;
 
 		if(std::all_of(msg->msgs.begin(), msg->msgs.end(), [](bool x){return x;}))
@@ -191,7 +195,7 @@ void UDPReceiver::run()
 			msg->header.topic_type[sizeof(msg->header.topic_type)-1] = 0;
 			msg->header.topic_name[sizeof(msg->header.topic_name)-1] = 0;
 
-// 			ROS_WARN("Got a packet of type %s, topic %s, %d extra udp packets (msg id %d)", msg->header.topic_type, msg->header.topic_name, msg->header.remaining_packets(), msg->id);
+			ROS_DEBUG("Got a packet of type %s, topic %s, %d extra udp packets (msg id %d)", msg->header.topic_type, msg->header.topic_name, msg->header.remaining_packets(), msg->id);
 
 			// Find topic
 			TopicMap::iterator topic_it = m_topics.find(msg->header.topic_type);

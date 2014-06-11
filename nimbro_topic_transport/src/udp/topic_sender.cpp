@@ -96,6 +96,12 @@ void TopicSender::send(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)
 	if(!m_sender->send(buf, buf_size))
 		return;
 
+	if(m_sender->duplicateFirstPacket())
+	{
+		if(!m_sender->send(buf, buf_size))
+			return;
+	}
+
 	uint16_t frag_id = 1;
 	while(size > 0)
 	{

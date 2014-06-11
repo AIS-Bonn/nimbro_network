@@ -18,12 +18,16 @@ public:
 
 	uint16_t allocateMessageID();
 	bool send(void* data, uint32_t size);
+
+	inline bool duplicateFirstPacket() const
+	{ return m_duplicateFirstPacket; }
 private:
 	uint16_t m_msgID;
 	int m_fd;
 	sockaddr_in m_addr;
 	ros::Time m_lastTime;
 	int m_sleepCounter;
+	bool m_duplicateFirstPacket;
 };
 
 }

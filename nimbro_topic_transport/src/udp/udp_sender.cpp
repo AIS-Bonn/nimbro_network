@@ -99,6 +99,8 @@ UDPSender::UDPSender()
 
 		new TopicSender(this, &nh, list[i]["name"], rate, resend, flags);
 	}
+
+	nh.param("duplicate_first_packet", m_duplicateFirstPacket, false);
 }
 
 UDPSender::~UDPSender()
