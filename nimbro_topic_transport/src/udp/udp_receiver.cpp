@@ -143,6 +143,23 @@ void UDPReceiver::run()
 					break;
 			}
 
+			for(MessageBuffer::iterator itd = itr; itr != it_end; ++itr)
+			{
+				const Message& msg = *itd;
+
+				int num_fragments = msg.msgs.size();
+				int received = 0;
+				for(unsigned int i = 0; i < msg.msgs.size(); ++i)
+				{
+					if(msg.msgs[i])
+						received++;
+				}
+
+				ROS_WARN("Dropping message %d, %.2f%% of fragments received (%d/%d)",
+					msg.id, 100.0 * received / num_fragments, received, num_fragments
+				);
+			}
+
 			m_incompleteMessages.erase(itr, it_end);
 		}
 
@@ -184,7 +201,7 @@ void UDPReceiver::run()
 		if(generic->frag_id >= msg->msgs.size())
 			msg->msgs.resize(generic->frag_id+1, false);
 
-		ROS_DEBUG("fragment: %d of msg %d", generic->frag_id, generic->msg_id);
+		ROS_DEBUG("fragment: %d of msg %d", (int)generic->frag_id(), (int)generic->msg_id());
 		msg->msgs[generic->frag_id] = true;
 
 		if(std::all_of(msg->msgs.begin(), msg->msgs.end(), [](bool x){return x;}))

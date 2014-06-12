@@ -15,6 +15,7 @@ namespace nimbro_topic_transport
 	{
 	public:
 		TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate, bool resend, int flags);
+		~TopicSender();
 
 		void handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShifter);
 
@@ -34,6 +35,7 @@ namespace nimbro_topic_transport
 		ros::Time m_lastTime;
 		ros::Timer m_resendTimer;
 		topic_tools::ShapeShifter::ConstPtr m_lastData;
+		unsigned int m_msgCounter;
 	};
 
 };

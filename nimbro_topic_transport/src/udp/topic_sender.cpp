@@ -13,6 +13,7 @@ namespace nimbro_topic_transport
 TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate, bool resend, int flags)
  : m_sender(sender)
  , m_flags(flags)
+ , m_msgCounter(0)
 {
 	ROS_INFO_STREAM("Subscribing to" << topic);
 	m_subscriber = nh->subscribe(topic, 1, &TopicSender::handleData, this);
@@ -25,6 +26,11 @@ TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::stri
 		m_resendTimer = nh->createTimer(m_durationBetweenPackets, boost::bind(&TopicSender::resend, this));
 		m_resendTimer.start();
 	}
+}
+
+TopicSender::~TopicSender()
+{
+	ROS_DEBUG("Topic '%s': Sent %d messages", m_topicName.c_str(), m_msgCounter);
 }
 
 void TopicSender::send(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)
@@ -118,6 +124,8 @@ void TopicSender::send(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)
 		if(!m_sender->send(buf, buf_size))
 			return;
 	}
+
+	m_msgCounter++;
 }
 
 void TopicSender::handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)
