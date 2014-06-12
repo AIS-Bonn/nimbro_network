@@ -97,7 +97,7 @@ UDPSender::UDPSender()
 		if(list[i].hasMember("resend") && ((bool)list[i]["resend"]))
 			resend = true;
 
-		new TopicSender(this, &nh, list[i]["name"], rate, resend, flags);
+		m_senders.push_back(new TopicSender(this, &nh, list[i]["name"], rate, resend, flags));
 	}
 
 	nh.param("duplicate_first_packet", m_duplicateFirstPacket, false);
@@ -105,6 +105,8 @@ UDPSender::UDPSender()
 
 UDPSender::~UDPSender()
 {
+	for(unsigned int i = 0; i < m_senders.size(); ++i)
+		delete m_senders[i];
 }
 
 uint16_t UDPSender::allocateMessageID()

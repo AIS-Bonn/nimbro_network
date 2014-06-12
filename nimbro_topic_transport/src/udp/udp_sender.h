@@ -10,6 +10,8 @@
 namespace nimbro_topic_transport
 {
 
+class TopicSender;
+
 class UDPSender
 {
 public:
@@ -28,6 +30,7 @@ private:
 	ros::Time m_lastTime;
 	int m_sleepCounter;
 	bool m_duplicateFirstPacket;
+	std::vector<TopicSender*> m_senders;
 };
 
 }
