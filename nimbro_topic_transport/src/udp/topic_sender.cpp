@@ -137,7 +137,11 @@ void TopicSender::handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShi
 		return;
 
 	m_lastTime = now;
-	send(shapeShifter);
+	
+	if(!(m_flags & UDP_FLAG_RELAY_MODE))
+	{
+		send(shapeShifter);
+	}
 }
 
 void TopicSender::resend()
@@ -150,6 +154,16 @@ void TopicSender::resend()
 		return;
 
 	send(m_lastData);
+}
+
+uint32_t TopicSender::getLastDataSize()
+{
+	return std::min<uint32_t>(PACKET_SIZE, sizeof(UDPFirstPacket) + m_lastData->size());
+}
+
+void TopicSender::sendLastData()
+{
+	resend();
 }
 
 }

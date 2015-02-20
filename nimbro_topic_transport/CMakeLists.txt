@@ -27,6 +27,7 @@ find_library(BZ2_LIBRARY bz2 REQUIRED)
 set(CMAKE_CXX_FLAGS "-Wall -std=c++11")
 add_executable(udp_sender
 	src/udp/topic_sender.cpp
+	src/udp/bandwidth_control.cpp
 	src/udp/udp_sender.cpp
 )
 

@@ -7,6 +7,8 @@
 #include <arpa/inet.h>
 #include <ros/time.h>
 
+#include "bandwidth_control.h"
+
 namespace nimbro_topic_transport
 {
 
@@ -20,6 +22,9 @@ public:
 
 	uint16_t allocateMessageID();
 	bool send(void* data, uint32_t size);
+	
+	uint32_t getAllTopicsLastDataSize();
+	void sendAllTopicsLastData();
 
 	inline bool duplicateFirstPacket() const
 	{ return m_duplicateFirstPacket; }

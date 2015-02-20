@@ -19,7 +19,8 @@ enum PacketType
 
 enum UDPFlag
 {
-	UDP_FLAG_COMPRESSED = (1 << 0)
+	UDP_FLAG_COMPRESSED = (1 << 0),
+	UDP_FLAG_RELAY_MODE = (1 << 1)
 };
 
 struct UDPGenericPacket

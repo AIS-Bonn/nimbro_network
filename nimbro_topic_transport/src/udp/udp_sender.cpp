@@ -18,6 +18,8 @@
 
 #include <XmlRpcValue.h>
 
+#include <signal.h>
+
 namespace nimbro_topic_transport
 {
 
@@ -39,6 +41,9 @@ UDPSender::UDPSender()
 		ROS_FATAL("Could not enable SO_BROADCAST flag: %s", strerror(errno));
 		throw std::runtime_error(strerror(errno));
 	}
+	
+	bool relay_mode;
+	nh.param("relay_mode", relay_mode, false);
 
 	std::string dest_host;
 	nh.param("destination_addr", dest_host, std::string("192.168.178.255"));
@@ -85,6 +90,11 @@ UDPSender::UDPSender()
 		ROS_ASSERT(list[i].hasMember("name"));
 
 		int flags = 0;
+		if(relay_mode)
+		{
+			flags |= UDP_FLAG_RELAY_MODE;
+		}
+		
 		bool resend = false;
 
 		double rate = 100.0;
@@ -142,15 +152,60 @@ bool UDPSender::send(void* data, uint32_t size)
 	return true;
 }
 
+uint32_t UDPSender::getAllTopicsLastDataSize()
+{
+	uint32_t size = 0;
+	
+	for(uint32_t i = 0; i < m_senders.size(); ++i)
+	{
+		size += m_senders[i]->getLastDataSize();
+	}
+	
+	return size;
+}
+
+void UDPSender::sendAllTopicsLastData()
+{
+	for(uint32_t i = 0; i < m_senders.size(); ++i)
+	{
+		m_senders[i]->sendLastData();
+	}
+}
+
+void interrupt_handler(int s)
+{
+	exit(0);
+}
+
 }
 
 int main(int argc, char** argv)
 {
+	ros::NodeHandle nh("~");
+	bool relay_mode;
+	nh.param("relay_mode", relay_mode, false);
+	
+	signal(SIGINT, &nimbro_topic_transport::interrupt_handler);
+	
 	ros::init(argc, argv, "udp_sender");
 
 	nimbro_topic_transport::UDPSender sender;
+	nimbro_topic_transport::BandwidthControl bwc(10, 100,
+		&nimbro_topic_transport::UDPSender::getAllTopicsLastDataSize,
+		&nimbro_topic_transport::UDPSender::sendAllTopicsLastData, &sender);
 
-	ros::spin();
+	if(relay_mode)
+	{
+		while(1)
+		{
+			ros::spinOnce();
+			bwc.send();
+		}
+	}
+	else
+	{
+		ros::spin();
+	}
 
 	return 0;
 }

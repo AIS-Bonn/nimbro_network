@@ -18,6 +18,9 @@ namespace nimbro_topic_transport
 		~TopicSender();
 
 		void handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShifter);
+		
+		uint32_t getLastDataSize();
+		void sendLastData();
 
 		inline uint8_t* advance(int)
 		{ return m_buf.data(); }
