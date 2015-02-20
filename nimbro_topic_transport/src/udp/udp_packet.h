@@ -9,7 +9,7 @@
 namespace nimbro_topic_transport
 {
 
-const int PACKET_SIZE = 1024;
+const int PACKET_SIZE = 1500 - 20 - 8;
 
 enum PacketType
 {
