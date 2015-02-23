@@ -217,7 +217,7 @@ void UDPReceiver::run()
 			ROS_DEBUG("Got a packet of type %s, topic %s, %d extra udp packets (msg id %d)", msg->header.topic_type, msg->header.topic_name, msg->header.remaining_packets(), msg->id);
 
 			// Find topic
-			TopicMap::iterator topic_it = m_topics.find(msg->header.topic_type);
+			TopicMap::iterator topic_it = m_topics.find(msg->header.topic_name);
 
 			TopicData* topic;
 			if(topic_it == m_topics.end())
