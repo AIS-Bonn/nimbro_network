@@ -190,19 +190,19 @@ int main(int argc, char** argv)
 	signal(SIGINT, &nimbro_topic_transport::interrupt_handler);
 
 	nimbro_topic_transport::UDPSender sender;
-	nimbro_topic_transport::BandwidthControl bwc(10, 100,
-		&nimbro_topic_transport::UDPSender::getAllTopicsLastDataSize,
-		&nimbro_topic_transport::UDPSender::sendAllTopicsLastData, &sender);
+// 	nimbro_topic_transport::BandwidthControl bwc(10, 100,
+// 		&nimbro_topic_transport::UDPSender::getAllTopicsLastDataSize,
+// 		&nimbro_topic_transport::UDPSender::sendAllTopicsLastData, &sender);
 
-	if(relay_mode)
-	{
-		while(1)
-		{
-			ros::spinOnce();
-			bwc.send();
-		}
-	}
-	else
+// 	if(relay_mode)
+// 	{
+// 		while(1)
+// 		{
+// 			ros::spinOnce();
+// 			bwc.send();
+// 		}
+// 	}
+// 	else
 	{
 		ros::spin();
 	}
