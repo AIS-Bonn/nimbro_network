@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/socket.h>
+#include <sys/timerfd.h>
 
 #include <ros/console.h>
 #include <stdio.h>
@@ -42,8 +43,7 @@ UDPSender::UDPSender()
 		throw std::runtime_error(strerror(errno));
 	}
 	
-	bool relay_mode;
-	nh.param("relay_mode", relay_mode, false);
+	nh.param("relay_mode", m_relayMode, false);
 
 	std::string dest_host;
 	nh.param("destination_addr", dest_host, std::string("192.168.178.255"));
@@ -90,10 +90,6 @@ UDPSender::UDPSender()
 		ROS_ASSERT(list[i].hasMember("name"));
 
 		int flags = 0;
-		if(relay_mode)
-		{
-			flags |= UDP_FLAG_RELAY_MODE;
-		}
 		
 		bool resend = false;
 
@@ -107,10 +103,40 @@ UDPSender::UDPSender()
 		if(list[i].hasMember("resend") && ((bool)list[i]["resend"]))
 			resend = true;
 
-		m_senders.push_back(new TopicSender(this, &nh, list[i]["name"], rate, resend, flags));
+		TopicSender* sender = new TopicSender(this, &nh, list[i]["name"], rate, resend, flags);
+
+		if(m_relayMode)
+			sender->setDirectTransmissionEnabled(false);
+
+		m_senders.push_back(sender);
 	}
 
 	nh.param("duplicate_first_packet", m_duplicateFirstPacket, false);
+
+	if(m_relayMode)
+	{
+		double target_bitrate;
+		if(!nh.getParam("relay_target_bitrate", target_bitrate))
+		{
+			throw std::runtime_error("relay mode needs relay_target_bitrate param");
+		}
+
+		double relay_control_rate;
+		nh.param("relay_control_rate", relay_control_rate, 100.0);
+
+		m_relayTokens = 0;
+		m_relayIndex = 0;
+		m_relayTokensPerStep = target_bitrate / 8.0 / relay_control_rate;
+
+		m_relayTimer = nh.createTimer(ros::Duration(1.0 / relay_control_rate),
+			boost::bind(&UDPSender::relayStep, this)
+		);
+		m_relayTimer.start();
+
+		ROS_INFO("udp_sender: relay mode configured with control rate %f, target bitrate %f bit/s and token increment %d",
+			relay_control_rate, target_bitrate, m_relayTokensPerStep
+		);
+	}
 }
 
 UDPSender::~UDPSender()
@@ -124,7 +150,23 @@ uint16_t UDPSender::allocateMessageID()
 	return m_msgID++;
 }
 
-bool UDPSender::send(void* data, uint32_t size)
+bool UDPSender::send(const void* data, uint32_t size)
+{
+	if(m_relayMode)
+	{
+		std::vector<uint8_t> packet(size);
+		memcpy(packet.data(), data, size);
+
+		m_relayBuffer.emplace_back(std::move(packet));
+		return true;
+	}
+	else
+	{
+		return internalSend(data, size);
+	}
+}
+
+bool UDPSender::internalSend(const void* data, uint32_t size)
 {
 	ros::Time now = ros::Time::now();
 	ros::Duration delta = now - m_lastTime;
@@ -152,29 +194,47 @@ bool UDPSender::send(void* data, uint32_t size)
 	return true;
 }
 
-uint32_t UDPSender::getAllTopicsLastDataSize()
+void UDPSender::relayStep()
 {
-	uint32_t size = 0;
-	
-	for(uint32_t i = 0; i < m_senders.size(); ++i)
-	{
-		size += m_senders[i]->getLastDataSize();
-	}
-	
-	return size;
-}
+	// New tokens! Bound to 2*m_relayTokensPerStep to prevent token buildup.
+	m_relayTokens = std::min<uint64_t>(
+		2*m_relayTokensPerStep,
+		m_relayTokens + m_relayTokensPerStep
+	);
 
-void UDPSender::sendAllTopicsLastData()
-{
-	for(uint32_t i = 0; i < m_senders.size(); ++i)
-	{
-		m_senders[i]->sendLastData();
-	}
-}
+	if(m_senders.empty())
+		throw std::runtime_error("No senders configured");
 
-void interrupt_handler(int s)
-{
-	exit(0);
+	// While we have enough token, send something!
+	while(1)
+	{
+		unsigned int tries = 0;
+		while(m_relayBuffer.empty())
+		{
+			if(tries++ == m_senders.size())
+				return; // No data yet
+
+			m_senders[m_relayIndex]->sendCurrentMessage();
+			m_relayIndex = (m_relayIndex + 1) % m_senders.size();
+		}
+
+		const std::vector<uint8_t>& packet = m_relayBuffer.front();
+		std::size_t sizeOnWire = packet.size() + 20 + 8;
+
+		// out of tokens? Wait for next iteration.
+		if(sizeOnWire > m_relayTokens)
+			break;
+
+		if(!internalSend(packet.data(), packet.size()))
+		{
+			ROS_ERROR("Could not send packet");
+			return;
+		}
+
+		// Consume tokens
+		m_relayTokens -= sizeOnWire;
+		m_relayBuffer.pop_front();
+	}
 }
 
 }
@@ -187,25 +247,9 @@ int main(int argc, char** argv)
 	bool relay_mode;
 	nh.param("relay_mode", relay_mode, false);
 
-// 	signal(SIGINT, &nimbro_topic_transport::interrupt_handler);
-
 	nimbro_topic_transport::UDPSender sender;
-// 	nimbro_topic_transport::BandwidthControl bwc(10, 100,
-// 		&nimbro_topic_transport::UDPSender::getAllTopicsLastDataSize,
-// 		&nimbro_topic_transport::UDPSender::sendAllTopicsLastData, &sender);
 
-// 	if(relay_mode)
-// 	{
-// 		while(1)
-// 		{
-// 			ros::spinOnce();
-// 			bwc.send();
-// 		}
-// 	}
-// 	else
-	{
-		ros::spin();
-	}
+	ros::spin();
 
 	return 0;
 }

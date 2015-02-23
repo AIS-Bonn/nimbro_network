@@ -18,12 +18,15 @@ namespace nimbro_topic_transport
 		~TopicSender();
 
 		void handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShifter);
-		
-		uint32_t getLastDataSize();
-		void sendLastData();
 
 		inline uint8_t* advance(int)
 		{ return m_buf.data(); }
+
+		bool isDirectTransmissionEnabled() const
+		{ return m_directTransmission; }
+		void setDirectTransmissionEnabled(bool value);
+
+		void sendCurrentMessage();
 	private:
 		void send(const topic_tools::ShapeShifter::ConstPtr& shapeShifter);
 		void resend();
@@ -39,6 +42,9 @@ namespace nimbro_topic_transport
 		ros::Timer m_resendTimer;
 		topic_tools::ShapeShifter::ConstPtr m_lastData;
 		unsigned int m_msgCounter;
+		unsigned int m_inputMsgCounter;
+
+		bool m_directTransmission;
 	};
 
 };

@@ -14,6 +14,8 @@ TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::stri
  : m_sender(sender)
  , m_flags(flags)
  , m_msgCounter(0)
+ , m_inputMsgCounter(0)
+ , m_directTransmission(true)
 {
 	ROS_INFO_STREAM("Subscribing to" << topic);
 	m_subscriber = nh->subscribe(topic, 1, &TopicSender::handleData, this);
@@ -65,7 +67,7 @@ void TopicSender::send(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)
 	first->header.frag_id = 0;
 	first->header.msg_id = msg_id;
 	first->header.flags = m_flags;
-	first->header.topic_msg_counter = m_msgCounter;
+	first->header.topic_msg_counter = m_inputMsgCounter;
 
 	// Calculate number of packets
 	first->header.remaining_packets = std::max<uint32_t>(0,
@@ -138,11 +140,10 @@ void TopicSender::handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShi
 		return;
 
 	m_lastTime = now;
-	
-	if(!(m_flags & UDP_FLAG_RELAY_MODE))
-	{
+	m_inputMsgCounter++;
+
+	if(m_directTransmission)
 		send(shapeShifter);
-	}
 }
 
 void TopicSender::resend()
@@ -154,17 +155,25 @@ void TopicSender::resend()
 	if(now - m_lastTime < m_durationBetweenPackets)
 		return;
 
+	sendCurrentMessage();
+
+}
+
+void TopicSender::sendCurrentMessage()
+{
+	if(!m_lastData)
+		return;
+
 	send(m_lastData);
 }
 
-uint32_t TopicSender::getLastDataSize()
+void TopicSender::setDirectTransmissionEnabled(bool value)
 {
-	return std::min<uint32_t>(PACKET_SIZE, sizeof(UDPFirstPacket) + m_lastData->size());
-}
-
-void TopicSender::sendLastData()
-{
-	resend();
+	m_directTransmission = value;
+	if(m_directTransmission && m_resendTimer.isValid())
+		m_resendTimer.start();
+	else
+		m_resendTimer.stop();
 }
 
 }
