@@ -187,7 +187,7 @@ int main(int argc, char** argv)
 	bool relay_mode;
 	nh.param("relay_mode", relay_mode, false);
 
-	signal(SIGINT, &nimbro_topic_transport::interrupt_handler);
+// 	signal(SIGINT, &nimbro_topic_transport::interrupt_handler);
 
 	nimbro_topic_transport::UDPSender sender;
 // 	nimbro_topic_transport::BandwidthControl bwc(10, 100,
