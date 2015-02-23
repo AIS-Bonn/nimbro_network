@@ -51,6 +51,8 @@ struct TopicData
 	uint32_t md5[4];
 	std::string md5_str;
 	std::string msg_def;
+
+	int last_message_counter;
 };
 
 class UDPReceiver
@@ -67,6 +69,8 @@ private:
 	int m_fd;
 	MessageBuffer m_incompleteMessages;
 	TopicMap m_topics;
+
+	bool m_dropRepeatedMessages;
 
 	ros::NodeHandle m_nh;
 	ros::Publisher m_pub_heartbeat;

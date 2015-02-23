@@ -65,6 +65,7 @@ void TopicSender::send(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)
 	first->header.frag_id = 0;
 	first->header.msg_id = msg_id;
 	first->header.flags = m_flags;
+	first->header.topic_msg_counter = m_msgCounter;
 
 	// Calculate number of packets
 	first->header.remaining_packets = std::max<uint32_t>(0,

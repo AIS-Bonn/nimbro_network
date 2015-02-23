@@ -40,6 +40,7 @@ struct UDPFirstPacket
 		LEValue<4> topic_md5[4];
 		LEValue<2> remaining_packets;
 		LEValue<2> flags;
+		LEValue<2> topic_msg_counter;
 	} __attribute__((packed));
 
 	enum { MaxDataSize = PACKET_SIZE - sizeof(Header) };

@@ -94,6 +94,8 @@ UDPReceiver::UDPReceiver()
 		ROS_FATAL("Could not set broadcast flag: %s", strerror(errno));
 		throw std::runtime_error(strerror(errno));
 	}
+
+	nh.param("drop_repeated_msgs", m_dropRepeatedMessages, false);
 }
 
 UDPReceiver::~UDPReceiver()
@@ -225,9 +227,18 @@ void UDPReceiver::run()
 					TopicData()
 				));
 				topic = &m_topics[msg->header.topic_name];
+
+				topic->last_message_counter = -1;
 			}
 			else
 				topic = &topic_it->second;
+
+			if(m_dropRepeatedMessages && msg->header.topic_msg_counter() == topic->last_message_counter)
+			{
+				// This is the same message, probably sent in relay mode
+				m_incompleteMessages.erase(it);
+				continue;
+			}
 
 			// Compare md5
 			if(memcmp(topic->md5, msg->header.topic_md5, sizeof(topic->md5)) != 0)
@@ -280,6 +291,8 @@ void UDPReceiver::run()
 				shapeShifter.read(*msg);
 
 			topic->publisher.publish(shapeShifter);
+
+			topic->last_message_counter = msg->header.topic_msg_counter();
 
 			m_incompleteMessages.erase(it);
 
