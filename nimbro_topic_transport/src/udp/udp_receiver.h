@@ -71,6 +71,7 @@ private:
 	TopicMap m_topics;
 
 	bool m_dropRepeatedMessages;
+	bool m_warnDropIncomplete;
 
 	ros::NodeHandle m_nh;
 	ros::Publisher m_pub_heartbeat;

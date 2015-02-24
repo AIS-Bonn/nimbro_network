@@ -96,6 +96,7 @@ UDPReceiver::UDPReceiver()
 	}
 
 	nh.param("drop_repeated_msgs", m_dropRepeatedMessages, false);
+	nh.param("warn_drop_incomplete", m_warnDropIncomplete, true);
 }
 
 UDPReceiver::~UDPReceiver()
@@ -145,21 +146,24 @@ void UDPReceiver::run()
 					break;
 			}
 
-			for(MessageBuffer::iterator itd = itr; itd != it_end; ++itd)
+			if(m_warnDropIncomplete)
 			{
-				const Message& msg = *itd;
-
-				int num_fragments = msg.msgs.size();
-				int received = 0;
-				for(unsigned int i = 0; i < msg.msgs.size(); ++i)
+				for(MessageBuffer::iterator itd = itr; itd != it_end; ++itd)
 				{
-					if(msg.msgs[i])
-						received++;
-				}
+					const Message& msg = *itd;
 
-				ROS_WARN("Dropping message %d, %.2f%% of fragments received (%d/%d)",
-					msg.id, 100.0 * received / num_fragments, received, num_fragments
-				);
+					int num_fragments = msg.msgs.size();
+					int received = 0;
+					for(unsigned int i = 0; i < msg.msgs.size(); ++i)
+					{
+						if(msg.msgs[i])
+							received++;
+					}
+
+					ROS_WARN("Dropping message %d, %.2f%% of fragments received (%d/%d)",
+						msg.id, 100.0 * received / num_fragments, received, num_fragments
+					);
+				}
 			}
 
 			m_incompleteMessages.erase(itr, it_end);
