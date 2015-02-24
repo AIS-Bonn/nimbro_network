@@ -145,7 +145,7 @@ void UDPReceiver::run()
 					break;
 			}
 
-			for(MessageBuffer::iterator itd = itr; itr != it_end; ++itr)
+			for(MessageBuffer::iterator itd = itr; itd != it_end; ++itd)
 			{
 				const Message& msg = *itd;
 
