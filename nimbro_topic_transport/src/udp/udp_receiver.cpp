@@ -233,6 +233,17 @@ void UDPReceiver::run()
 			else
 				topic = &topic_it->second;
 
+			// Send heartbeat message
+			ros::Time now = ros::Time::now();
+			if(now - m_lastHeartbeatTime > ros::Duration(0.2))
+			{
+				std_msgs::Time time;
+				time.data = now;
+				m_pub_heartbeat.publish(time);
+
+				m_lastHeartbeatTime = now;
+			}
+
 			if(m_dropRepeatedMessages && msg->header.topic_msg_counter() == topic->last_message_counter)
 			{
 				// This is the same message, probably sent in relay mode
@@ -295,17 +306,6 @@ void UDPReceiver::run()
 			topic->last_message_counter = msg->header.topic_msg_counter();
 
 			m_incompleteMessages.erase(it);
-
-			// Send heartbeat message
-			ros::Time now = ros::Time::now();
-			if(now - m_lastHeartbeatTime > ros::Duration(1.0))
-			{
-				std_msgs::Time time;
-				time.data = now;
-				m_pub_heartbeat.publish(time);
-
-				m_lastHeartbeatTime = now;
-			}
 		}
 	}
 }
