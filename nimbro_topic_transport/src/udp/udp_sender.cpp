@@ -198,7 +198,7 @@ void UDPSender::relayStep()
 {
 	// New tokens! Bound to 2*m_relayTokensPerStep to prevent token buildup.
 	m_relayTokens = std::min<uint64_t>(
-		2*m_relayTokensPerStep,
+		100*m_relayTokensPerStep,
 		m_relayTokens + m_relayTokensPerStep
 	);
 
