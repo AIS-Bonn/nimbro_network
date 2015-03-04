@@ -26,6 +26,8 @@ private:
 	ros::NodeHandle m_nh;
 	int m_fd;
 	sockaddr_in m_addr;
+
+	int m_sourcePort;
 	std::vector<ros::Subscriber> m_subs;
 	std::vector<uint8_t> m_packet;
 	std::vector<uint8_t> m_compressionBuf;

@@ -31,25 +31,14 @@ TCPSender::TCPSender()
 
 	if(m_nh.hasParam("source_port"))
 	{
-		int source_port;
-		if(!m_nh.getParam("source_port", source_port))
+		if(!m_nh.getParam("source_port", m_source_port))
 		{
 			ROS_FATAL("Invalid source_port");
 			throw std::runtime_error("Invalid source port");
 		}
-
-		sockaddr_in addr;
-		memset(&addr, 0, sizeof(addr));
-		addr.sin_family = AF_INET;
-		addr.sin_addr.s_addr = INADDR_ANY;
-		addr.sin_port = htons(source_port);
-
-		if(bind(m_fd, (const sockaddr*)&addr, sizeof(addr)) != 0)
-		{
-			ROS_FATAL("Could not bind to source port: %s", strerror(errno));
-			throw std::runtime_error(strerror(errno));
-		}
 	}
+	else
+		m_source_port = -1;
 
 	memset(&m_addr, 0, sizeof(m_addr));
 	m_addr.sin_family = AF_INET;
@@ -94,6 +83,21 @@ bool TCPSender::connect()
 	{
 		ROS_ERROR("Could not create socket: %s", strerror(errno));
 		return false;
+	}
+
+	if(m_source_port != -1)
+	{
+		sockaddr_in addr;
+		memset(&addr, 0, sizeof(addr));
+		addr.sin_family = AF_INET;
+		addr.sin_addr.s_addr = INADDR_ANY;
+		addr.sin_port = htons(m_source_port);
+
+		if(bind(m_fd, (const sockaddr*)&addr, sizeof(addr)) != 0)
+		{
+			ROS_FATAL("Could not bind to source port: %s", strerror(errno));
+			throw std::runtime_error(strerror(errno));
+		}
 	}
 
 	if(::connect(m_fd, (sockaddr*)&m_addr, sizeof(m_addr)) != 0)
