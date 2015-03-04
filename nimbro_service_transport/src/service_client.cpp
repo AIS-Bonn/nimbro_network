@@ -123,11 +123,13 @@ ServiceClient::ServiceClient()
 		throw std::logic_error("service_client needs a server parameter (IP of the server)");
 	}
 
+	int port;
+	m_nh.param("port", port, 6050);
+
 	memset(&m_addr, 0, sizeof(m_addr));
 	m_addr.sin_family = AF_INET;
 	m_addr.sin_addr.s_addr = inet_addr(server.c_str());
-	m_addr.sin_port = htons(6050);
-
+	m_addr.sin_port = htons(port);
 
 	XmlRpc::XmlRpcValue list;
 	m_nh.getParam("services", list);

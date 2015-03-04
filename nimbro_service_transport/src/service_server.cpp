@@ -26,6 +26,8 @@ namespace service_transport
 
 ServiceServer::ServiceServer()
 {
+	ros::NodeHandle nh("~");
+
 	m_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if(m_fd < 0)
 	{
@@ -33,11 +35,14 @@ ServiceServer::ServiceServer()
 		throw std::runtime_error("socket error");
 	}
 
+	int port;
+	nh.param("port", port, 6050);
+
 	sockaddr_in addr;
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = INADDR_ANY;
-	addr.sin_port = htons(6050);
+	addr.sin_port = htons(port);
 
 	int on = 1;
 	if(setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0)
