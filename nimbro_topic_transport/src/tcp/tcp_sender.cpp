@@ -29,6 +29,28 @@ TCPSender::TCPSender()
 		throw std::runtime_error("tcp_sender needs a 'port' parameter!");
 	}
 
+	if(m_nh.hasParam("source_port"))
+	{
+		int source_port;
+		if(!m_nh.getParam("source_port", source_port))
+		{
+			ROS_FATAL("Invalid source_port");
+			throw std::runtime_error("Invalid source port");
+		}
+
+		sockaddr_in addr;
+		memset(&addr, 0, sizeof(addr));
+		addr.sin_family = AF_INET;
+		addr.sin_addr.s_addr = INADDR_ANY;
+		addr.sin_port = htons(source_port);
+
+		if(bind(m_fd, (const sockaddr*)&addr, sizeof(addr)) != 0)
+		{
+			ROS_FATAL("Could not bind to source port: %s", strerror(errno));
+			throw std::runtime_error(strerror(errno));
+		}
+	}
+
 	memset(&m_addr, 0, sizeof(m_addr));
 	m_addr.sin_family = AF_INET;
 	m_addr.sin_addr.s_addr = inet_addr(addr.c_str());
