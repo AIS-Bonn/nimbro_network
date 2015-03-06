@@ -31,14 +31,14 @@ TCPSender::TCPSender()
 
 	if(m_nh.hasParam("source_port"))
 	{
-		if(!m_nh.getParam("source_port", m_source_port))
+		if(!m_nh.getParam("source_port", m_sourcePort))
 		{
 			ROS_FATAL("Invalid source_port");
 			throw std::runtime_error("Invalid source port");
 		}
 	}
 	else
-		m_source_port = -1;
+		m_sourcePort = -1;
 
 	memset(&m_addr, 0, sizeof(m_addr));
 	m_addr.sin_family = AF_INET;
@@ -85,13 +85,13 @@ bool TCPSender::connect()
 		return false;
 	}
 
-	if(m_source_port != -1)
+	if(m_sourcePort != -1)
 	{
 		sockaddr_in addr;
 		memset(&addr, 0, sizeof(addr));
 		addr.sin_family = AF_INET;
 		addr.sin_addr.s_addr = INADDR_ANY;
-		addr.sin_port = htons(m_source_port);
+		addr.sin_port = htons(m_sourcePort);
 
 		if(bind(m_fd, (const sockaddr*)&addr, sizeof(addr)) != 0)
 		{
