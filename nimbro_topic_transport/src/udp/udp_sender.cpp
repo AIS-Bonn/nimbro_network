@@ -216,6 +216,9 @@ void UDPSender::relayStep()
 
 			m_senders[m_relayIndex]->sendCurrentMessage();
 			m_relayIndex = (m_relayIndex + 1) % m_senders.size();
+
+			if(m_relayIndex == 0)
+				ROS_INFO("Full circle");
 		}
 
 		const std::vector<uint8_t>& packet = m_relayBuffer.front();
