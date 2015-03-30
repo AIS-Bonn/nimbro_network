@@ -10,7 +10,7 @@
 #include <nimbro_log_transport/LogMsg.h>
 #include <nimbro_log_transport/LogBlock.h>
 
-boost::circular_buffer<nimbro_log_transport::LogMsg> buffer(10);
+boost::circular_buffer<nimbro_log_transport::LogMsg> buffer;
 uint32_t cur_id = 0;
 ros::Publisher pub;
 int minLevel = rosgraph_msgs::Log::INFO;
@@ -39,13 +39,16 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh("~");
 	nh.param<int>("min_level", minLevel, rosgraph_msgs::Log::INFO);
 
+	int bufferSize;
+	nh.param<int>("buffer_size", bufferSize, 10);
+
+	buffer.resize(bufferSize);
+
 	pub = nh.advertise<nimbro_log_transport::LogBlock>("/rosout_transport", 1);
-	ros::Subscriber sub = nh.subscribe("/rosout_agg", 10, &handleMsg);
+	ros::Subscriber sub = nh.subscribe("/rosout_agg", bufferSize, &handleMsg);
 
 	ros::Timer timer = nh.createTimer(ros::Duration(0.5), &publish);
 
 	ros::spin();
 	return 0;
 }
-
-

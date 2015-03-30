@@ -19,7 +19,7 @@ void handleMsg(const nimbro_log_transport::LogBlock& block)
 
 		int64_t delta = msg.id - cur_id;
 		if((msg.id > cur_id && delta < std::numeric_limits<uint32_t>::max()/2)
-			|| (msg.id < cur_id && delta > -std::numeric_limits<uint32_t>::max()/2))
+			|| (msg.id < cur_id && ((std::numeric_limits<uint32_t>::max() - cur_id) + msg.id) < std::numeric_limits<uint32_t>::max()/2))
 		{
 			cur_id = msg.id;
 			pub.publish(msg.msg);
