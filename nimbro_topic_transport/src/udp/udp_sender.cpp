@@ -128,10 +128,9 @@ UDPSender::UDPSender()
 		m_relayIndex = 0;
 		m_relayTokensPerStep = target_bitrate / 8.0 / relay_control_rate;
 
-		m_relayTimer = nh.createTimer(ros::Duration(1.0 / relay_control_rate),
-			boost::bind(&UDPSender::relayStep, this)
-		);
-		m_relayTimer.start();
+		m_relayThreadShouldExit = false;
+		m_relayRate = relay_control_rate;
+		m_relayThread = boost::thread(boost::bind(&UDPSender::relay, this));
 
 		ROS_INFO("udp_sender: relay mode configured with control rate %f, target bitrate %f bit/s and token increment %d",
 			relay_control_rate, target_bitrate, m_relayTokensPerStep
@@ -141,6 +140,12 @@ UDPSender::UDPSender()
 
 UDPSender::~UDPSender()
 {
+	if(m_relayMode)
+	{
+		m_relayThreadShouldExit = true;
+		m_relayThread.join();
+	}
+
 	for(unsigned int i = 0; i < m_senders.size(); ++i)
 		delete m_senders[i];
 }
@@ -194,49 +199,56 @@ bool UDPSender::internalSend(const void* data, uint32_t size)
 	return true;
 }
 
-void UDPSender::relayStep()
+void UDPSender::relay()
 {
-	// New tokens! Bound to 2*m_relayTokensPerStep to prevent token buildup.
-	m_relayTokens = std::min<uint64_t>(
-		100*m_relayTokensPerStep,
-		m_relayTokens + m_relayTokensPerStep
-	);
+	ros::WallRate rate(m_relayRate);
 
-	if(m_senders.empty())
-		throw std::runtime_error("No senders configured");
-
-	// While we have enough token, send something!
-	while(1)
+	while(!m_relayThreadShouldExit)
 	{
-		unsigned int tries = 0;
-		while(m_relayBuffer.empty())
+		// New tokens! Bound to 2*m_relayTokensPerStep to prevent token buildup.
+		m_relayTokens = std::min<uint64_t>(
+			100*m_relayTokensPerStep,
+			m_relayTokens + m_relayTokensPerStep
+		);
+
+		if(m_senders.empty())
+			throw std::runtime_error("No senders configured");
+
+		// While we have enough token, send something!
+		while(1)
 		{
-			if(tries++ == m_senders.size())
-				return; // No data yet
+			unsigned int tries = 0;
+			while(m_relayBuffer.empty())
+			{
+				if(tries++ == m_senders.size())
+					return; // No data yet
 
-			m_senders[m_relayIndex]->sendCurrentMessage();
-			m_relayIndex = (m_relayIndex + 1) % m_senders.size();
+				m_senders[m_relayIndex]->sendCurrentMessage();
+				m_relayIndex = (m_relayIndex + 1) % m_senders.size();
 
-//			if(m_relayIndex == 0)
-//				ROS_INFO("Full circle");
+	//			if(m_relayIndex == 0)
+	//				ROS_INFO("Full circle");
+			}
+
+			const std::vector<uint8_t>& packet = m_relayBuffer.front();
+			std::size_t sizeOnWire = packet.size() + 20 + 8;
+
+			// out of tokens? Wait for next iteration.
+			if(sizeOnWire > m_relayTokens)
+				break;
+
+			if(!internalSend(packet.data(), packet.size()))
+			{
+				ROS_ERROR("Could not send packet");
+				return;
+			}
+
+			// Consume tokens
+			m_relayTokens -= sizeOnWire;
+			m_relayBuffer.pop_front();
 		}
 
-		const std::vector<uint8_t>& packet = m_relayBuffer.front();
-		std::size_t sizeOnWire = packet.size() + 20 + 8;
-
-		// out of tokens? Wait for next iteration.
-		if(sizeOnWire > m_relayTokens)
-			break;
-
-		if(!internalSend(packet.data(), packet.size()))
-		{
-			ROS_ERROR("Could not send packet");
-			return;
-		}
-
-		// Consume tokens
-		m_relayTokens -= sizeOnWire;
-		m_relayBuffer.pop_front();
+		rate.sleep();
 	}
 }
 

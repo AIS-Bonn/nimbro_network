@@ -43,6 +43,8 @@ void TopicSender::send()
 	uint32_t size;
 	if(m_updateBuf)
 	{
+		boost::lock_guard<boost::mutex> lock(m_dataMutex);
+
 		if(!m_lastData)
 			return;
 
@@ -172,6 +174,8 @@ void TopicSender::send()
 
 void TopicSender::handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)
 {
+	boost::lock_guard<boost::mutex> lock(m_dataMutex);
+
 	m_lastData = shapeShifter;
 	m_updateBuf = true;
 

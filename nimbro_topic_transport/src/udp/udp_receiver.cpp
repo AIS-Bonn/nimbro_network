@@ -72,7 +72,7 @@ UDPReceiver::UDPReceiver()
 	m_pub_heartbeat = nh.advertise<std_msgs::Time>("heartbeat", 1);
 
 #if WITH_PLOTTING
-	m_pub_plot = nh.advertise<plot_msgs::Plot>("/plot", 100);
+	m_pub_plot = nh.advertise<plot_msgs::Plot>("/plot", 1000);
 #endif
 
 	m_fd = socket(AF_INET, SOCK_DGRAM, 0);

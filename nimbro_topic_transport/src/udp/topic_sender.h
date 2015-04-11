@@ -7,6 +7,8 @@
 #include <ros/subscriber.h>
 #include <topic_tools/shape_shifter.h>
 
+#include <boost/thread.hpp>
+
 namespace nimbro_topic_transport
 {
 	class UDPSender;
@@ -49,6 +51,8 @@ namespace nimbro_topic_transport
 		unsigned int m_inputMsgCounter;
 
 		bool m_directTransmission;
+
+		boost::mutex m_dataMutex;
 	};
 
 };

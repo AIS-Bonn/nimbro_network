@@ -7,8 +7,11 @@
 #include <arpa/inet.h>
 #include <ros/time.h>
 #include <ros/timer.h>
+#include <ros/rate.h>
 
 #include <deque>
+
+#include <boost/thread.hpp>
 
 namespace nimbro_topic_transport
 {
@@ -27,7 +30,7 @@ public:
 	inline bool duplicateFirstPacket() const
 	{ return m_duplicateFirstPacket; }
 private:
-	void relayStep();
+	void relay();
 	bool internalSend(const void* data, uint32_t size);
 
 	uint16_t m_msgID;
@@ -39,12 +42,15 @@ private:
 	std::vector<TopicSender*> m_senders;
 
 	bool m_relayMode;
-	ros::Timer m_relayTimer;
+	double m_relayRate;
 	int m_relayTokensPerStep;
 	uint64_t m_relayTokens;
 
 	std::deque<std::vector<uint8_t>> m_relayBuffer;
 	unsigned int m_relayIndex;
+
+	boost::thread m_relayThread;
+	bool m_relayThreadShouldExit;
 };
 
 }
