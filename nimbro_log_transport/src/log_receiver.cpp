@@ -9,10 +9,17 @@
 #include <numeric>
 
 uint32_t cur_id = (uint32_t)-1;
+uint64_t cur_key = 0;
 ros::Publisher pub;
 
 void handleMsg(const nimbro_log_transport::LogBlock& block)
 {
+	if(block.key != cur_key)
+	{
+		cur_id = -1;
+		cur_key = block.key;
+	}
+
 	for(size_t i = 0; i < block.msgs.size(); ++i)
 	{
 		const nimbro_log_transport::LogMsg& msg = block.msgs[i];

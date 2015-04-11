@@ -7,11 +7,14 @@
 #include <ros/node_handle.h>
 #include <ros/timer.h>
 
+#include <random>
+
 #include <nimbro_log_transport/LogMsg.h>
 #include <nimbro_log_transport/LogBlock.h>
 
 boost::circular_buffer<nimbro_log_transport::LogMsg> buffer;
 uint32_t cur_id = 0;
+uint64_t key = 0;
 ros::Publisher pub;
 int minLevel = rosgraph_msgs::Log::INFO;
 
@@ -27,6 +30,7 @@ void publish(const ros::TimerEvent&)
 {
 	nimbro_log_transport::LogBlock block;
 
+	block.key = key;
 	block.msgs.resize(buffer.size());
 	std::copy(buffer.begin(), buffer.end(), block.msgs.begin());
 	pub.publish(block);
@@ -43,6 +47,14 @@ int main(int argc, char** argv)
 	nh.param<int>("buffer_size", bufferSize, 10);
 
 	buffer.resize(bufferSize);
+
+	std::random_device rd;
+
+    std::mt19937_64 e2(rd());
+
+    std::uniform_int_distribution<uint64_t> dist;
+
+	key = dist(e2);
 
 	pub = nh.advertise<nimbro_log_transport::LogBlock>("/rosout_transport", 1);
 	ros::Subscriber sub = nh.subscribe("/rosout_agg", bufferSize, &handleMsg);
