@@ -34,8 +34,11 @@ namespace nimbro_topic_transport
 		UDPSender* m_sender;
 		ros::Subscriber m_subscriber;
 		std::string m_topicName;
+		std::string m_topicType;
 		int m_flags;
 		std::vector<uint8_t> m_buf;
+		uint32_t m_md5[4];
+
 		std::vector<uint8_t> m_compressionBuf;
 		ros::Duration m_durationBetweenPackets;
 		ros::Time m_lastTime;

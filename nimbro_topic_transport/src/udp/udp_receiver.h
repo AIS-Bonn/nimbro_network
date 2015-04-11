@@ -52,6 +52,8 @@ struct TopicData
 	std::string md5_str;
 	std::string msg_def;
 
+	bool compressed;
+
 	int last_message_counter;
 };
 
@@ -72,6 +74,7 @@ private:
 
 	bool m_dropRepeatedMessages;
 	bool m_warnDropIncomplete;
+	bool m_keepCompressed;
 
 	ros::NodeHandle m_nh;
 	ros::Publisher m_pub_heartbeat;

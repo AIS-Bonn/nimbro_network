@@ -6,6 +6,15 @@ find_package(catkin REQUIRED COMPONENTS
 	roscpp
 	topic_tools
 	rostest
+	message_generation
+)
+
+add_message_files(FILES
+	CompressedMsg.msg
+)
+
+generate_messages(DEPENDENCIES
+	std_msgs
 )
 
 catkin_package()
@@ -35,6 +44,9 @@ add_executable(udp_sender
 	src/udp/topic_sender.cpp
 	src/udp/udp_sender.cpp
 )
+add_dependencies(udp_sender
+	${PROJECT_NAME}_generate_messages_cpp
+)
 
 target_link_libraries(udp_sender
 	${catkin_LIBRARIES}
@@ -44,6 +56,9 @@ target_link_libraries(udp_sender
 add_executable(udp_receiver
 	src/udp/udp_receiver.cpp
 	src/topic_info.cpp
+)
+add_dependencies(udp_receiver
+	${PROJECT_NAME}_generate_messages_cpp
 )
 
 target_link_libraries(udp_receiver
@@ -55,6 +70,9 @@ add_executable(tcp_sender
 	src/tcp/tcp_sender.cpp
 	src/topic_info.cpp
 )
+add_dependencies(tcp_sender
+	${PROJECT_NAME}_generate_messages_cpp
+)
 target_link_libraries(tcp_sender
 	${catkin_LIBRARIES}
 	${BZ2_LIBRARY}
@@ -63,6 +81,9 @@ target_link_libraries(tcp_sender
 add_executable(tcp_receiver
 	src/tcp/tcp_receiver.cpp
 	src/topic_info.cpp
+)
+add_dependencies(tcp_receiver
+	${PROJECT_NAME}_generate_messages_cpp
 )
 target_link_libraries(tcp_receiver
 	${catkin_LIBRARIES}

@@ -27,6 +27,9 @@ private:
 		void start();
 		void run();
 
+		void setKeepCompressed(bool keep)
+		{ m_keepCompressed = keep; }
+
 		bool isRunning() const;
 	private:
 		int m_fd;
@@ -34,11 +37,14 @@ private:
 		std::map<std::string, ros::Publisher> m_pub;
 		std::vector<uint8_t> m_uncompressBuf;
 		bool m_running;
+		bool m_keepCompressed;
 	};
 
 	int m_fd;
 	std::list<ClientHandler*> m_handlers;
 	ros::NodeHandle m_nh;
+
+	bool m_keepCompressed;
 };
 
 }

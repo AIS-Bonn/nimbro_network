@@ -22,6 +22,8 @@
 
 #include <bzlib.h>
 
+#include <nimbro_topic_transport/CompressedMsg.h>
+
 #if WITH_PLOTTING
 #  include <plot_msgs/Plot.h>
 #endif
@@ -105,6 +107,7 @@ UDPReceiver::UDPReceiver()
 
 	nh.param("drop_repeated_msgs", m_dropRepeatedMessages, false);
 	nh.param("warn_drop_incomplete", m_warnDropIncomplete, true);
+	nh.param("keep_compressed", m_keepCompressed, false);
 }
 
 UDPReceiver::~UDPReceiver()
@@ -280,8 +283,10 @@ void UDPReceiver::run()
 				continue;
 			}
 
+			bool compressed = msg->header.flags & UDP_FLAG_COMPRESSED;
+
 			// Compare md5
-			if(memcmp(topic->md5, msg->header.topic_md5, sizeof(topic->md5)) != 0)
+			if(memcmp(topic->md5, msg->header.topic_md5, sizeof(topic->md5)) != 0 || (m_keepCompressed && topic->compressed != compressed))
 			{
 				topic->msg_def = topic_info::getMsgDef(msg->header.topic_type);
 				topic->md5_str = topic_info::getMd5Sum(msg->header.topic_type);
@@ -301,36 +306,56 @@ void UDPReceiver::run()
 					continue;
 				}
 
-				ros::AdvertiseOptions options(
-					msg->header.topic_name,
-					1,
-					topic->md5_str,
-					msg->header.topic_type,
-					topic->msg_def
-				);
+				if(m_keepCompressed && compressed)
+				{
+					// If we are requested to keep the messages compressed, we advertise our compressed msg type
+					topic->publisher = m_nh.advertise<CompressedMsg>(msg->header.topic_name, 1);
+				}
+				else
+				{
+					// ... otherwise, we advertise the native type
+					ros::AdvertiseOptions options(
+						msg->header.topic_name,
+						1,
+						topic->md5_str,
+						msg->header.topic_type,
+						topic->msg_def
+					);
 
-				// Latching is often unexpected. Better to lose the first msg.
-// 				options.latch = 1;
-				topic->publisher = m_nh.advertise(options);
+					// Latching is often unexpected. Better to lose the first msg.
+	 				//options.latch = 1;
+					topic->publisher = m_nh.advertise(options);
+				}
 			}
 
-			topic_tools::ShapeShifter shapeShifter;
-
-			shapeShifter.morph(topic->md5_str, msg->header.topic_type, topic->msg_def, "");
-
-			if(msg->header.flags & UDP_FLAG_COMPRESSED)
+			if(compressed && m_keepCompressed)
 			{
-				if(!msg->decompress(&m_decompressedMessage))
-				{
-					ROS_ERROR("Could not decompress message, dropping");
-					continue;
-				}
-				shapeShifter.read(m_decompressedMessage);
+				CompressedMsg compressed;
+				compressed.type = msg->header.topic_type;
+				memcpy(compressed.md5.data(), topic->md5, sizeof(topic->md5));
+
+				compressed.data.swap(msg->payload);
+				topic->publisher.publish(compressed);
 			}
 			else
-				shapeShifter.read(*msg);
+			{
+				topic_tools::ShapeShifter shapeShifter;
+				shapeShifter.morph(topic->md5_str, msg->header.topic_type, topic->msg_def, "");
 
-			topic->publisher.publish(shapeShifter);
+				if(msg->header.flags & UDP_FLAG_COMPRESSED)
+				{
+					if(!msg->decompress(&m_decompressedMessage))
+					{
+						ROS_ERROR("Could not decompress message, dropping");
+						continue;
+					}
+					shapeShifter.read(m_decompressedMessage);
+				}
+				else
+					shapeShifter.read(*msg);
+
+				topic->publisher.publish(shapeShifter);
+			}
 
 			topic->last_message_counter = msg->header.topic_msg_counter();
 

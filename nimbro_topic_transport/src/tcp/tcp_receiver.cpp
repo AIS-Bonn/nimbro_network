@@ -12,6 +12,8 @@
 
 #include <bzlib.h>
 
+#include <nimbro_topic_transport/CompressedMsg.h>
+
 namespace nimbro_topic_transport
 {
 
@@ -80,6 +82,8 @@ TCPReceiver::TCPReceiver()
 		ROS_FATAL("Could not listen: %s", strerror(errno));
 		throw std::runtime_error(strerror(errno));
 	}
+
+	m_nh.param("keep_compressed", m_keepCompressed, false);
 }
 
 TCPReceiver::~TCPReceiver()
@@ -137,6 +141,7 @@ TCPReceiver::ClientHandler::ClientHandler(int fd)
  : m_fd(fd)
  , m_uncompressBuf(1024)
  , m_running(true)
+ , m_keepCompressed(false)
 {
 	m_thread = boost::thread(boost::bind(&ClientHandler::start, this));
 }
@@ -198,80 +203,102 @@ void TCPReceiver::ClientHandler::run()
 		if(!sureRead(m_fd, data.data(), header.data_len))
 			return;
 
-		topic_tools::ShapeShifter shifter;
-
 		ROS_DEBUG("Got msg with flags: %d", header.flags());
 
-		if(header.flags() & TCP_FLAG_COMPRESSED)
+		if(m_keepCompressed && (header.flags() & TCP_FLAG_COMPRESSED))
 		{
-			int ret = 0;
-			unsigned int len = m_uncompressBuf.size();
+			CompressedMsg compressed;
+			compressed.type = type;
+			memcpy(compressed.md5.data(), header.topic_md5sum, sizeof(header.topic_md5sum));
+			compressed.data.swap(data);
 
-			while(1)
+			std::map<std::string, ros::Publisher>::iterator it = m_pub.find(topic);
+			if(it == m_pub.end())
 			{
-				ret = BZ2_bzBuffToBuffDecompress((char*)m_uncompressBuf.data(), &len, (char*)data.data(), data.size(), 0, 0);
+				ros::NodeHandle nh;
+				ros::Publisher pub = nh.advertise<CompressedMsg>(topic, 2);
+				m_pub[topic] = pub;
 
-				if(ret == BZ_OUTBUFF_FULL)
-				{
-					len = 4 * m_uncompressBuf.size();
-					ROS_INFO("Increasing buffer size to %d KiB", (int)len / 1024);
-					m_uncompressBuf.resize(len);
-					continue;
-				}
-				else
-					break;
+				pub.publish(compressed);
 			}
-
-			if(ret != BZ_OK)
-			{
-				ROS_ERROR("Could not decompress bz2 data (reason %d), dropping msg", ret);
-				continue;
-			}
-
-			ROS_INFO("decompress %d KiB (%d) to %d KiB (%d)", (int)data.size() / 1024, (int)data.size(), (int)len / 1024, (int)len);
-			m_uncompressBuf.resize(len);
-
-			VectorStream stream(&m_uncompressBuf);
-			shifter.read(stream);
+			else
+				it->second.publish(compressed);
 		}
 		else
 		{
-			VectorStream stream(&data);
-			shifter.read(stream);
+			topic_tools::ShapeShifter shifter;
+
+			if(header.flags() & TCP_FLAG_COMPRESSED)
+			{
+				int ret = 0;
+				unsigned int len = m_uncompressBuf.size();
+
+				while(1)
+				{
+					ret = BZ2_bzBuffToBuffDecompress((char*)m_uncompressBuf.data(), &len, (char*)data.data(), data.size(), 0, 0);
+
+					if(ret == BZ_OUTBUFF_FULL)
+					{
+						len = 4 * m_uncompressBuf.size();
+						ROS_INFO("Increasing buffer size to %d KiB", (int)len / 1024);
+						m_uncompressBuf.resize(len);
+						continue;
+					}
+					else
+						break;
+				}
+
+				if(ret != BZ_OK)
+				{
+					ROS_ERROR("Could not decompress bz2 data (reason %d), dropping msg", ret);
+					continue;
+				}
+
+				ROS_INFO("decompress %d KiB (%d) to %d KiB (%d)", (int)data.size() / 1024, (int)data.size(), (int)len / 1024, (int)len);
+				m_uncompressBuf.resize(len);
+
+				VectorStream stream(&m_uncompressBuf);
+				shifter.read(stream);
+			}
+			else
+			{
+				VectorStream stream(&data);
+				shifter.read(stream);
+			}
+
+			ROS_DEBUG("Got message from topic '%s' (type '%s', md5 '%s')", topic.c_str(), type.c_str(), md5.c_str());
+
+			shifter.morph(md5, type, "", "");
+
+			std::map<std::string, ros::Publisher>::iterator it = m_pub.find(topic);
+			if(it == m_pub.end())
+			{
+				ROS_DEBUG("Advertising new topic '%s'", topic.c_str());
+				std::string msgDef = topic_info::getMsgDef(type);
+
+				ros::NodeHandle nh;
+
+				ros::AdvertiseOptions options(
+					topic,
+					2,
+					md5,
+					type,
+					topic_info::getMsgDef(type)
+				);
+
+				// It will take subscribers some time to connect to our publisher.
+				// Therefore, latch messages so they will not be lost.
+				// No, this is often unexpected. Instead, wait before publishing.
+	// 			options.latch = true;
+
+				m_pub[topic] = nh.advertise(options);
+				it = m_pub.find(topic);
+
+				sleep(1);
+			}
+
+			it->second.publish(shifter);
 		}
-
-		ROS_DEBUG("Got message from topic '%s' (type '%s', md5 '%s')", topic.c_str(), type.c_str(), md5.c_str());
-
-		shifter.morph(md5, type, "", "");
-
-		std::map<std::string, ros::Publisher>::iterator it = m_pub.find(topic);
-		if(it == m_pub.end())
-		{
-			ROS_DEBUG("Advertising new topic '%s'", topic.c_str());
-			std::string msgDef = topic_info::getMsgDef(type);
-
-			ros::NodeHandle nh;
-
-			ros::AdvertiseOptions options(
-				topic,
-				2,
-				md5,
-				type,
-				topic_info::getMsgDef(type)
-			);
-
-			// It will take subscribers some time to connect to our publisher.
-			// Therefore, latch messages so they will not be lost.
-			// No, this is often unexpected. Instead, wait before publishing.
-// 			options.latch = true;
-
-			m_pub[topic] = nh.advertise(options);
-			it = m_pub.find(topic);
-
-			sleep(1);
-		}
-
-		it->second.publish(shifter);
 
 		uint8_t ack = 1;
 		if(write(m_fd, &ack, 1) != 1)

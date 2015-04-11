@@ -7,6 +7,8 @@
 
 #include <bzlib.h>
 
+#include <nimbro_topic_transport/CompressedMsg.h>
+
 namespace nimbro_topic_transport
 {
 
@@ -44,26 +46,55 @@ void TopicSender::send()
 		if(!m_lastData)
 			return;
 
-		size = m_lastData->size();
-		if(size > m_buf.size())
-			m_buf.resize(size);
-		m_lastData->write(*this);
-
-		if(m_flags & UDP_FLAG_COMPRESSED)
+		// If the data was sent over our CompressedMsg format, do not recompress it
+		if((m_flags & UDP_FLAG_COMPRESSED) && m_lastData->getDataType() == "nimbro_topic_transport/CompressedMsg")
 		{
-			unsigned int len = size + size / 100 + 1200;
-			m_compressionBuf.resize(len);
-			int ret = BZ2_bzBuffToBuffCompress((char*)m_compressionBuf.data(), &len, (char*)m_buf.data(), size, 3, 0, 30);
-			if(ret == BZ_OK)
+			CompressedMsg::Ptr compressed = m_lastData->instantiate<CompressedMsg>();
+			if(!compressed)
 			{
-				m_buf.swap(m_compressionBuf);
-				size = len;
+				ROS_ERROR("Could not instantiate CompressedMsg");
+				return;
+			}
+
+			m_buf.swap(compressed->data);
+			memcpy(m_md5, compressed->md5.data(), sizeof(m_md5));
+			m_topicType = compressed->type;
+
+			size = m_buf.size();
+		}
+		else
+		{
+			size = m_lastData->size();
+			if(size > m_buf.size())
 				m_buf.resize(size);
-			}
-			else
+			m_lastData->write(*this);
+
+			if(m_flags & UDP_FLAG_COMPRESSED)
 			{
-				ROS_ERROR("Could not compress data, sending uncompressed");
+				unsigned int len = size + size / 100 + 1200;
+				m_compressionBuf.resize(len);
+				int ret = BZ2_bzBuffToBuffCompress((char*)m_compressionBuf.data(), &len, (char*)m_buf.data(), size, 3, 0, 30);
+				if(ret == BZ_OK)
+				{
+					m_buf.swap(m_compressionBuf);
+					size = len;
+					m_buf.resize(size);
+				}
+				else
+				{
+					ROS_ERROR("Could not compress data, sending uncompressed");
+				}
 			}
+
+			std::string md5 = m_lastData->getMD5Sum();
+			for(int i = 0; i < 4; ++i)
+			{
+				std::string md5_part = md5.substr(8*i, 8);
+				uint32_t md5_num = strtol(md5_part.c_str(), 0, 16);
+				m_md5[i] = md5_num;
+			}
+
+			m_topicType = m_lastData->getDataType();
 		}
 
 		m_updateBuf = false;
@@ -94,20 +125,15 @@ void TopicSender::send()
 		first->header.topic_name[sizeof(first->header.topic_name)-1] = 0;
 	}
 
-	strncpy(first->header.topic_type, m_lastData->getDataType().c_str(), sizeof(first->header.topic_type));
+	strncpy(first->header.topic_type, m_topicType.c_str(), sizeof(first->header.topic_type));
 	if(first->header.topic_type[sizeof(first->header.topic_type)-1] != 0)
 	{
-		ROS_ERROR("Topic type '%s' is too long. Please shorten the name.", m_lastData->getDataType().c_str());
+		ROS_ERROR("Topic type '%s' is too long. Please shorten the name.", m_topicType.c_str());
 		first->header.topic_type[sizeof(first->header.topic_type)-1] = 0;
 	}
 
-	std::string md5 = m_lastData->getMD5Sum();
 	for(int i = 0; i < 4; ++i)
-	{
-		std::string md5_part = md5.substr(8*i, 8);
-		uint32_t md5_num = strtol(md5_part.c_str(), 0, 16);
-		first->header.topic_md5[i] = md5_num;
-	}
+		first->header.topic_md5[i] = m_md5[i];
 
 	uint8_t* rptr = m_buf.data();
 	uint32_t psize = std::min<uint32_t>(UDPFirstPacket::MaxDataSize, size);
