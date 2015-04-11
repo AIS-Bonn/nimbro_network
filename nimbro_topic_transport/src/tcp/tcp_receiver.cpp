@@ -200,7 +200,7 @@ void TCPReceiver::ClientHandler::run()
 
 		topic_tools::ShapeShifter shifter;
 
-		ROS_INFO("Got msg with flags: %d", header.flags());
+		ROS_DEBUG("Got msg with flags: %d", header.flags());
 
 		if(header.flags() & TCP_FLAG_COMPRESSED)
 		{

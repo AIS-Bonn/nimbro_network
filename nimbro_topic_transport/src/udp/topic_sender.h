@@ -28,7 +28,7 @@ namespace nimbro_topic_transport
 
 		void sendCurrentMessage();
 	private:
-		void send(const topic_tools::ShapeShifter::ConstPtr& shapeShifter);
+		void send();
 		void resend();
 
 		UDPSender* m_sender;
@@ -41,6 +41,7 @@ namespace nimbro_topic_transport
 		ros::Time m_lastTime;
 		ros::Timer m_resendTimer;
 		topic_tools::ShapeShifter::ConstPtr m_lastData;
+		bool m_updateBuf;
 		unsigned int m_msgCounter;
 		unsigned int m_inputMsgCounter;
 

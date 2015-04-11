@@ -13,6 +13,7 @@ namespace nimbro_topic_transport
 TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate, bool resend, int flags)
  : m_sender(sender)
  , m_flags(flags)
+ , m_updateBuf(true)
  , m_msgCounter(0)
  , m_inputMsgCounter(0)
  , m_directTransmission(true)
@@ -35,28 +36,40 @@ TopicSender::~TopicSender()
 	ROS_DEBUG("Topic '%s': Sent %d messages", m_topicName.c_str(), m_msgCounter);
 }
 
-void TopicSender::send(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)
+void TopicSender::send()
 {
-	uint32_t size = shapeShifter->size();
-	if(size > m_buf.size())
-		m_buf.resize(size);
-	shapeShifter->write(*this);
-
-	if(m_flags & UDP_FLAG_COMPRESSED)
+	uint32_t size;
+	if(m_updateBuf)
 	{
-		unsigned int len = size + size / 100 + 1200;
-		m_compressionBuf.resize(len);
-		int ret = BZ2_bzBuffToBuffCompress((char*)m_compressionBuf.data(), &len, (char*)m_buf.data(), size, 3, 0, 30);
-		if(ret == BZ_OK)
+		if(!m_lastData)
+			return;
+
+		size = m_lastData->size();
+		if(size > m_buf.size())
+			m_buf.resize(size);
+		m_lastData->write(*this);
+
+		if(m_flags & UDP_FLAG_COMPRESSED)
 		{
-			m_buf.swap(m_compressionBuf);
-			size = len;
+			unsigned int len = size + size / 100 + 1200;
+			m_compressionBuf.resize(len);
+			int ret = BZ2_bzBuffToBuffCompress((char*)m_compressionBuf.data(), &len, (char*)m_buf.data(), size, 3, 0, 30);
+			if(ret == BZ_OK)
+			{
+				m_buf.swap(m_compressionBuf);
+				size = len;
+				m_buf.resize(size);
+			}
+			else
+			{
+				ROS_ERROR("Could not compress data, sending uncompressed");
+			}
 		}
-		else
-		{
-			ROS_ERROR("Could not compress data, sending uncompressed");
-		}
+
+		m_updateBuf = false;
 	}
+	else
+		size = m_buf.size();
 
 	uint8_t buf[PACKET_SIZE];
 	uint32_t buf_size = std::min<uint32_t>(PACKET_SIZE, sizeof(UDPFirstPacket) + size);
@@ -81,14 +94,14 @@ void TopicSender::send(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)
 		first->header.topic_name[sizeof(first->header.topic_name)-1] = 0;
 	}
 
-	strncpy(first->header.topic_type, shapeShifter->getDataType().c_str(), sizeof(first->header.topic_type));
+	strncpy(first->header.topic_type, m_lastData->getDataType().c_str(), sizeof(first->header.topic_type));
 	if(first->header.topic_type[sizeof(first->header.topic_type)-1] != 0)
 	{
-		ROS_ERROR("Topic type '%s' is too long. Please shorten the name.", shapeShifter->getDataType().c_str());
+		ROS_ERROR("Topic type '%s' is too long. Please shorten the name.", m_lastData->getDataType().c_str());
 		first->header.topic_type[sizeof(first->header.topic_type)-1] = 0;
 	}
 
-	std::string md5 = shapeShifter->getMD5Sum();
+	std::string md5 = m_lastData->getMD5Sum();
 	for(int i = 0; i < 4; ++i)
 	{
 		std::string md5_part = md5.substr(8*i, 8);
@@ -134,6 +147,7 @@ void TopicSender::send(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)
 void TopicSender::handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)
 {
 	m_lastData = shapeShifter;
+	m_updateBuf = true;
 
 	ros::Time now = ros::Time::now();
 	if(now - m_lastTime < m_durationBetweenPackets)
@@ -143,7 +157,7 @@ void TopicSender::handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShi
 	m_inputMsgCounter++;
 
 	if(m_directTransmission)
-		send(shapeShifter);
+		send();
 }
 
 void TopicSender::resend()
@@ -156,7 +170,6 @@ void TopicSender::resend()
 		return;
 
 	sendCurrentMessage();
-
 }
 
 void TopicSender::sendCurrentMessage()
@@ -164,7 +177,7 @@ void TopicSender::sendCurrentMessage()
 	if(!m_lastData)
 		return;
 
-	send(m_lastData);
+	send();
 }
 
 void TopicSender::setDirectTransmissionEnabled(bool value)

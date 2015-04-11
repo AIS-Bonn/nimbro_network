@@ -22,6 +22,10 @@
 
 #include <bzlib.h>
 
+#if WITH_PLOTTING
+#  include <plot_msgs/Plot.h>
+#endif
+
 namespace nimbro_topic_transport
 {
 
@@ -64,6 +68,10 @@ UDPReceiver::UDPReceiver()
 	ros::NodeHandle nh("~");
 
 	m_pub_heartbeat = nh.advertise<std_msgs::Time>("heartbeat", 1);
+
+#if WITH_PLOTTING
+	m_pub_plot = nh.advertise<plot_msgs::Plot>("/plot", 100);
+#endif
 
 	m_fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if(m_fd < 0)
@@ -247,6 +255,23 @@ void UDPReceiver::run()
 
 				m_lastHeartbeatTime = now;
 			}
+
+#if WITH_PLOTTING
+			// Plot packet size
+			plot_msgs::Plot plot;
+			plot.header.stamp = ros::Time::now();
+
+			plot_msgs::PlotPoint point;
+
+			std::string safe_topic = msg->header.topic_name;
+			std::replace(safe_topic.begin(), safe_topic.end(), '/', '_');
+
+			point.name = "/udp_receiver/mbyte/" + safe_topic;
+			point.value = ((double)msg->getLength()) / 1024 / 1024;
+
+			plot.points.push_back(point);
+			m_pub_plot.publish(plot);
+#endif
 
 			if(m_dropRepeatedMessages && msg->header.topic_msg_counter() == topic->last_message_counter)
 			{

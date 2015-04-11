@@ -11,6 +11,12 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package()
 include_directories(${catkin_INCLUDE_DIRS})
 
+find_package(plot_msgs)
+if(plot_msgs_FOUND)
+	include_directories(${plot_msgs_INCLUDE_DIRS})
+	add_definitions(-DWITH_PLOTTING=1)
+endif()
+
 execute_process(
 	COMMAND ${CMAKE_CXX_COMPILER} -dumpversion
 	OUTPUT_VARIABLE GCC_VERSION

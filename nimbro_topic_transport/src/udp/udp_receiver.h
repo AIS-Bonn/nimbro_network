@@ -77,6 +77,8 @@ private:
 	ros::Publisher m_pub_heartbeat;
 	ros::Time m_lastHeartbeatTime;
 
+	ros::Publisher m_pub_plot;
+
 	Message m_decompressedMessage;
 };
 

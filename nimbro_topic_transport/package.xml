@@ -1,4 +1,4 @@
-<package>
+<package format="2">
 	<name>nimbro_topic_transport</name>
 	<version>1.0.0</version>
 	<description>Contains nodes for TCP/UDP communication between ROS masters</description>
@@ -8,10 +8,11 @@
 	<license>GPLv2</license>
 
 	<buildtool_depend>catkin</buildtool_depend>
-	<build_depend>roscpp</build_depend>
-	<build_depend>topic_tools</build_depend>
-	<run_depend>roscpp</run_depend>
-	<run_depend>topic_tools</run_depend>
+	<depend>roscpp</depend>
+	<depend>topic_tools</depend>
+
+	<!-- This is not a hard dependency, the package compiles without plot_msgs. -->
+	<depend>plot_msgs</depend>
 
 	<export>
 	</export>
