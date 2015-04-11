@@ -326,6 +326,8 @@ void UDPReceiver::run()
 	 				//options.latch = 1;
 					topic->publisher = m_nh.advertise(options);
 				}
+
+				topic->compressed = compressed;
 			}
 
 			if(compressed && m_keepCompressed)
