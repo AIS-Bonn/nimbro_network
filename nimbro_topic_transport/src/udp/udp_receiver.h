@@ -14,6 +14,8 @@
 
 #include <list>
 
+#include <boost/thread.hpp>
+
 #include "udp_packet.h"
 
 namespace nimbro_topic_transport
@@ -46,6 +48,9 @@ struct Message
 
 struct TopicData
 {
+	TopicData();
+	~TopicData();
+
 	ros::Publisher publisher;
 
 	uint32_t md5[4];
@@ -55,6 +60,18 @@ struct TopicData
 	bool compressed;
 
 	int last_message_counter;
+
+	void takeForDecompression(const boost::shared_ptr<Message>& compressed);
+private:
+	boost::shared_ptr<Message> m_compressedMsg;
+	boost::condition_variable m_cond;
+	boost::mutex m_mutex;
+
+	boost::thread m_decompressionThread;
+	bool m_decompressionThreadRunning;
+	bool m_decompressionThreadShouldExit;
+
+	void decompress();
 };
 
 class UDPReceiver
@@ -65,7 +82,7 @@ public:
 
 	void run();
 private:
-	typedef std::map<std::string, TopicData> TopicMap;
+	typedef std::map<std::string, boost::shared_ptr<TopicData>> TopicMap;
 	typedef std::list<Message> MessageBuffer;
 
 	int m_fd;

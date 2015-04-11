@@ -63,6 +63,63 @@ bool Message::decompress(Message* dest)
 	return true;
 }
 
+TopicData::TopicData()
+ : m_decompressionThreadRunning(false)
+{
+}
+
+TopicData::~TopicData()
+{
+	{
+		boost::unique_lock<boost::mutex> lock(m_mutex);
+		m_decompressionThreadShouldExit = true;
+	}
+	m_cond.notify_one();
+}
+
+void TopicData::takeForDecompression(const boost::shared_ptr<Message>& msg)
+{
+	if(!m_decompressionThreadRunning)
+	{
+		m_decompressionThreadShouldExit = false;
+		m_decompressionThread = boost::thread(boost::bind(&TopicData::decompress, this));
+	}
+
+	boost::unique_lock<boost::mutex> lock(m_mutex);
+	m_compressedMsg = msg;
+	m_cond.notify_one();
+}
+
+void TopicData::decompress()
+{
+	while(1)
+	{
+		boost::shared_ptr<Message> currentMessage;
+
+		{
+			boost::unique_lock<boost::mutex> lock(m_mutex);
+
+			while(!m_compressedMsg && !m_decompressionThreadShouldExit)
+				m_cond.wait(lock);
+
+			if(m_decompressionThreadShouldExit)
+				return;
+
+			currentMessage = m_compressedMsg;
+			m_compressedMsg.reset();
+		}
+
+		Message decompressed;
+		currentMessage->decompress(&decompressed);
+
+		topic_tools::ShapeShifter shapeShifter;
+		shapeShifter.morph(md5_str, decompressed.header.topic_type, msg_def, "");
+
+		shapeShifter.read(decompressed);
+
+		publisher.publish(shapeShifter);
+	}
+}
 
 UDPReceiver::UDPReceiver()
  : m_incompleteMessages(4)
@@ -234,19 +291,19 @@ void UDPReceiver::run()
 			// Find topic
 			TopicMap::iterator topic_it = m_topics.find(msg->header.topic_name);
 
-			TopicData* topic;
+			boost::shared_ptr<TopicData> topic;
 			if(topic_it == m_topics.end())
 			{
-				m_topics.insert(std::pair<std::string, TopicData>(
+				m_topics.insert(std::pair<std::string, boost::shared_ptr<TopicData>>(
 					msg->header.topic_name,
-					TopicData()
+					boost::make_shared<TopicData>()
 				));
-				topic = &m_topics[msg->header.topic_name];
+				topic = m_topics[msg->header.topic_name];
 
 				topic->last_message_counter = -1;
 			}
 			else
-				topic = &topic_it->second;
+				topic = topic_it->second;
 
 			// Send heartbeat message
 			ros::Time now = ros::Time::now();
@@ -339,22 +396,14 @@ void UDPReceiver::run()
 				compressed.data.swap(msg->payload);
 				topic->publisher.publish(compressed);
 			}
+			else if(msg->header.flags & UDP_FLAG_COMPRESSED)
+				topic->takeForDecompression(boost::make_shared<Message>(*msg));
 			else
 			{
 				topic_tools::ShapeShifter shapeShifter;
 				shapeShifter.morph(topic->md5_str, msg->header.topic_type, topic->msg_def, "");
 
-				if(msg->header.flags & UDP_FLAG_COMPRESSED)
-				{
-					if(!msg->decompress(&m_decompressedMessage))
-					{
-						ROS_ERROR("Could not decompress message, dropping");
-						continue;
-					}
-					shapeShifter.read(m_decompressedMessage);
-				}
-				else
-					shapeShifter.read(*msg);
+				shapeShifter.read(*msg);
 
 				topic->publisher.publish(shapeShifter);
 			}
