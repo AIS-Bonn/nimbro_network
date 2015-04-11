@@ -174,17 +174,19 @@ void TopicSender::send()
 
 void TopicSender::handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)
 {
-	boost::lock_guard<boost::mutex> lock(m_dataMutex);
+	{
+		boost::lock_guard<boost::mutex> lock(m_dataMutex);
 
-	m_lastData = shapeShifter;
-	m_updateBuf = true;
+		m_lastData = shapeShifter;
+		m_updateBuf = true;
 
-	ros::Time now = ros::Time::now();
-	if(now - m_lastTime < m_durationBetweenPackets)
-		return;
+		ros::Time now = ros::Time::now();
+		if(now - m_lastTime < m_durationBetweenPackets)
+			return;
 
-	m_lastTime = now;
-	m_inputMsgCounter++;
+		m_lastTime = now;
+		m_inputMsgCounter++;
+	}
 
 	if(m_directTransmission)
 		send();
