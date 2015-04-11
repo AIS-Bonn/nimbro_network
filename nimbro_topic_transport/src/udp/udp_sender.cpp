@@ -203,6 +203,8 @@ void UDPSender::relay()
 {
 	ros::WallRate rate(m_relayRate);
 
+	ROS_INFO("Relay thread starting...");
+
 	while(!m_relayThreadShouldExit)
 	{
 		// New tokens! Bound to 2*m_relayTokensPerStep to prevent token buildup.
@@ -218,10 +220,14 @@ void UDPSender::relay()
 		while(1)
 		{
 			unsigned int tries = 0;
+			bool noData = false;
 			while(m_relayBuffer.empty())
 			{
 				if(tries++ == m_senders.size())
-					return; // No data yet
+				{
+					noData = true;
+					break; // No data yet
+				}
 
 				m_senders[m_relayIndex]->sendCurrentMessage();
 				m_relayIndex = (m_relayIndex + 1) % m_senders.size();
@@ -229,6 +235,9 @@ void UDPSender::relay()
 	//			if(m_relayIndex == 0)
 	//				ROS_INFO("Full circle");
 			}
+
+			if(noData)
+				break;
 
 			const std::vector<uint8_t>& packet = m_relayBuffer.front();
 			std::size_t sizeOnWire = packet.size() + 20 + 8;
@@ -240,7 +249,7 @@ void UDPSender::relay()
 			if(!internalSend(packet.data(), packet.size()))
 			{
 				ROS_ERROR("Could not send packet");
-				return;
+				break;
 			}
 
 			// Consume tokens
@@ -250,6 +259,8 @@ void UDPSender::relay()
 
 		rate.sleep();
 	}
+
+	ROS_INFO("Relay thread exiting...");
 }
 
 }
