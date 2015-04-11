@@ -131,9 +131,11 @@ void TCPReceiver::run()
 			continue;
 
 		int client_fd = accept(m_fd, 0, 0);
-		m_handlers.push_back(
-			new ClientHandler(client_fd)
-		);
+
+		ClientHandler* handler = new ClientHandler(client_fd);
+		handler->setKeepCompressed(m_keepCompressed);
+
+		m_handlers.push_back(handler);
 	}
 }
 
