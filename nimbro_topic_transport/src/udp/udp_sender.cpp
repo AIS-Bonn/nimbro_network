@@ -270,8 +270,6 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "udp_sender");
 
 	ros::NodeHandle nh("~");
-	bool relay_mode;
-	nh.param("relay_mode", relay_mode, false);
 
 	nimbro_topic_transport::UDPSender sender;
 
