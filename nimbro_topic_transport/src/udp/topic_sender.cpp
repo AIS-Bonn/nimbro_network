@@ -40,7 +40,6 @@ TopicSender::~TopicSender()
 
 void TopicSender::send()
 {
-	uint32_t size;
 	if(m_updateBuf)
 	{
 		boost::lock_guard<boost::mutex> lock(m_dataMutex);
@@ -61,26 +60,21 @@ void TopicSender::send()
 			m_buf.swap(compressed->data);
 			memcpy(m_md5, compressed->md5.data(), sizeof(m_md5));
 			m_topicType = compressed->type;
-
-			size = m_buf.size();
 		}
 		else
 		{
-			size = m_lastData->size();
-			if(size > m_buf.size())
-				m_buf.resize(size);
+			m_buf.resize(m_lastData->size());
 			m_lastData->write(*this);
 
 			if(m_flags & UDP_FLAG_COMPRESSED)
 			{
-				unsigned int len = size + size / 100 + 1200;
+				unsigned int len = m_buf.size() + m_buf.size() / 100 + 1200;
 				m_compressionBuf.resize(len);
-				int ret = BZ2_bzBuffToBuffCompress((char*)m_compressionBuf.data(), &len, (char*)m_buf.data(), size, 3, 0, 30);
+				int ret = BZ2_bzBuffToBuffCompress((char*)m_compressionBuf.data(), &len, (char*)m_buf.data(), m_buf.size(), 3, 0, 30);
 				if(ret == BZ_OK)
 				{
 					m_buf.swap(m_compressionBuf);
-					size = len;
-					m_buf.resize(size);
+					m_buf.resize(len);
 				}
 				else
 				{
@@ -101,8 +95,8 @@ void TopicSender::send()
 
 		m_updateBuf = false;
 	}
-	else
-		size = m_buf.size();
+
+	uint32_t size = m_buf.size();
 
 	uint8_t buf[PACKET_SIZE];
 	uint32_t buf_size = std::min<uint32_t>(PACKET_SIZE, sizeof(UDPFirstPacket) + size);
