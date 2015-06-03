@@ -1,8 +1,8 @@
 <launch>
-	<arg name="address" />
+	<arg name="addr" default="127.0.0.1"/>
 	<arg name="port" default="5050" />
 
-	<node name="send" pkg="sb_topic_transport" type="tcp_sender" output="screen">
+	<node name="send" pkg="nimbro_topic_transport" type="tcp_sender" output="screen">
 		<param name="address" value="$(arg addr)" />
 		<param name="port" value="$(arg port)" />
 <rosparam>

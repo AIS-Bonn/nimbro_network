@@ -10,6 +10,8 @@
 
 #include "tcp_packet.h"
 
+#include <config_server/parameter.h>
+
 namespace nimbro_topic_transport
 {
 
@@ -29,6 +31,7 @@ private:
 
 	int m_sourcePort;
 	std::vector<ros::Subscriber> m_subs;
+	std::map<std::string, boost::shared_ptr<config_server::Parameter<bool>>> m_enableTopic;
 	std::vector<uint8_t> m_packet;
 	std::vector<uint8_t> m_compressionBuf;
 };

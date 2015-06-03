@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
 	topic_tools
 	rostest
 	message_generation
+	config_server
 )
 
 add_message_files(FILES

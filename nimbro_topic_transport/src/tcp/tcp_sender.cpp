@@ -7,6 +7,7 @@
 #include <bzlib.h>
 
 #include <netinet/tcp.h>
+#include <boost/algorithm/string/replace.hpp>
 
 namespace nimbro_topic_transport
 {
@@ -57,6 +58,10 @@ TCPSender::TCPSender()
 		ROS_ASSERT(entry.getType() == XmlRpc::XmlRpcValue::TypeStruct);
 		ROS_ASSERT(entry.hasMember("name"));
 
+		bool enabled = true;
+		if (entry.hasMember("enable"))
+			enabled = entry["enable"];
+			
 		std::string topic = entry["name"];
 		int flags = 0;
 
@@ -69,8 +74,16 @@ TCPSender::TCPSender()
 		m_subs.push_back(
 			m_nh.subscribe<const topic_tools::ShapeShifter>(topic, 20, func)
 		);
+		
+		std::string parameterName(topic);
+		boost::replace_first(parameterName, "/", "");
+		boost::replace_all(parameterName, "/", "_");
+		ROS_INFO_STREAM("config parameter name: " << parameterName);
+		boost::shared_ptr<config_server::Parameter<bool>> parameter( new config_server::Parameter<bool>(parameterName, enabled));
+		m_enableTopic[topic] = parameter;
+
 	}
-}
+}	
 
 TCPSender::~TCPSender()
 {
@@ -135,6 +148,9 @@ private:
 
 void TCPSender::send(const std::string& topic, int flags, const topic_tools::ShapeShifter& shifter)
 {
+	if (! (*m_enableTopic[topic])() )
+		return; 
+	
 	std::string type = shifter.getDataType();
 	std::string md5 = shifter.getMD5Sum();
 	uint32_t size = shifter.size();
