@@ -1,0 +1,11 @@
+<package format="2">
+	<name>nimbro_cam_transport</name>
+	<description>Network transport for camera images</description>
+	<version>0.0.1</version>
+	<maintainer email="max.schwarz@uni-bonn.de">Max Schwarz</maintainer>
+	<license>BSD</license>
+
+	<buildtool_depend>catkin</buildtool_depend>
+	<depend>image_transport</depend>
+	<depend>roscpp</depend>
+</package>
