@@ -83,6 +83,7 @@ void TopicData::takeForDecompression(const boost::shared_ptr<Message>& msg)
 	{
 		m_decompressionThreadShouldExit = false;
 		m_decompressionThread = boost::thread(boost::bind(&TopicData::decompress, this));
+		m_decompressionThreadRunning = true;
 	}
 
 	boost::unique_lock<boost::mutex> lock(m_mutex);
