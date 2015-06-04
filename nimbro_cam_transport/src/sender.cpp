@@ -30,6 +30,8 @@ ros::Publisher g_pub;
 
 void handleImage(const sensor_msgs::ImageConstPtr& img)
 {
+	ros::Time start = ros::Time::now();
+
 	cv_bridge::CvImageConstPtr cvImg = cv_bridge::toCvShare(img, "bgr8");
 
 	cv::Mat resized;
@@ -82,6 +84,7 @@ void handleImage(const sensor_msgs::ImageConstPtr& img)
 	}
 
 	g_pub.publish(msg);
+	ROS_DEBUG("took %f", (ros::Time::now() - start).toSec());
 }
 
 int main(int argc, char** argv)
@@ -107,6 +110,7 @@ int main(int argc, char** argv)
 	params.i_fps_den = 10;
 	params.i_frame_reference = 1;
 	params.i_keyint_max = 20;
+	params.i_bframe = 0;
 	params.b_open_gop = 0;
 // 	params.rc.i_rc_method = X264_RC_CRF;
 // // 	params.rc.i_qp_min = params.rc.i_qp_max = 47;
