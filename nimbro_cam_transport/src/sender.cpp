@@ -51,9 +51,9 @@ void handleImage(const sensor_msgs::ImageConstPtr& img)
 	x264_nal_t* nals;
 	int numNals;
 
-	ROS_INFO("start encode");
+	//ROS_INFO("start encode");
 	x264_encoder_encode(g_encoder, &nals, &numNals, &g_inputPicture, &g_outPicture);
-	ROS_INFO("end encode");
+	//ROS_INFO("end encode");
 
 	std::size_t size = 0;
 	for(int i = 0; i < numNals; ++i)
@@ -62,7 +62,7 @@ void handleImage(const sensor_msgs::ImageConstPtr& img)
 		size += nals[i].i_payload;
 	}
 
-	ROS_INFO("image size: %lu\n", size);
+	//ROS_INFO("image size: %lu\n", size);
 
 	sensor_msgs::CompressedImagePtr msg(new sensor_msgs::CompressedImage);
 
