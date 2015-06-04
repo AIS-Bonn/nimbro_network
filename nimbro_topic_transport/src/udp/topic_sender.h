@@ -9,6 +9,8 @@
 
 #include <boost/thread.hpp>
 
+#include <config_server/parameter.h>
+
 namespace nimbro_topic_transport
 {
 	class UDPSender;
@@ -16,7 +18,7 @@ namespace nimbro_topic_transport
 	class TopicSender
 	{
 	public:
-		TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate, bool resend, int flags);
+		TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate, bool resend, int flags, bool enable = true);
 		~TopicSender();
 
 		void handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShifter);
@@ -29,6 +31,8 @@ namespace nimbro_topic_transport
 		void setDirectTransmissionEnabled(bool value);
 
 		void sendCurrentMessage();
+		
+		std::string escapeTopicName(std::string topicName);
 	private:
 		void send();
 		void resend();
@@ -53,6 +57,8 @@ namespace nimbro_topic_transport
 		bool m_directTransmission;
 
 		boost::mutex m_dataMutex;
+		
+		config_server::Parameter<bool> m_enable;
 	};
 
 };

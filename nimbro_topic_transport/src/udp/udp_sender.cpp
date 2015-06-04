@@ -102,8 +102,12 @@ UDPSender::UDPSender()
 
 		if(list[i].hasMember("resend") && ((bool)list[i]["resend"]))
 			resend = true;
+		
+		bool enabled = true;
+		if(list[i].hasMember("resend") && (!(bool)list[i]["resend"]))
+			enabled = false;
 
-		TopicSender* sender = new TopicSender(this, &nh, list[i]["name"], rate, resend, flags);
+		TopicSender* sender = new TopicSender(this, &nh, list[i]["name"], rate, resend, flags, enabled);
 
 		if(m_relayMode)
 			sender->setDirectTransmissionEnabled(false);

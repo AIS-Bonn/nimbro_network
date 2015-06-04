@@ -9,16 +9,19 @@
 
 #include <nimbro_topic_transport/CompressedMsg.h>
 
+#include <boost/algorithm/string/replace.hpp>
+
 namespace nimbro_topic_transport
 {
 
-TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate, bool resend, int flags)
+TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate, bool resend, int flags, bool enable)
  : m_sender(sender)
  , m_flags(flags)
  , m_updateBuf(true)
  , m_msgCounter(0)
  , m_inputMsgCounter(0)
  , m_directTransmission(true)
+ , m_enable(escapeTopicName(topic), enable)
 {
 	ROS_INFO_STREAM("Subscribing to" << topic);
 	m_subscriber = nh->subscribe(topic, 1, &TopicSender::handleData, this);
@@ -168,6 +171,9 @@ void TopicSender::send()
 
 void TopicSender::handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)
 {
+	if (!m_enable() ) 
+		return; 
+	
 	{
 		boost::lock_guard<boost::mutex> lock(m_dataMutex);
 
@@ -213,6 +219,14 @@ void TopicSender::setDirectTransmissionEnabled(bool value)
 		m_resendTimer.start();
 	else
 		m_resendTimer.stop();
+}
+
+
+std::string TopicSender::escapeTopicName(std::string topicName)
+{
+	boost::replace_first(topicName, "/", "");
+	boost::replace_all(topicName, "/", "_");
+	return topicName;
 }
 
 }
