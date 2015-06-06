@@ -17,8 +17,8 @@ extern "C"
 
 #include "rgb_to_yuv420.h"
 
-const int WIDTH = 640;
-const int HEIGHT = 480;
+int g_width;
+int g_height;
 
 std::vector<uint8_t> g_inBuf;
 x264_t* g_encoder;
@@ -35,17 +35,17 @@ void handleImage(const sensor_msgs::ImageConstPtr& img)
 	cv_bridge::CvImageConstPtr cvImg = cv_bridge::toCvShare(img, "bgr8");
 
 	cv::Mat resized;
-	cv::resize(cvImg->image, resized, cv::Size(WIDTH, HEIGHT), CV_INTER_AREA);
+	cv::resize(cvImg->image, resized, cv::Size(g_width, g_height), CV_INTER_AREA);
 
-	RGB_to_YUV420(resized.data, g_inBuf.data(), WIDTH, HEIGHT);
+	RGB_to_YUV420(resized.data, g_inBuf.data(), g_width, g_height);
 
 	g_inputPicture.img.plane[0] = g_inBuf.data();
-	g_inputPicture.img.plane[1] = g_inBuf.data() + WIDTH*HEIGHT;
-	g_inputPicture.img.plane[2] = g_inBuf.data() + WIDTH*HEIGHT + WIDTH*HEIGHT/4;
+	g_inputPicture.img.plane[1] = g_inBuf.data() + g_width*g_height;
+	g_inputPicture.img.plane[2] = g_inBuf.data() + g_width*g_height + g_width*g_height/4;
 
-	g_inputPicture.img.i_stride[0] = WIDTH;
-	g_inputPicture.img.i_stride[1] = WIDTH/2;
-	g_inputPicture.img.i_stride[2] = WIDTH/2;
+	g_inputPicture.img.i_stride[0] = g_width;
+	g_inputPicture.img.i_stride[1] = g_width/2;
+	g_inputPicture.img.i_stride[2] = g_width/2;
 
 	g_inputPicture.img.i_csp = X264_CSP_I420;
 	g_inputPicture.img.i_plane = 3;
@@ -95,6 +95,9 @@ int main(int argc, char** argv)
 
 	image_transport::ImageTransport it(nh);
 
+	nh.param("width", g_width, 640);
+	nh.param("height", g_height, 480);
+
 	g_pub = nh.advertise<sensor_msgs::CompressedImage>("encoded", 1);
 
 	x264_param_t params;
@@ -102,8 +105,8 @@ int main(int argc, char** argv)
 	x264_param_apply_profile(&params, "high");
 	x264_param_default_preset(&params, "ultrafast", "zerolatency");
 
-	params.i_width = WIDTH;
-	params.i_height = HEIGHT;
+	params.i_width = g_width;
+	params.i_height = g_height;
 	params.b_repeat_headers = 1;
 	params.b_intra_refresh = 1;
 	params.i_fps_num = 1;
@@ -125,9 +128,9 @@ int main(int argc, char** argv)
 	x264_picture_init(&g_inputPicture);
 	x264_picture_init(&g_outPicture);
 
-	g_inBuf.resize(WIDTH*HEIGHT + WIDTH*HEIGHT/2);
+	g_inBuf.resize(g_width*g_height + g_width*g_height/2);
 
-	image_transport::Subscriber sub = it.subscribe("/camera_overhead/image_raw", 1, &handleImage);
+	image_transport::Subscriber sub = it.subscribe("image", 1, &handleImage);
 
 	ros::spin();
 
