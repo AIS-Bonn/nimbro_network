@@ -191,12 +191,16 @@ void UDPServer::handlePacket()
 		resp->timestamp = req->timestamp;
 		resp->counter = req->counter;
 
+		memcpy(responseBuf.data() + sizeof(ServiceCallResponse), msg_service_response.buf.get(), msg_service_response.num_bytes);
+
 		ret = sendto(m_fd, responseBuf.data(), responseBuf.size(), 0, (sockaddr*)addrBuf, addr_len);
 		if(ret < 0)
 		{
 			ROS_ERROR("Could not send(): %s", strerror(errno));
 			return;
 		}
+
+		m_responseList.push_back(std::move(responseBuf));
 	}
 	else
 	{
