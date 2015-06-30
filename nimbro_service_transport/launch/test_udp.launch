@@ -1,0 +1,19 @@
+<launch>
+
+	<node name="udp_server" pkg="nimbro_service_transport" type="udp_server" output="screen">
+		<param name="port" value="6000" />
+	</node>
+
+	<node name="udp_client" pkg="nimbro_service_transport" type="udp_client" output="screen">
+		<param name="server" value="localhost" />
+		<param name="port" value="6000" />
+<rosparam>
+services:
+ - name: /cam/setParam
+   type: camera_v4l2/SetCameraParam
+</rosparam>
+
+		<remap from="/cam/setParam" to="/remote/setParam" />
+	</node>
+
+</launch>

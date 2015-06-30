@@ -8,6 +8,8 @@ catkin_package()
 
 include_directories(${catkin_INCLUDE_DIRS})
 
+add_definitions(-std=c++11)
+
 add_executable(service_server
 	src/tcp/service_server.cpp
 	src/tcp/client_handler.cpp
@@ -20,5 +22,19 @@ add_executable(service_client
 	src/tcp/service_client.cpp
 )
 target_link_libraries(service_client
+	${catkin_LIBRARIES}
+)
+
+add_executable(udp_server
+	src/udp/udp_server.cpp
+)
+target_link_libraries(udp_server
+	${catkin_LIBRARIES}
+)
+
+add_executable(udp_client
+	src/udp/udp_client.cpp
+)
+target_link_libraries(udp_client
 	${catkin_LIBRARIES}
 )
