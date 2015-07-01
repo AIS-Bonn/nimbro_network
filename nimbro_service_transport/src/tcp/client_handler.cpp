@@ -16,7 +16,7 @@
 
 #define DATA_DEBUG 0
 
-namespace service_transport
+namespace nimbro_service_transport
 {
 
 static int sureRead(int fd, void* dest, size_t size)
@@ -213,7 +213,7 @@ void ClientHandler::sendAvailableServices()
 			continue;
 		}
 
-		for(int i = 0; i < 4; ++i)
+		for(unsigned int i = 0; i < 4; ++i)
 		{
 			if(md5sum.length() < 8*i + 8)
 			{

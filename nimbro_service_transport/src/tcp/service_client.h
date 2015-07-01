@@ -8,7 +8,7 @@
 
 #include <arpa/inet.h>
 
-namespace service_transport
+namespace nimbro_service_transport
 {
 
 class ServiceClient

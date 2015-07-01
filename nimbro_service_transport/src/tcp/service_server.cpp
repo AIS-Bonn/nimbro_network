@@ -21,7 +21,7 @@
 
 #include "protocol.h"
 
-namespace service_transport
+namespace nimbro_service_transport
 {
 
 ServiceServer::ServiceServer()
@@ -117,7 +117,7 @@ int main(int argc, char** argv)
 
 	ros::NodeHandle nh("~");
 
-	service_transport::ServiceServer srv;
+	nimbro_service_transport::ServiceServer srv;
 
 	while(ros::ok())
 	{

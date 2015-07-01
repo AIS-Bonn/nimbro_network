@@ -20,6 +20,7 @@ target_link_libraries(service_server
 
 add_executable(service_client
 	src/tcp/service_client.cpp
+	src/common.cpp
 )
 target_link_libraries(service_client
 	${catkin_LIBRARIES}
@@ -34,6 +35,7 @@ target_link_libraries(udp_server
 
 add_executable(udp_client
 	src/udp/udp_client.cpp
+	src/common.cpp
 )
 target_link_libraries(udp_client
 	${catkin_LIBRARIES}

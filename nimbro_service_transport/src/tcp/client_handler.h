@@ -8,7 +8,7 @@
 #include <ros/header.h>
 #include <ros/connection.h>
 
-namespace service_transport
+namespace nimbro_service_transport
 {
 
 class ClientHandler

@@ -6,7 +6,7 @@
 
 #include <stdint.h>
 
-#include "le_value.h"
+#include "../le_value.h"
 
 namespace nimbro_service_transport
 {

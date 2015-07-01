@@ -4,9 +4,9 @@
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
-#include "le_value.h"
+#include "../le_value.h"
 
-namespace service_transport
+namespace nimbro_service_transport
 {
 
 namespace protocol

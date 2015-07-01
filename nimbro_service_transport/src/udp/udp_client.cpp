@@ -15,47 +15,7 @@
 #include <ros/package.h>
 
 #include "protocol.h"
-
-static std::string getMD5(const std::string& type)
-{
-	std::vector<char> buf(1024);
-	int idx = 0;
-
-	std::string error;
-	if(!ros::names::validate(type, error))
-	{
-		ROS_WARN("Got invalid service type '%s'", type.c_str());
-		return "";
-	}
-
-	// FIXME: This is fricking dangerous!
-	FILE* f = popen(
-		std::string(ros::package::getPath("nimbro_service_transport") + "/scripts/get_md5.py \'" + type + "\'").c_str(), "r"
-	);
-
-	while(!feof(f))
-	{
-		buf.resize(idx + 1024);
-		size_t size = fread(buf.data() + idx, 1, 1024, f);
-		if(size == 0)
-			break;
-
-		idx += size;
-	}
-
-	int exit_code = pclose(f);
-
-	if(exit_code != 0)
-	{
-		ROS_ERROR("Could not get md5 sum for service type '%s'", type.c_str());
-		return "*";
-	}
-	else
-	{
-		return std::string(buf.data(), idx);
-	}
-}
-
+#include "../common.h"
 
 namespace nimbro_service_transport
 {
@@ -150,7 +110,7 @@ UDPClient::UDPClient()
 		ros::AdvertiseServiceOptions ops;
 		ops.callback_queue = 0;
 		ops.datatype = type;
-		ops.md5sum = getMD5(ops.datatype);
+		ops.md5sum = getServiceMD5(ops.datatype);
 		ops.helper = boost::make_shared<CallbackHelper>(name, this);
 		ops.req_datatype = ops.datatype + "Request";
 		ops.res_datatype = ops.datatype + "Response";
