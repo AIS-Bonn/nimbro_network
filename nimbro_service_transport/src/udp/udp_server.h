@@ -6,6 +6,10 @@
 
 #include <ros/node_handle.h>
 
+#include <boost/thread.hpp>
+
+#include <sys/socket.h>
+
 namespace nimbro_service_transport
 {
 
@@ -25,7 +29,39 @@ private:
 
 	std::vector<uint8_t> m_buffer;
 
-	std::list<std::vector<uint8_t>> m_responseList;
+	struct RequestHandler
+	{
+		RequestHandler(uint64_t timestamp, uint8_t counter, const std::string& service, const ros::SerializedMessage& request)
+		 : timestamp(timestamp)
+		 , counter(counter)
+		 , service(service)
+		 , request(request)
+		 , calling(false)
+		{}
+
+		void call();
+
+		bool operator<(const RequestHandler& other) const;
+
+		int fd;
+		sockaddr_storage addr;
+		socklen_t addrLen;
+
+		uint64_t timestamp;
+		uint8_t counter;
+		std::string service;
+		ros::SerializedMessage request;
+
+		bool calling;
+		boost::thread serviceThread;
+
+		boost::mutex mutex;
+		std::vector<uint8_t> response;
+
+		ros::Time receptionTime;
+	};
+
+	std::list<boost::shared_ptr<RequestHandler>> m_requestList;
 };
 
 }

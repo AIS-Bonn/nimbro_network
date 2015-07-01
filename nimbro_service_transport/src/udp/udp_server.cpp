@@ -79,6 +79,33 @@ void UDPServer::step()
 	{
 		handlePacket();
 	}
+
+	// Cleanup old requestHandlers
+	ros::Time now = ros::Time::now();
+
+	auto it = m_requestList.begin();
+	while(it != m_requestList.end())
+	{
+		auto& reqHandler = *it;
+
+		if(now - reqHandler->receptionTime < ros::Duration(20.0))
+			break;
+
+		{
+			boost::unique_lock<boost::mutex> lock(reqHandler->mutex);
+
+			if(reqHandler->calling)
+			{
+				// This one is still active, keep it alive
+				it++;
+				continue;
+			}
+
+			reqHandler->serviceThread.join();
+		}
+
+		it = m_requestList.erase(it);
+	}
 }
 
 void UDPServer::handlePacket()
@@ -102,11 +129,11 @@ void UDPServer::handlePacket()
 		break;
 	}
 
-	uint8_t addrBuf[64];
-	memset(addrBuf, 0, sizeof(addrBuf));
-	socklen_t addr_len = sizeof(addrBuf);
+	sockaddr_storage addr;
+	memset(&addr, 0, sizeof(addr));
+	socklen_t addr_len = sizeof(addr);
 
-	int ret = recvfrom(m_fd, m_buffer.data(), m_buffer.size(), 0, (sockaddr*)addrBuf, &addr_len);
+	int ret = recvfrom(m_fd, m_buffer.data(), m_buffer.size(), 0, (sockaddr*)&addr, &addr_len);
 	if(ret < 0)
 	{
 		ROS_ERROR("Could not recvfrom(): %s", strerror(errno));
@@ -135,81 +162,99 @@ void UDPServer::handlePacket()
 		return;
 	}
 
-	std::vector<uint8_t> cmp_buf(sizeof(ServiceCallResponse));
-	ServiceCallResponse* cmp_response = reinterpret_cast<ServiceCallResponse*>(cmp_buf.data());
+	auto cmp = boost::make_shared<RequestHandler>(req->timestamp(), req->counter, "", ros::SerializedMessage());
 
-	cmp_response->timestamp = req->timestamp;
-	cmp_response->counter = req->counter;
-
-	auto it = std::lower_bound(m_responseList.begin(), m_responseList.end(), cmp_buf,
-		[&](const std::vector<uint8_t>& a, const std::vector<uint8_t>& b)
+	auto it = std::lower_bound(m_requestList.begin(), m_requestList.end(), cmp,
+		[&](const boost::shared_ptr<RequestHandler>& a, const boost::shared_ptr<RequestHandler>& b)
 		{
-			const ServiceCallResponse& rA = *(reinterpret_cast<const ServiceCallResponse*>(a.data()));
-			const ServiceCallResponse& rB = *(reinterpret_cast<const ServiceCallResponse*>(b.data()));
-
-			if(rA.timestamp() < rB.timestamp())
+			if(a->timestamp < b->timestamp)
 				return true;
-			else if(rA.timestamp() > rB.timestamp())
+			else if(a->timestamp > b->timestamp)
 				return false;
 
-			return rA.counter < rB.counter;
+			return a->counter < b->counter;
 		}
 	);
 
-	const ServiceCallResponse* itResp = 0;
-	if(it != m_responseList.end())
+	boost::shared_ptr<RequestHandler> reqHandler;
+	if(it != m_requestList.end())
 	{
-		itResp = reinterpret_cast<const ServiceCallResponse*>(it->data());
+		reqHandler = *it;
 	}
 
-	if(!itResp || itResp->timestamp() != req->timestamp() || itResp->counter != req->counter)
+	if(!reqHandler || reqHandler->timestamp != req->timestamp() || reqHandler->counter != req->counter)
 	{
 		std::string name(reinterpret_cast<char*>(m_buffer.data() + sizeof(ServiceCallRequest)), req->name_length());
-
-		ros::ServiceClientOptions ops(name, "*", false, ros::M_string());
-		ros::ServiceClient client = ros::NodeHandle().serviceClient(ops);
 
 		boost::shared_array<uint8_t> array(new uint8_t[req->request_length()]);
 		memcpy(array.get(), m_buffer.data() + sizeof(ServiceCallRequest) + req->name_length(), req->request_length());
 
 		ros::SerializedMessage msg_request(array, req->request_length());
-		ros::SerializedMessage msg_response;
 
-		bool ok = client.call(msg_request, msg_response, std::string("*"));
+		reqHandler = boost::make_shared<RequestHandler>(req->timestamp(), req->counter, name, msg_request);
+		reqHandler->fd = m_fd;
+		memcpy(&reqHandler->addr, &addr, sizeof(addr));
+		reqHandler->addrLen = addr_len;
 
-		topic_tools::ShapeShifter response;
-		ros::serialization::deserializeMessage(msg_response, response);
+		reqHandler->calling = true;
+		reqHandler->serviceThread = boost::thread(boost::bind(&RequestHandler::call, reqHandler));
 
-		ros::SerializedMessage msg_service_response;
+		reqHandler->receptionTime = ros::Time::now();
 
-		msg_service_response = ros::serialization::serializeServiceResponse(ok, response);
-
-		std::vector<uint8_t> responseBuf(sizeof(ServiceCallResponse) + msg_service_response.num_bytes);
-
-		ServiceCallResponse* resp = reinterpret_cast<ServiceCallResponse*>(responseBuf.data());
-		resp->response_length = msg_service_response.num_bytes;
-		resp->timestamp = req->timestamp;
-		resp->counter = req->counter;
-
-		memcpy(responseBuf.data() + sizeof(ServiceCallResponse), msg_service_response.buf.get(), msg_service_response.num_bytes);
-
-		ret = sendto(m_fd, responseBuf.data(), responseBuf.size(), 0, (sockaddr*)addrBuf, addr_len);
-		if(ret < 0)
-		{
-			ROS_ERROR("Could not send(): %s", strerror(errno));
-			return;
-		}
-
-		m_responseList.push_back(std::move(responseBuf));
+		m_requestList.push_back(reqHandler);
 	}
 	else
 	{
-		ret = sendto(m_fd, it->data(), it->size(), 0, (sockaddr*)addrBuf, addr_len);
-		if(ret < 0)
+		boost::unique_lock<boost::mutex> lock(reqHandler->mutex);
+
+		if(reqHandler->calling)
+			ROS_WARN("Received additional request for in-progress service call");
+		else
 		{
-			ROS_ERROR("Could not send(): %s", strerror(errno));
-			return;
+			ret = sendto(m_fd, reqHandler->response.data(), reqHandler->response.size(), 0, (sockaddr*)&addr, addr_len);
+			if(ret < 0)
+			{
+				ROS_ERROR("Could not send(): %s", strerror(errno));
+				return;
+			}
 		}
+	}
+}
+
+void UDPServer::RequestHandler::call()
+{
+	ros::ServiceClientOptions ops(service, "*", false, ros::M_string());
+	ros::ServiceClient client = ros::NodeHandle().serviceClient(ops);
+
+	ros::SerializedMessage msg_response;
+
+	bool ok = client.call(request, msg_response, std::string("*"));
+
+	topic_tools::ShapeShifter deserializedResponse;
+	ros::serialization::deserializeMessage(msg_response, deserializedResponse);
+
+	ros::SerializedMessage msg_service_response;
+
+	msg_service_response = ros::serialization::serializeServiceResponse(ok, deserializedResponse);
+
+	boost::unique_lock<boost::mutex> lock(mutex);
+
+	response.resize(sizeof(ServiceCallResponse) + msg_service_response.num_bytes);
+
+	ServiceCallResponse* resp = reinterpret_cast<ServiceCallResponse*>(response.data());
+	resp->response_length = msg_service_response.num_bytes;
+	resp->timestamp = timestamp;
+	resp->counter = counter;
+
+	memcpy(response.data() + sizeof(ServiceCallResponse), msg_service_response.buf.get(), msg_service_response.num_bytes);
+
+	calling = false;
+
+	int ret = sendto(fd, response.data(), response.size(), 0, (sockaddr*)&addr, addrLen);
+	if(ret < 0)
+	{
+		ROS_ERROR("Could not send(): %s", strerror(errno));
+		return;
 	}
 }
 
