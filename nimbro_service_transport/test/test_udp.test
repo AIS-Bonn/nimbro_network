@@ -1,0 +1,29 @@
+<launch>
+	<node name="udp_server" pkg="nimbro_service_transport" type="udp_server" output="screen">
+		<param name="port" value="6556" />
+	</node>
+
+	<node name="udp_client" pkg="nimbro_service_transport" type="udp_client" output="screen">
+		<param name="server" value="localhost" />
+		<param name="port" value="6556" />
+<rosparam>
+services:
+ - name: /test_server/empty_success
+   type: std_srvs/Empty
+ - name: /test_server/empty_failure
+   type: std_srvs/Empty
+ - name: /test_server/add
+   type: nimbro_service_transport/AddTwoInts
+</rosparam>
+
+		<remap from="/test_server/empty_success" to="/remote/test_server/empty_success" />
+		<remap from="/test_server/empty_failure" to="/remote/test_server/empty_failure" />
+		<remap from="/test_server/add" to="/remote/test_server/add" />
+	</node>
+
+	<node name="test_server" pkg="nimbro_service_transport" type="test_server" output="screen">
+	</node>
+
+	<test test-name="test_client" pkg="nimbro_service_transport" type="test_client" time-limit="20">
+	</test>
+</launch>
