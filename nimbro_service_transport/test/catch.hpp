@@ -1,6 +1,6 @@
 /*
  *  Catch v1.2.1
- *  Generated: 2015-06-30 18:23:27.961086
+ *  Generated: 2015-07-02 16:33:13.110201
  *  ----------------------------------------------------------
  *  This file has been merged from multiple headers. Please don't edit it directly
  *  Copyright (c) 2012 Two Blue Cubes Ltd. All rights reserved.
@@ -8260,7 +8260,7 @@ namespace Catch {
 
         virtual void testRunStarting( TestRunInfo const& runInfo ) {
             CumulativeReporterBase::testRunStarting( runInfo );
-            xml.startElement( "testsuites" );
+//             xml.startElement( "testsuites" );
         }
 
         virtual void testGroupStarting( GroupInfo const& groupInfo ) {
@@ -8286,11 +8286,38 @@ namespace Catch {
         virtual void testGroupEnded( TestGroupStats const& testGroupStats ) {
             double suiteTime = suiteTimer.getElapsedSeconds();
             CumulativeReporterBase::testGroupEnded( testGroupStats );
-            writeGroup( *m_testGroups.back(), suiteTime );
+//             writeGroup( *m_testGroups.back(), suiteTime );
         }
 
         virtual void testRunEndedCumulative() {
-            xml.endElement();
+            writeRun(*m_testRuns.back());
+        }
+
+        void writeRun( TestRunNode const& runNode ) {
+            XmlWriter::ScopedElement e = xml.scopedElement( "testsuites" );
+            TestRunStats const& stats = runNode.value;
+
+            unsigned int tests = 0;
+            unsigned int failures = 0;
+            unsigned int errors = 0;
+            for( TestRunNode::ChildNodes::const_iterator
+                    it = runNode.children.begin(), itEnd = runNode.children.end();
+                    it != itEnd;
+                    ++it ) {
+                failures += (*it)->value.totals.assertions.failed;
+                tests += (*it)->value.totals.assertions.total();
+            }
+
+            xml.writeAttribute( "errors", errors );
+            xml.writeAttribute( "failures", failures );
+            xml.writeAttribute( "tests", tests );
+
+            for( TestRunNode::ChildNodes::const_iterator
+                    it = runNode.children.begin(), itEnd = runNode.children.end();
+                    it != itEnd;
+                    ++it ) {
+                writeGroup(**it, 0);
+            }
         }
 
         void writeGroup( TestGroupNode const& groupNode, double suiteTime ) {
