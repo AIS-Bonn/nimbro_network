@@ -70,6 +70,10 @@ void UDPServer::step()
 	int ret = select(m_fd + 1, &fds, 0, 0, &timeout);
 	if(ret < 0)
 	{
+		// Silently ignore EINTR, EAGAIN
+		if(errno == EINTR || errno == EAGAIN)
+			return;
+
 		std::stringstream ss;
 		ss << "Could not select(): " << strerror(errno);
 		throw std::runtime_error(ss.str());
