@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
 	roslib
 	topic_tools
 	message_generation
+	rostest
 )
 
 add_service_files(FILES
@@ -74,3 +75,6 @@ target_link_libraries(test_client
 add_dependencies(test_client
 	${PROJECT_NAME}_generate_messages_cpp
 )
+
+add_rostest(test/test_udp.test)
+add_rostest(test/test_tcp.test)
