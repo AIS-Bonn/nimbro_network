@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#include <netdb.h>
 
 #define DATA_DEBUG 0
 
@@ -87,10 +88,26 @@ ServiceClient::ServiceClient()
 	int port;
 	m_nh.param("port", port, 6050);
 
-	memset(&m_addr, 0, sizeof(m_addr));
-	m_addr.sin_family = AF_INET;
-	m_addr.sin_addr.s_addr = inet_addr(server.c_str());
-	m_addr.sin_port = htons(port);
+	std::string portString = boost::lexical_cast<std::string>(port);
+
+	addrinfo hint;
+	memset(&hint, 0, sizeof(hint));
+
+	hint.ai_socktype = SOCK_STREAM;
+
+	addrinfo* info = 0;
+	if(getaddrinfo(server.c_str(), portString.c_str(), &hint, &info) != 0 || !info)
+	{
+		std::stringstream ss;
+		ss << "Could not resolve server: " << strerror(errno);
+		throw std::runtime_error(ss.str());
+	}
+
+	if(info->ai_addrlen > sizeof(m_addr))
+		throw std::runtime_error("Invalid address length");
+
+	memcpy(&m_addr, info->ai_addr, info->ai_addrlen);
+	m_addrLen = info->ai_addrlen;
 
 	XmlRpc::XmlRpcValue list;
 	m_nh.getParam("services", list);
@@ -152,7 +169,7 @@ bool ServiceClient::call(const std::string& name, ros::ServiceCallbackHelperCall
 				throw std::runtime_error("socket error");
 			}
 
-			if(connect(m_fd, (const sockaddr*)&m_addr, sizeof(m_addr)) != 0)
+			if(connect(m_fd, (const sockaddr*)&m_addr, m_addrLen) != 0)
 			{
 				ROS_WARN("ServiceClient could not connect to server: %s", strerror(errno));
 				sleep(1);

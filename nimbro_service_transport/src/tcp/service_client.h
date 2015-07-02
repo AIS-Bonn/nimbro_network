@@ -23,7 +23,9 @@ private:
 	std::vector<ros::ServiceServer> m_servers;
 
 	int m_fd;
-	sockaddr_in m_addr;
+
+	sockaddr_storage m_addr;
+	socklen_t m_addrLen;
 };
 
 }
