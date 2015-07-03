@@ -24,6 +24,6 @@ services:
 	<node name="test_server" pkg="nimbro_service_transport" type="test_server" output="screen">
 	</node>
 
-	<test test-name="test_client" pkg="nimbro_service_transport" type="test_client" time-limit="20">
+	<test test-name="test_client_udp" pkg="nimbro_service_transport" type="test_client" time-limit="20">
 	</test>
 </launch>
