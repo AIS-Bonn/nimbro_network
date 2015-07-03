@@ -50,6 +50,8 @@ UDPServer::UDPServer()
 		ss << "Could not bind socket: " << strerror(errno);
 		throw std::runtime_error(ss.str());
 	}
+
+	ROS_INFO("udp_server listening on port %d", port);
 }
 
 UDPServer::~UDPServer()
