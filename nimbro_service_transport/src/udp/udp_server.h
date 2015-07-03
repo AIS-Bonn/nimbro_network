@@ -10,6 +10,8 @@
 
 #include <sys/socket.h>
 
+#include <netinet/ip.h>
+
 namespace nimbro_service_transport
 {
 
@@ -28,6 +30,7 @@ private:
 	int m_fd;
 
 	std::vector<uint8_t> m_buffer;
+	uint8_t m_ctrlBuf[1024];
 
 	struct RequestHandler
 	{
@@ -40,6 +43,8 @@ private:
 		{}
 
 		void call();
+
+		void sendResponse();
 
 		bool operator<(const RequestHandler& other) const;
 
@@ -59,6 +64,12 @@ private:
 		std::vector<uint8_t> response;
 
 		ros::Time receptionTime;
+
+		in_pktinfo in_info;
+		in6_pktinfo in6_info;
+
+		bool have_in_pktinfo;
+		bool have_in6_pktinfo;
 	};
 
 	std::list<boost::shared_ptr<RequestHandler>> m_requestList;
