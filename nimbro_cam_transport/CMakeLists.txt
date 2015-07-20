@@ -18,9 +18,9 @@ if(NOT x264_LIBRARY)
 	message(WARNING "x264 library not found, not building senders...")
 endif()
 
-find_library(LIBAVUTIL_LIBRARY avutil HINT /opt/ffmpeg/lib/libavutil.so)
-find_library(LIBAVCODEC_LIBRARY avcodec HINT /opt/ffmpeg/lib/libavcodec.so)
-find_library(LIBSWSCALE_LIBRARY swscale HINT /opt/ffmpeg/lib/libswscale.so)
+find_library(LIBAVUTIL_LIBRARY avutil HINTS /opt/ffmpeg/lib)
+find_library(LIBAVCODEC_LIBRARY avcodec HINTS /opt/ffmpeg/lib)
+find_library(LIBSWSCALE_LIBRARY swscale HINTS /opt/ffmpeg/lib)
 
 set(FFMPEG_INCLUDE_PATH "/opt/ffmpeg/include" CACHE PATH "path to libavcodec/avcodec.h")
 include_directories(${FFMPEG_INCLUDE_PATH})
