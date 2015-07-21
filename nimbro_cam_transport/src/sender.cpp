@@ -20,7 +20,8 @@ extern "C"
 int g_width;
 
 std::vector<uint8_t> g_inBuf;
-x264_t* g_encoder;
+x264_t* g_encoder = 0;
+int g_encoderConfiguredHeight;
 
 x264_picture_t g_inputPicture;
 x264_picture_t g_outPicture;
@@ -37,6 +38,45 @@ void handleImage(const sensor_msgs::ImageConstPtr& img)
 
 	cv::Mat resized;
 	cv::resize(cvImg->image, resized, cv::Size(g_width, height), CV_INTER_AREA);
+
+	if(!g_encoder)
+	{
+		x264_param_t params;
+		x264_param_default(&params);
+		x264_param_apply_profile(&params, "high");
+		x264_param_default_preset(&params, "ultrafast", "zerolatency");
+
+		params.i_width = g_width;
+		params.i_height = height;
+		params.b_repeat_headers = 1;
+		params.b_intra_refresh = 1;
+		params.i_fps_num = 1;
+		params.i_fps_den = 10;
+		params.i_frame_reference = 1;
+		params.i_keyint_max = 20;
+		params.i_bframe = 0;
+		params.b_open_gop = 0;
+	// 	params.rc.i_rc_method = X264_RC_CRF;
+	// // 	params.rc.i_qp_min = params.rc.i_qp_max = 47;
+	// 	params.rc.i_vbv_buffer_size = 6;
+	// 	params.rc.i_vbv_max_bitrate = 6000;
+	// 	params.rc.i_bitrate = 6;
+		params.i_threads = 4;
+
+		g_encoder = x264_encoder_open(&params);
+
+		x264_picture_init(&g_inputPicture);
+		x264_picture_init(&g_outPicture);
+
+		g_encoderConfiguredHeight = height;
+
+		g_inBuf.resize(g_width*height + g_width*height/2);
+	}
+	else if(height != g_encoderConfiguredHeight)
+	{
+		ROS_ERROR("Image dimensions changed!");
+		throw std::runtime_error("Image dimensions changed");
+	}
 
 	RGB_to_YUV420(resized.data, g_inBuf.data(), g_width, height);
 
@@ -99,36 +139,6 @@ int main(int argc, char** argv)
 	nh.param("width", g_width, 640);
 
 	g_pub = nh.advertise<sensor_msgs::CompressedImage>("encoded", 1);
-
-	x264_param_t params;
-	x264_param_default(&params);
-	x264_param_apply_profile(&params, "high");
-	x264_param_default_preset(&params, "ultrafast", "zerolatency");
-
-	params.i_width = g_width;
-	params.i_height = g_height;
-	params.b_repeat_headers = 1;
-	params.b_intra_refresh = 1;
-	params.i_fps_num = 1;
-	params.i_fps_den = 10;
-	params.i_frame_reference = 1;
-	params.i_keyint_max = 20;
-	params.i_bframe = 0;
-	params.b_open_gop = 0;
-// 	params.rc.i_rc_method = X264_RC_CRF;
-// // 	params.rc.i_qp_min = params.rc.i_qp_max = 47;
-// 	params.rc.i_vbv_buffer_size = 6;
-// 	params.rc.i_vbv_max_bitrate = 6000;
-// 	params.rc.i_bitrate = 6;
-	params.i_threads = 4;
-
-	g_encoder = x264_encoder_open(&params);
-
-
-	x264_picture_init(&g_inputPicture);
-	x264_picture_init(&g_outPicture);
-
-	g_inBuf.resize(g_width*g_height + g_width*g_height/2);
 
 	image_transport::Subscriber sub = it.subscribe("image", 1, &handleImage);
 
