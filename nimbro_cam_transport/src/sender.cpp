@@ -18,7 +18,6 @@ extern "C"
 #include "rgb_to_yuv420.h"
 
 int g_width;
-int g_height;
 
 std::vector<uint8_t> g_inBuf;
 x264_t* g_encoder;
@@ -34,14 +33,16 @@ void handleImage(const sensor_msgs::ImageConstPtr& img)
 
 	cv_bridge::CvImageConstPtr cvImg = cv_bridge::toCvShare(img, "bgr8");
 
-	cv::Mat resized;
-	cv::resize(cvImg->image, resized, cv::Size(g_width, g_height), CV_INTER_AREA);
+	int height = g_width * cvImg->image.rows / cvImg->image.cols;
 
-	RGB_to_YUV420(resized.data, g_inBuf.data(), g_width, g_height);
+	cv::Mat resized;
+	cv::resize(cvImg->image, resized, cv::Size(g_width, height), CV_INTER_AREA);
+
+	RGB_to_YUV420(resized.data, g_inBuf.data(), g_width, height);
 
 	g_inputPicture.img.plane[0] = g_inBuf.data();
-	g_inputPicture.img.plane[1] = g_inBuf.data() + g_width*g_height;
-	g_inputPicture.img.plane[2] = g_inBuf.data() + g_width*g_height + g_width*g_height/4;
+	g_inputPicture.img.plane[1] = g_inBuf.data() + g_width*height;
+	g_inputPicture.img.plane[2] = g_inBuf.data() + g_width*height + g_width*height/4;
 
 	g_inputPicture.img.i_stride[0] = g_width;
 	g_inputPicture.img.i_stride[1] = g_width/2;
@@ -96,7 +97,6 @@ int main(int argc, char** argv)
 	image_transport::ImageTransport it(nh);
 
 	nh.param("width", g_width, 640);
-	nh.param("height", g_height, 480);
 
 	g_pub = nh.advertise<sensor_msgs::CompressedImage>("encoded", 1);
 

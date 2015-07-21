@@ -41,6 +41,13 @@ void handleImage(const sensor_msgs::CompressedImageConstPtr& img)
 
 	if(gotPicture)
 	{
+		g_sws = sws_getCachedContext(
+			g_sws,
+			frame.width, frame.height, AV_PIX_FMT_YUV420P,
+			frame.width, frame.height, AV_PIX_FMT_RGB24,
+			0, 0, 0, 0
+		);
+
 		sensor_msgs::ImagePtr img(new sensor_msgs::Image);
 
 		img->encoding = "rgb8";
@@ -83,15 +90,6 @@ int main(int argc, char** argv)
 
 	if(avcodec_open2(g_codec, decoder, 0) != 0)
 		throw std::runtime_error("Could not open decoder");
-
-	int width;
-	int height;
-
-	nh.param("width", width, 640);
-	nh.param("height", height, 480);
-	
-	g_sws = sws_getContext(width, height, AV_PIX_FMT_YUV420P, width, height,
-	                       AV_PIX_FMT_RGB24, 0, 0, 0, 0);
 
 	g_pub = nh.advertise<sensor_msgs::Image>("image", 1);
 	
