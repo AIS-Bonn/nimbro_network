@@ -76,6 +76,7 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh("~");
 
 	avcodec_register_all();
+	av_log_set_level(AV_LOG_QUIET);
 
 	AVCodec* decoder = avcodec_find_decoder(AV_CODEC_ID_H264);
 	if(!decoder)
