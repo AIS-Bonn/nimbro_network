@@ -146,12 +146,15 @@ void TopicSender::sendWithFEC()
 		header->topic_md5[i] = m_md5[i];
 
 	using IT = typename std::vector<uint8_t>::iterator;
-	RaptorQ::Encoder<IT, IT> encoder(input.begin(), input.end(), 4, FECPacket::MaxDataSize, 10000);
+	RaptorQ::Encoder<IT, IT> encoder(input.begin(), input.end(), 4, FECPacket::MaxDataSize, 50000);
 
 	if(!encoder)
 		throw std::runtime_error("Could not initialize encoder");
 
-	encoder.precompute(1, false);
+	ros::WallTime start = ros::WallTime::now();
+	encoder.precompute(6, false);
+	ros::WallTime end = ros::WallTime::now();
+	ROS_INFO("FEC took %f ms and produced %d blocks", (end - start).toSec() * 1000, encoder.blocks());
 
 	std::vector<uint8_t> output(PACKET_SIZE);
 	FECPacket* outPacket = reinterpret_cast<FECPacket*>(output.data());
@@ -159,6 +162,8 @@ void TopicSender::sendWithFEC()
 	outPacket->header.msg_id = m_sender->allocateMessageID();
 	outPacket->header.oti_common = encoder.OTI_Common();
 	outPacket->header.oti_specific = encoder.OTI_Scheme_Specific();
+
+	unsigned int packets = 0;
 
 	for(const auto& block : encoder)
 	{
@@ -172,6 +177,7 @@ void TopicSender::sendWithFEC()
 
 			if(!m_sender->send(output.data(), sizeof(FECPacket::Header) + dataSize))
 				return;
+			packets++;
 		}
 
 		// Then repair symbols
@@ -189,8 +195,11 @@ void TopicSender::sendWithFEC()
 				return;
 
 			sentRepair++;
+			packets++;
 		}
 	}
+
+	ROS_INFO("FEC: Sent msg id %u with %u packets", outPacket->header.msg_id(), packets);
 
 #else
 	throw std::runtime_error("Forward error correction requested, but I was not compiled with RaptorQ support...");

@@ -182,7 +182,7 @@ bool UDPSender::internalSend(const void* data, uint32_t size)
 	ros::Time now = ros::Time::now();
 	ros::Duration delta = now - m_lastTime;
 
-	if(delta < ros::Duration(0.008))
+/*	if(delta < ros::Duration(0.008))
 	{
 		m_sleepCounter++;
 		delta.sleep();
@@ -194,7 +194,7 @@ bool UDPSender::internalSend(const void* data, uint32_t size)
 		}
 	}
 	else
-		m_sleepCounter = 0;
+		m_sleepCounter = 0;*/
 
 	if(sendto(m_fd, data, size, 0, (sockaddr*)&m_addr, sizeof(m_addr)) != size)
 	{

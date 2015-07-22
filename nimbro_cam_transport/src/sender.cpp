@@ -61,6 +61,10 @@ void handleImage(const sensor_msgs::ImageConstPtr& img)
 	// 	params.rc.i_vbv_buffer_size = 6;
 	// 	params.rc.i_vbv_max_bitrate = 6000;
 	// 	params.rc.i_bitrate = 6;
+		params.rc.i_rc_method = X264_RC_CRF;
+		params.rc.i_vbv_buffer_size = 200;
+		params.rc.i_vbv_max_bitrate = 200;
+		params.rc.i_bitrate = 200;
 		params.i_threads = 4;
 
 		g_encoder = x264_encoder_open(&params);
