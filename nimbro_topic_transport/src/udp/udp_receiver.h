@@ -30,6 +30,7 @@ struct Message
 	Message(uint16_t id)
 	 : id(id)
 	 , size(0)
+	 , complete(false)
 	{}
 
 	Message()
@@ -49,10 +50,14 @@ struct Message
 	size_t size;
 	std::vector<bool> msgs;
 
+	bool complete;
+
 #if WITH_RAPTORQ
 	typedef std::vector<uint8_t>::iterator DecoderIterator;
 	typedef RaptorQ::Decoder<uint8_t*,DecoderIterator> Decoder;
 	boost::shared_ptr<Decoder> decoder;
+	unsigned int received_symbols;
+	unsigned int accepted_symbols;
 #endif
 };
 

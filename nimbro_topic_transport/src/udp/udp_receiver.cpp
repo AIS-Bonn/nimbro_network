@@ -182,7 +182,11 @@ UDPReceiver::~UDPReceiver()
 template<class HeaderType>
 void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 {
+	if(msg->complete)
+		return;
+
 	// Packet complete
+	msg->complete = true;
 
 	// Enforce termination
 	header->topic_type[sizeof(header->topic_type)-1] = 0;
@@ -357,7 +361,7 @@ void UDPReceiver::run()
 			// Erase messages that are too old (after index 31)
 			MessageBuffer::iterator itr = m_incompleteMessages.begin();
 			MessageBuffer::iterator it_end = m_incompleteMessages.end();
-			for(int i = 0; i < 32; ++i)
+			for(int i = 0; i < 15; ++i)
 			{
 				itr++;
 				if(itr == it_end)
@@ -370,6 +374,9 @@ void UDPReceiver::run()
 				{
 					const Message& msg = *itd;
 
+					if(msg.complete)
+						continue;
+
 					int num_fragments = msg.msgs.size();
 					int received = 0;
 					for(unsigned int i = 0; i < msg.msgs.size(); ++i)
@@ -378,9 +385,22 @@ void UDPReceiver::run()
 							received++;
 					}
 
-					ROS_WARN("Dropping message %d, %.2f%% of fragments received (%d/%d)",
-						msg.id, 100.0 * received / num_fragments, received, num_fragments
-					);
+#if WITH_RAPTORQ
+					if(msg.decoder)
+					{
+						unsigned int totalSymbols = 0;
+						for(unsigned int i = 0; i < msg.decoder->blocks(); ++i)
+							totalSymbols += msg.decoder->symbols(i);
+
+						ROS_WARN("Dropping FEC message %d (%u/%u/%u symbols)", msg.id, msg.accepted_symbols, msg.received_symbols, totalSymbols);
+					}
+					else
+#endif
+					{
+						ROS_WARN("Dropping message %d, %.2f%% of fragments received (%d/%d)",
+							msg.id, 100.0 * received / num_fragments, received, num_fragments
+						);
+					}
 				}
 			}
 
@@ -388,6 +408,9 @@ void UDPReceiver::run()
 		}
 
 		msg = &*it;
+
+		if(msg->complete)
+			continue;
 
 		if(m_fec)
 		{
@@ -399,18 +422,30 @@ void UDPReceiver::run()
 				msg->decoder.reset(new Message::Decoder(
 					packet->header.oti_common(), packet->header.oti_specific()
 				));
+				msg->received_symbols = 0;
+				msg->accepted_symbols = 0;
 			}
 
+			msg->received_symbols++;
+
+// 			ROS_INFO("msg: %10d, symbol: %10d", msg_id, packet->header.symbol_id());
+
 			uint8_t* symbol_begin = packet->data;
-			msg->decoder->add_symbol(symbol_begin, buf + size, packet->header.symbol_id());
+			if(msg->decoder->add_symbol(symbol_begin, buf + size, packet->header.symbol_id()))
+				msg->accepted_symbols++;
 
 			// Try decoding
 			msg->payload.resize(msg->decoder->bytes());
 			auto outIt = msg->payload.begin();
+
+			ros::WallTime start = ros::WallTime::now();
 			uint64_t written = msg->decoder->decode(outIt, msg->payload.end());
+			ros::WallTime end = ros::WallTime::now();
 
 			if(written != 0)
 			{
+				ROS_INFO("FEC decode took %f ms", (end - start).toSec() * 1000);
+
 				if(written < sizeof(FECHeader))
 				{
 					ROS_ERROR("Invalid short packet");
@@ -427,7 +462,9 @@ void UDPReceiver::run()
 				msg->size = written;
 
 				handleFinishedMessage(msg, &msgHeader);
-				m_incompleteMessages.erase(it);
+
+				// keep completed messages in the buffer so that we know that
+				// we have to ignore any additional symbols of that message.
 			}
 #endif
 		}
