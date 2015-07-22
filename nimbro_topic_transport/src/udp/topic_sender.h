@@ -37,6 +37,9 @@ namespace nimbro_topic_transport
 		void send();
 		void resend();
 
+		void sendWithFEC();
+		void sendWithoutFEC();
+
 		UDPSender* m_sender;
 		ros::Subscriber m_subscriber;
 		std::string m_topicName;

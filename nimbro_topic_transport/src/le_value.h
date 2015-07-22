@@ -75,6 +75,27 @@ private:
 	uint32_t m_value;
 } __attribute__((packed));
 
+template<>
+class LEValue<8>
+{
+public:
+	typedef uint64_t Type;
+
+	inline operator uint64_t() const
+	{ return le64toh(m_value); }
+
+	inline uint64_t operator()() const
+	{ return le64toh(m_value); }
+
+	inline uint64_t operator=(uint64_t value)
+	{
+		m_value = htole64(value);
+		return value;
+	}
+private:
+	uint64_t m_value;
+} __attribute__((packed));
+
 }
 
 #endif

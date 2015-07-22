@@ -163,13 +163,152 @@ UDPReceiver::UDPReceiver()
 		throw std::runtime_error(strerror(errno));
 	}
 
-	nh.param("drop_repeated_msgs", m_dropRepeatedMessages, false);
+	nh.param("drop_repeated_msgs", m_dropRepeatedMessages, true);
 	nh.param("warn_drop_incomplete", m_warnDropIncomplete, true);
 	nh.param("keep_compressed", m_keepCompressed, false);
+
+	nh.param("fec", m_fec, false);
+
+#if !(WITH_RAPTORQ)
+	if(m_fec)
+		throw std::runtime_error("Please compile with RaptorQ support to enable FEC");
+#endif
 }
 
 UDPReceiver::~UDPReceiver()
 {
+}
+
+template<class HeaderType>
+void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
+{
+	// Packet complete
+
+	// Enforce termination
+	header->topic_type[sizeof(header->topic_type)-1] = 0;
+	header->topic_name[sizeof(header->topic_name)-1] = 0;
+
+	ROS_DEBUG("Got a packet of type %s, topic %s, (msg id %d), size %d", header->topic_type, header->topic_name, msg->id, (int)msg->payload.size());
+
+	// Find topic
+	TopicMap::iterator topic_it = m_topics.find(header->topic_name);
+
+	boost::shared_ptr<TopicData> topic;
+	if(topic_it == m_topics.end())
+	{
+		m_topics.insert(std::pair<std::string, boost::shared_ptr<TopicData>>(
+			header->topic_name,
+			boost::make_shared<TopicData>()
+		));
+		topic = m_topics[header->topic_name];
+
+		topic->last_message_counter = -1;
+	}
+	else
+		topic = topic_it->second;
+
+	// Send heartbeat message
+	ros::Time now = ros::Time::now();
+	if(now - m_lastHeartbeatTime > ros::Duration(0.2))
+	{
+		std_msgs::Time time;
+		time.data = now;
+		m_pub_heartbeat.publish(time);
+
+		m_lastHeartbeatTime = now;
+	}
+
+#if WITH_PLOTTING
+	// Plot packet size
+	plot_msgs::Plot plot;
+	plot.header.stamp = ros::Time::now();
+
+	plot_msgs::PlotPoint point;
+
+	std::string safe_topic = header->topic_name;
+	std::replace(safe_topic.begin(), safe_topic.end(), '/', '_');
+
+	point.name = "/udp_receiver/mbyte/" + safe_topic;
+	point.value = ((double)msg->getLength()) / 1024 / 1024;
+
+	plot.points.push_back(point);
+	m_pub_plot.publish(plot);
+#endif
+
+	if(m_dropRepeatedMessages && header->topic_msg_counter() == topic->last_message_counter)
+	{
+		// This is the same message, probably sent in relay mode
+		return;
+	}
+
+	bool compressed = header->flags & UDP_FLAG_COMPRESSED;
+
+	// Compare md5
+	if(topic->last_message_counter == -1 || memcmp(topic->md5, header->topic_md5, sizeof(topic->md5)) != 0 || (m_keepCompressed && topic->compressed != compressed))
+	{
+		topic->msg_def = topic_info::getMsgDef(header->topic_type);
+		topic->md5_str = topic_info::getMd5Sum(header->topic_type);
+
+		ROS_WARN_STREAM("Got " << topic->msg_def << topic->md5_str << "end");
+		for(int i = 0; i < 4; ++i)
+		{
+			std::string md5_part = topic->md5_str.substr(8*i, 8);
+			uint32_t md5_num = strtol(md5_part.c_str(), 0, 16);
+			topic->md5[i] = md5_num;
+		}
+
+		if(memcmp(topic->md5, header->topic_md5, sizeof(topic->md5)) != 0)
+		{
+			ROS_ERROR("Invalid md5 sum for topic type '%s', please make sure msg definitions are up to date", header->topic_type);
+			return;
+		}
+
+		if(m_keepCompressed && compressed)
+		{
+			// If we are requested to keep the messages compressed, we advertise our compressed msg type
+			topic->publisher = m_nh.advertise<CompressedMsg>(header->topic_name, 1);
+		}
+		else
+		{
+			// ... otherwise, we advertise the native type
+			ros::AdvertiseOptions options(
+				header->topic_name,
+				1,
+				topic->md5_str,
+				header->topic_type,
+				topic->msg_def
+			);
+
+			// Latching is often unexpected. Better to lose the first msg.
+			//options.latch = 1;
+			topic->publisher = m_nh.advertise(options);
+		}
+
+		topic->compressed = compressed;
+	}
+
+	if(compressed && m_keepCompressed)
+	{
+		CompressedMsg compressed;
+		compressed.type = header->topic_type;
+		memcpy(compressed.md5.data(), topic->md5, sizeof(topic->md5));
+
+		compressed.data.swap(msg->payload);
+		topic->publisher.publish(compressed);
+	}
+	else if(header->flags & UDP_FLAG_COMPRESSED)
+		topic->takeForDecompression(boost::make_shared<Message>(*msg));
+	else
+	{
+		topic_tools::ShapeShifter shapeShifter;
+		shapeShifter.morph(topic->md5_str, header->topic_type, topic->msg_def, "");
+
+		shapeShifter.read(*msg);
+
+		topic->publisher.publish(shapeShifter);
+	}
+
+	topic->last_message_counter = header->topic_msg_counter();
 }
 
 void UDPReceiver::run()
@@ -192,17 +331,27 @@ void UDPReceiver::run()
 		ROS_DEBUG("packet");
 
 		Message* msg;
+		uint16_t msg_id;
 
-		UDPGenericPacket* generic = (UDPGenericPacket*)buf;
+		if(m_fec)
+		{
+			FECPacket::Header* header = (FECPacket::Header*)buf;
+			msg_id = header->msg_id();
+		}
+		else
+		{
+			UDPGenericPacket* generic = (UDPGenericPacket*)buf;
+			msg_id = generic->msg_id();
+		}
 
 		MessageBuffer::iterator it = std::find_if(m_incompleteMessages.begin(), m_incompleteMessages.end(),
-			[=](const Message& msg) { return msg.id == generic->msg_id(); }
+			[=](const Message& msg) { return msg.id == msg_id; }
 		);
 
 		if(it == m_incompleteMessages.end())
 		{
 			// Insert a new message
-			m_incompleteMessages.push_front(Message(generic->msg_id()));
+			m_incompleteMessages.push_front(Message(msg_id));
 			it = m_incompleteMessages.begin();
 
 			// Erase messages that are too old (after index 31)
@@ -240,178 +389,96 @@ void UDPReceiver::run()
 
 		msg = &*it;
 
-		if(generic->frag_id == 0)
+		if(m_fec)
 		{
-			UDPFirstPacket* first = (UDPFirstPacket*)buf;
+#if WITH_RAPTORQ
+			FECPacket* packet = (FECPacket*)buf;
 
-			msg->header = first->header;
-
-			// We can calculate an approximate size now
-			uint32_t required_size = (msg->header.remaining_packets()+1) * PACKET_SIZE;
-			uint32_t my_size = size - sizeof(UDPFirstPacket);
-			if(msg->payload.size() < required_size)
-				msg->payload.resize(required_size);
-			memcpy(msg->payload.data(), first->data, my_size);
-
-			if(msg->size < my_size)
-				msg->size = my_size;
-
-			if(((uint16_t)msg->msgs.size()) < msg->header.remaining_packets()+1)
-				msg->msgs.resize(msg->header.remaining_packets()+1, false);
-		}
-		else
-		{
-			UDPDataPacket* data = (UDPDataPacket*)buf;
-
-			uint32_t offset = UDPFirstPacket::MaxDataSize + (data->header.frag_id-1) * UDPDataPacket::MaxDataSize;
-			uint32_t required_size = offset + size - sizeof(UDPDataPacket);
-			if(msg->payload.size() < required_size)
-				msg->payload.resize(required_size);
-			memcpy(msg->payload.data() + offset, data->data, size - sizeof(UDPDataPacket));
-
-			if(msg->size < required_size)
-				msg->size = required_size;
-		}
-
-		if(generic->frag_id >= msg->msgs.size())
-			msg->msgs.resize(generic->frag_id+1, false);
-
-		ROS_DEBUG("fragment: %d of msg %d", (int)generic->frag_id(), (int)generic->msg_id());
-		msg->msgs[generic->frag_id] = true;
-
-		if(std::all_of(msg->msgs.begin(), msg->msgs.end(), [](bool x){return x;}))
-		{
-			// Packet complete
-
-			// Enforce termination
-			msg->header.topic_type[sizeof(msg->header.topic_type)-1] = 0;
-			msg->header.topic_name[sizeof(msg->header.topic_name)-1] = 0;
-
-			ROS_DEBUG("Got a packet of type %s, topic %s, %d extra udp packets (msg id %d)", msg->header.topic_type, msg->header.topic_name, msg->header.remaining_packets(), msg->id);
-
-			// Find topic
-			TopicMap::iterator topic_it = m_topics.find(msg->header.topic_name);
-
-			boost::shared_ptr<TopicData> topic;
-			if(topic_it == m_topics.end())
+			if(!msg->decoder)
 			{
-				m_topics.insert(std::pair<std::string, boost::shared_ptr<TopicData>>(
-					msg->header.topic_name,
-					boost::make_shared<TopicData>()
+				msg->decoder.reset(new Message::Decoder(
+					packet->header.oti_common(), packet->header.oti_specific()
 				));
-				topic = m_topics[msg->header.topic_name];
-
-				topic->last_message_counter = -1;
-			}
-			else
-				topic = topic_it->second;
-
-			// Send heartbeat message
-			ros::Time now = ros::Time::now();
-			if(now - m_lastHeartbeatTime > ros::Duration(0.2))
-			{
-				std_msgs::Time time;
-				time.data = now;
-				m_pub_heartbeat.publish(time);
-
-				m_lastHeartbeatTime = now;
 			}
 
-#if WITH_PLOTTING
-			// Plot packet size
-			plot_msgs::Plot plot;
-			plot.header.stamp = ros::Time::now();
+			uint8_t* symbol_begin = packet->data;
+			msg->decoder->add_symbol(symbol_begin, buf + size, packet->header.symbol_id());
 
-			plot_msgs::PlotPoint point;
+			// Try decoding
+			msg->payload.resize(msg->decoder->bytes());
+			auto outIt = msg->payload.begin();
+			uint64_t written = msg->decoder->decode(outIt, msg->payload.end());
 
-			std::string safe_topic = msg->header.topic_name;
-			std::replace(safe_topic.begin(), safe_topic.end(), '/', '_');
-
-			point.name = "/udp_receiver/mbyte/" + safe_topic;
-			point.value = ((double)msg->getLength()) / 1024 / 1024;
-
-			plot.points.push_back(point);
-			m_pub_plot.publish(plot);
-#endif
-
-			if(m_dropRepeatedMessages && msg->header.topic_msg_counter() == topic->last_message_counter)
+			if(written != 0)
 			{
-				// This is the same message, probably sent in relay mode
-				m_incompleteMessages.erase(it);
-				continue;
-			}
-
-			bool compressed = msg->header.flags & UDP_FLAG_COMPRESSED;
-
-			// Compare md5
-			if(memcmp(topic->md5, msg->header.topic_md5, sizeof(topic->md5)) != 0 || (m_keepCompressed && topic->compressed != compressed))
-			{
-				topic->msg_def = topic_info::getMsgDef(msg->header.topic_type);
-				topic->md5_str = topic_info::getMd5Sum(msg->header.topic_type);
-
-				ROS_WARN_STREAM("Got " << topic->msg_def << topic->md5_str << "end");
-				for(int i = 0; i < 4; ++i)
+				if(written < sizeof(FECHeader))
 				{
-					std::string md5_part = topic->md5_str.substr(8*i, 8);
-					uint32_t md5_num = strtol(md5_part.c_str(), 0, 16);
-					topic->md5[i] = md5_num;
-				}
-
-				if(memcmp(topic->md5, msg->header.topic_md5, sizeof(topic->md5)) != 0)
-				{
-					ROS_ERROR("Invalid md5 sum for topic type '%s', please make sure msg definitions are up to date", msg->header.topic_type);
+					ROS_ERROR("Invalid short packet");
 					m_incompleteMessages.erase(it);
 					continue;
 				}
 
-				if(m_keepCompressed && compressed)
-				{
-					// If we are requested to keep the messages compressed, we advertise our compressed msg type
-					topic->publisher = m_nh.advertise<CompressedMsg>(msg->header.topic_name, 1);
-				}
-				else
-				{
-					// ... otherwise, we advertise the native type
-					ros::AdvertiseOptions options(
-						msg->header.topic_name,
-						1,
-						topic->md5_str,
-						msg->header.topic_type,
-						topic->msg_def
-					);
+				FECHeader msgHeader = *reinterpret_cast<FECHeader*>(msg->payload.data());
 
-					// Latching is often unexpected. Better to lose the first msg.
-	 				//options.latch = 1;
-					topic->publisher = m_nh.advertise(options);
-				}
+				// Remove header from buffer
+				memmove(msg->payload.data(), msg->payload.data() + sizeof(FECHeader), written - sizeof(FECHeader));
+				msg->payload.resize(written - sizeof(FECHeader));
 
-				topic->compressed = compressed;
+				msg->size = written;
+
+				handleFinishedMessage(msg, &msgHeader);
+				m_incompleteMessages.erase(it);
 			}
-
-			if(compressed && m_keepCompressed)
+#endif
+		}
+		else
+		{
+			UDPGenericPacket* generic = (UDPGenericPacket*)buf;
+			if(generic->frag_id == 0)
 			{
-				CompressedMsg compressed;
-				compressed.type = msg->header.topic_type;
-				memcpy(compressed.md5.data(), topic->md5, sizeof(topic->md5));
+				UDPFirstPacket* first = (UDPFirstPacket*)buf;
 
-				compressed.data.swap(msg->payload);
-				topic->publisher.publish(compressed);
+				msg->header = first->header;
+
+				// We can calculate an approximate size now
+				uint32_t required_size = (msg->header.remaining_packets()+1) * PACKET_SIZE;
+				uint32_t my_size = size - sizeof(UDPFirstPacket);
+				if(msg->payload.size() < required_size)
+					msg->payload.resize(required_size);
+				memcpy(msg->payload.data(), first->data, my_size);
+
+				if(msg->size < my_size)
+					msg->size = my_size;
+
+				if(((uint16_t)msg->msgs.size()) < msg->header.remaining_packets()+1)
+					msg->msgs.resize(msg->header.remaining_packets()+1, false);
 			}
-			else if(msg->header.flags & UDP_FLAG_COMPRESSED)
-				topic->takeForDecompression(boost::make_shared<Message>(*msg));
 			else
 			{
-				topic_tools::ShapeShifter shapeShifter;
-				shapeShifter.morph(topic->md5_str, msg->header.topic_type, topic->msg_def, "");
+				UDPDataPacket* data = (UDPDataPacket*)buf;
 
-				shapeShifter.read(*msg);
+				uint32_t offset = UDPFirstPacket::MaxDataSize + (data->header.frag_id-1) * UDPDataPacket::MaxDataSize;
+				uint32_t required_size = offset + size - sizeof(UDPDataPacket);
+				if(msg->payload.size() < required_size)
+					msg->payload.resize(required_size);
+				memcpy(msg->payload.data() + offset, data->data, size - sizeof(UDPDataPacket));
 
-				topic->publisher.publish(shapeShifter);
+				if(msg->size < required_size)
+					msg->size = required_size;
 			}
 
-			topic->last_message_counter = msg->header.topic_msg_counter();
+			if(generic->frag_id >= msg->msgs.size())
+				msg->msgs.resize(generic->frag_id+1, false);
 
-			m_incompleteMessages.erase(it);
+			ROS_DEBUG("fragment: %d of msg %d", (int)generic->frag_id(), (int)msg_id);
+			msg->msgs[generic->frag_id] = true;
+
+			if(std::all_of(msg->msgs.begin(), msg->msgs.end(), [](bool x){return x;}))
+			{
+				handleFinishedMessage(msg, &msg->header);
+
+				m_incompleteMessages.erase(it);
+			}
 		}
 	}
 }

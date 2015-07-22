@@ -18,6 +18,10 @@
 
 #include "udp_packet.h"
 
+#if WITH_RAPTORQ
+#include <RaptorQ/RaptorQ.hpp>
+#endif
+
 namespace nimbro_topic_transport
 {
 
@@ -44,6 +48,12 @@ struct Message
 	std::vector<uint8_t> payload;
 	size_t size;
 	std::vector<bool> msgs;
+
+#if WITH_RAPTORQ
+	typedef std::vector<uint8_t>::iterator DecoderIterator;
+	typedef RaptorQ::Decoder<uint8_t*,DecoderIterator> Decoder;
+	boost::shared_ptr<Decoder> decoder;
+#endif
 };
 
 struct TopicData
@@ -85,6 +95,9 @@ private:
 	typedef std::map<std::string, boost::shared_ptr<TopicData>> TopicMap;
 	typedef std::list<Message> MessageBuffer;
 
+	template<class HeaderType>
+	void handleFinishedMessage(Message* msg, HeaderType* header);
+
 	int m_fd;
 	MessageBuffer m_incompleteMessages;
 	TopicMap m_topics;
@@ -100,6 +113,8 @@ private:
 	ros::Publisher m_pub_plot;
 
 	Message m_decompressedMessage;
+
+	bool m_fec;
 };
 
 }

@@ -1,0 +1,24 @@
+<launch>
+	<include file="$(find spacebot_launch)/config/server.launch" />
+
+	<node name="sender" pkg="nimbro_topic_transport" type="udp_sender" output="screen">
+		<!-- Destination: localhost -->
+		<param name="destination_addr" value="127.0.0.1" />
+		<param name="destination_port" value="5777" />
+		<param name="source_port" value="5776" />
+
+		<param name="fec" value="0.5" />
+
+		<!-- Load topics from yaml file -->
+		<rosparam command="load" file="$(find nimbro_topic_transport)/test/udp_sender.yaml" />
+	</node>
+
+	<node name="receiver" pkg="nimbro_topic_transport" type="udp_receiver" output="screen">
+		<param name="port" value="5777" />
+		<param name="fec" value="true" />
+		<remap from="/test_topic" to="/receive/test_topic" />
+	</node>
+
+	<test test-name="test_udp" pkg="nimbro_topic_transport" type="test_comm">
+	</test>
+</launch>

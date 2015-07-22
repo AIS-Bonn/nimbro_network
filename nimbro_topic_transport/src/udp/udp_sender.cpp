@@ -78,6 +78,8 @@ UDPSender::UDPSender()
 	m_addr.sin_port = htons(dest_port);
 	m_addr.sin_family = AF_INET;
 
+	nh.param("fec", m_fec, 0.0);
+
 
 	XmlRpc::XmlRpcValue list;
 	nh.getParam("topics", list);

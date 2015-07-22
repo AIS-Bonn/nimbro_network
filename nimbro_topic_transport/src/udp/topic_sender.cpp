@@ -11,6 +11,10 @@
 
 #include <boost/algorithm/string/replace.hpp>
 
+#if WITH_RAPTORQ
+#include <RaptorQ/RaptorQ.hpp>
+#endif
+
 namespace nimbro_topic_transport
 {
 
@@ -99,6 +103,102 @@ void TopicSender::send()
 		m_updateBuf = false;
 	}
 
+	// Do we want to do forward error correction?
+	if(m_sender->fec() != 0.0)
+	{
+		sendWithFEC();
+	}
+	else
+	{
+		sendWithoutFEC();
+	}
+
+	m_msgCounter++;
+}
+
+void TopicSender::sendWithFEC()
+{
+#if WITH_RAPTORQ
+	// Prepend a FECHeader (FIXME: Can we avoid the data copy?)
+	std::vector<uint8_t> input(sizeof(FECHeader) + m_buf.size());
+	FECHeader* header = reinterpret_cast<FECHeader*>(input.data());
+	memcpy(input.data() + sizeof(FECHeader), m_buf.data(), m_buf.size());
+
+	// Fill in header fields
+	header->flags = m_flags;
+	header->topic_msg_counter = m_inputMsgCounter;
+
+	strncpy(header->topic_name, m_topicName.c_str(), sizeof(header->topic_name));
+	if(header->topic_name[sizeof(header->topic_name)-1] != 0)
+	{
+		ROS_ERROR("Topic '%s' is too long. Please shorten the name.", m_topicName.c_str());
+		header->topic_name[sizeof(header->topic_name)-1] = 0;
+	}
+
+	strncpy(header->topic_type, m_topicType.c_str(), sizeof(header->topic_type));
+	if(header->topic_type[sizeof(header->topic_type)-1] != 0)
+	{
+		ROS_ERROR("Topic type '%s' is too long. Please shorten the name.", m_topicType.c_str());
+		header->topic_type[sizeof(header->topic_type)-1] = 0;
+	}
+
+	for(int i = 0; i < 4; ++i)
+		header->topic_md5[i] = m_md5[i];
+
+	using IT = typename std::vector<uint8_t>::iterator;
+	RaptorQ::Encoder<IT, IT> encoder(input.begin(), input.end(), 4, FECPacket::MaxDataSize, 10000);
+
+	if(!encoder)
+		throw std::runtime_error("Could not initialize encoder");
+
+	encoder.precompute(1, false);
+
+	std::vector<uint8_t> output(PACKET_SIZE);
+	FECPacket* outPacket = reinterpret_cast<FECPacket*>(output.data());
+
+	outPacket->header.msg_id = m_sender->allocateMessageID();
+	outPacket->header.oti_common = encoder.OTI_Common();
+	outPacket->header.oti_specific = encoder.OTI_Scheme_Specific();
+
+	for(const auto& block : encoder)
+	{
+		// First send source symbols
+		for(auto it = block.begin_source(); it != block.end_source(); ++it)
+		{
+			outPacket->header.symbol_id = (*it).id();
+
+			auto dataStart = output.begin() + sizeof(FECPacket::Header);
+			uint64_t dataSize = (*it)(dataStart, output.end());
+
+			if(!m_sender->send(output.data(), sizeof(FECPacket::Header) + dataSize))
+				return;
+		}
+
+		// Then repair symbols
+		unsigned int sentRepair = 0;
+		const unsigned int numRepair = std::ceil(m_sender->fec() * block.symbols());
+
+		for(auto it = block.begin_repair(); it != block.end_repair(block.max_repair()) && sentRepair < numRepair; ++it)
+		{
+			outPacket->header.symbol_id = (*it).id();
+
+			auto dataStart = output.begin() + sizeof(FECPacket::Header);
+			uint64_t dataSize = (*it)(dataStart, output.end());
+
+			if(!m_sender->send(output.data(), sizeof(FECPacket::Header) + dataSize))
+				return;
+
+			sentRepair++;
+		}
+	}
+
+#else
+	throw std::runtime_error("Forward error correction requested, but I was not compiled with RaptorQ support...");
+#endif
+}
+
+void TopicSender::sendWithoutFEC()
+{
 	uint32_t size = m_buf.size();
 
 	uint8_t buf[PACKET_SIZE];
@@ -165,8 +265,6 @@ void TopicSender::send()
 		if(!m_sender->send(buf, buf_size))
 			return;
 	}
-
-	m_msgCounter++;
 }
 
 void TopicSender::handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)

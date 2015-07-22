@@ -29,6 +29,9 @@ public:
 
 	inline bool duplicateFirstPacket() const
 	{ return m_duplicateFirstPacket; }
+
+	inline double fec() const
+	{ return m_fec; }
 private:
 	void relay();
 	bool internalSend(const void* data, uint32_t size);
@@ -51,6 +54,8 @@ private:
 
 	boost::thread m_relayThread;
 	bool m_relayThreadShouldExit;
+
+	double m_fec;
 };
 
 }

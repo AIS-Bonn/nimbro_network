@@ -27,6 +27,11 @@ if(plot_msgs_FOUND)
 	add_definitions(-DWITH_PLOTTING=1)
 endif()
 
+find_library(RAPTORQ_LIBRARY RaptorQ)
+if(RAPTORQ_LIBRARY)
+	add_definitions(-DWITH_RAPTORQ=1)
+endif()
+
 execute_process(
 	COMMAND ${CMAKE_CXX_COMPILER} -dumpversion
 	OUTPUT_VARIABLE GCC_VERSION
@@ -52,6 +57,7 @@ add_dependencies(udp_sender
 target_link_libraries(udp_sender
 	${catkin_LIBRARIES}
 	${BZ2_LIBRARY}
+	${RAPTORQ_LIBRARY}
 )
 
 add_executable(udp_receiver
@@ -65,6 +71,7 @@ add_dependencies(udp_receiver
 target_link_libraries(udp_receiver
 	${catkin_LIBRARIES}
 	${BZ2_LIBRARY}
+	${RAPTORQ_LIBRARY}
 )
 
 add_executable(tcp_sender
@@ -96,5 +103,12 @@ add_rostest_gtest(test_comm test/topic_transport.test
 	test/test_comm.cpp
 )
 target_link_libraries(test_comm
+	${catkin_LIBRARIES}
+)
+
+add_rostest_gtest(test_comm_fec test/topic_transport_fec.test
+	test/test_comm.cpp
+)
+target_link_libraries(test_comm_fec
 	${catkin_LIBRARIES}
 )
