@@ -17,6 +17,9 @@ extern "C"
 
 #include "rgb_to_yuv420.h"
 
+ros::Time g_lastImageTime(0);
+ros::Duration g_minTimeBetweenImages;
+
 int g_width;
 
 std::vector<uint8_t> g_inBuf;
@@ -30,6 +33,11 @@ ros::Publisher g_pub;
 
 void handleImage(const sensor_msgs::ImageConstPtr& img)
 {
+	ros::Time now = ros::Time::now();
+	if(now - g_lastImageTime < g_minTimeBetweenImages)
+		return;
+	g_lastImageTime = now;
+
 	ros::Time start = ros::Time::now();
 
 	cv_bridge::CvImageConstPtr cvImg = cv_bridge::toCvShare(img, "bgr8");
@@ -62,9 +70,9 @@ void handleImage(const sensor_msgs::ImageConstPtr& img)
 	// 	params.rc.i_vbv_max_bitrate = 6000;
 	// 	params.rc.i_bitrate = 6;
 		params.rc.i_rc_method = X264_RC_CRF;
-		params.rc.i_vbv_buffer_size = 200;
-		params.rc.i_vbv_max_bitrate = 200;
-		params.rc.i_bitrate = 200;
+		params.rc.i_vbv_buffer_size = 1000;
+		params.rc.i_vbv_max_bitrate = 1000;
+		params.rc.i_bitrate = 1000;
 		params.i_threads = 4;
 
 		g_encoder = x264_encoder_open(&params);
@@ -141,6 +149,11 @@ int main(int argc, char** argv)
 	image_transport::ImageTransport it(nh);
 
 	nh.param("width", g_width, 640);
+
+	double rate;
+	nh.param("rate", rate, 60.0);
+
+	g_minTimeBetweenImages = ros::Duration(1.0 / rate);
 
 	g_pub = nh.advertise<sensor_msgs::CompressedImage>("encoded", 1);
 
