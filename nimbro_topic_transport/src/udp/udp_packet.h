@@ -64,7 +64,7 @@ struct UDPDataPacket
 } __attribute__((packed));
 
 // Minimum number of packets for choosing the LDPC-Staircase algorithm
-const int MIN_PACKETS_LDPC = 100;
+const int MIN_PACKETS_LDPC = 1000;
 
 struct FECHeader
 {
