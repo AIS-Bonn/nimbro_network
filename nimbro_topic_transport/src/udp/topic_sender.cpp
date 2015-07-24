@@ -156,7 +156,7 @@ void TopicSender::sendWithFEC()
 
 	uint64_t packetSize = sizeof(FECPacket::Header) + symbolSize;
 
-	ROS_INFO("=> packetSize: %lu", packetSize);
+	ROS_DEBUG("=> packetSize: %lu", packetSize);
 
 	uint64_t repairSymbols = std::ceil(m_sender->fec() * sourceSymbols);
 
