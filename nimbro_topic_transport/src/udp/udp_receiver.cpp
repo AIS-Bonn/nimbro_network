@@ -28,6 +28,8 @@
 #  include <plot_msgs/Plot.h>
 #endif
 
+#include <fcntl.h>
+
 namespace nimbro_topic_transport
 {
 
@@ -333,7 +335,7 @@ void UDPReceiver::run()
 			throw std::runtime_error(strerror(errno));
 		}
 
-		ROS_DEBUG("packet of size %lu", size);
+		ROS_INFO("packet of size %lu", size);
 
 		Message* msg;
 		uint16_t msg_id;
@@ -507,6 +509,8 @@ void UDPReceiver::run()
 
 			if(done)
 			{
+				ROS_INFO("FEC: Decoding done!");
+
 				std::vector<void*> symbols(msg->params->nb_source_symbols);
 
 				if(of_get_source_symbols_tab(msg->decoder.get(), symbols.data()) != OF_STATUS_OK)
@@ -542,6 +546,10 @@ void UDPReceiver::run()
 					memcpy(writePtr, symbols[symbol], msg->params->encoding_symbol_length);
 					writePtr += msg->params->encoding_symbol_length;
 				}
+
+				int fd = open("/tmp/recv_packet", O_WRONLY | O_CREAT | O_TRUNC, 0777);
+				write(fd, msg->payload.data(), msg->payload.size());
+				close(fd);
 
 				msg->size = payloadLength;
 

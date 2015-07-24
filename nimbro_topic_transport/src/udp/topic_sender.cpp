@@ -22,6 +22,8 @@ extern "C"
 }
 #endif
 
+#include <fcntl.h>
+
 namespace nimbro_topic_transport
 {
 
@@ -125,7 +127,7 @@ void TopicSender::send()
 
 inline uint64_t div_round_up(uint64_t a, uint64_t b)
 {
-	return (a + b - 1) / a;
+	return (a + b - 1) / b;
 }
 
 void TopicSender::sendWithFEC()
@@ -133,6 +135,10 @@ void TopicSender::sendWithFEC()
 #if WITH_OPENFEC
 	uint16_t msg_id = m_sender->allocateMessageID();
 	uint64_t dataSize = sizeof(FECHeader) + m_buf.size();
+
+	int fd = open("/tmp/sent_packet", O_WRONLY | O_CREAT | O_TRUNC, 0777);
+	write(fd, m_buf.data(), m_buf.size());
+	close(fd);
 
 	// If the message fits in a single packet, use that as the buffer size
 	uint64_t symbolSize;
@@ -255,6 +261,7 @@ void TopicSender::sendWithFEC()
 				msgHeader->topic_md5[i] = m_md5[i];
 
 			dataPtr += sizeof(FECHeader);
+			remainingSpace -= sizeof(FECHeader);
 		}
 
 		uint64_t chunkSize = std::min(remainingSpace, m_buf.size() - writtenData);
