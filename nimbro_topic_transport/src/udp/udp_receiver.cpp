@@ -335,7 +335,7 @@ void UDPReceiver::run()
 			throw std::runtime_error(strerror(errno));
 		}
 
-		ROS_INFO("packet of size %lu", size);
+		ROS_DEBUG("packet of size %lu", size);
 
 		Message* msg;
 		uint16_t msg_id;
@@ -509,7 +509,7 @@ void UDPReceiver::run()
 
 			if(done)
 			{
-				ROS_INFO("FEC: Decoding done!");
+				ROS_DEBUG("FEC: Decoding done!");
 
 				std::vector<void*> symbols(msg->params->nb_source_symbols);
 
@@ -546,10 +546,6 @@ void UDPReceiver::run()
 					memcpy(writePtr, symbols[symbol], msg->params->encoding_symbol_length);
 					writePtr += msg->params->encoding_symbol_length;
 				}
-
-				int fd = open("/tmp/recv_packet", O_WRONLY | O_CREAT | O_TRUNC, 0777);
-				write(fd, msg->payload.data(), msg->payload.size());
-				close(fd);
 
 				msg->size = payloadLength;
 

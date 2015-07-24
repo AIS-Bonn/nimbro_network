@@ -136,10 +136,6 @@ void TopicSender::sendWithFEC()
 	uint16_t msg_id = m_sender->allocateMessageID();
 	uint64_t dataSize = sizeof(FECHeader) + m_buf.size();
 
-	int fd = open("/tmp/sent_packet", O_WRONLY | O_CREAT | O_TRUNC, 0777);
-	write(fd, m_buf.data(), m_buf.size());
-	close(fd);
-
 	// If the message fits in a single packet, use that as the buffer size
 	uint64_t symbolSize;
 	uint64_t sourceSymbols;
@@ -156,7 +152,7 @@ void TopicSender::sendWithFEC()
 		symbolSize = FECPacket::MaxDataSize;
 	}
 
-	ROS_INFO("dataSize: %lu, symbol size: %lu, sourceSymbols: %lu", dataSize, symbolSize, sourceSymbols);
+	ROS_DEBUG("dataSize: %lu, symbol size: %lu, sourceSymbols: %lu", dataSize, symbolSize, sourceSymbols);
 
 	uint64_t packetSize = sizeof(FECPacket::Header) + symbolSize;
 
@@ -312,7 +308,7 @@ void TopicSender::sendWithFEC()
 
 	for(unsigned int idx : packetOrder)
 	{
-		ROS_INFO("Sending packet of size %lu", packetSize);
+		ROS_DEBUG("Sending packet of size %lu", packetSize);
 		if(!m_sender->send(packetBuffer.data() + idx * packetSize, packetSize))
 			return;
 	}
