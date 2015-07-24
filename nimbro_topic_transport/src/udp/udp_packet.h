@@ -63,6 +63,9 @@ struct UDPDataPacket
 	uint8_t data[];
 } __attribute__((packed));
 
+// Minimum number of packets for choosing the LDPC-Staircase algorithm
+const int MIN_PACKETS_LDPC = 100;
+
 struct FECHeader
 {
 	char topic_name[64];
@@ -80,8 +83,9 @@ struct FECPacket
 	{
 		LEValue<2> msg_id;
 		LEValue<4> symbol_id;
-		LEValue<8> oti_common;
-		LEValue<4> oti_specific;
+		LEValue<2> symbol_length;
+		LEValue<2> source_symbols;
+		LEValue<2> repair_symbols;
 	} __attribute__((packed));
 
 	enum { MaxDataSize = PACKET_SIZE - sizeof(Header) };

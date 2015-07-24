@@ -169,9 +169,9 @@ UDPReceiver::UDPReceiver()
 
 	nh.param("fec", m_fec, false);
 
-#if !(WITH_RAPTORQ)
+#if !(WITH_OPENFEC)
 	if(m_fec)
-		throw std::runtime_error("Please compile with RaptorQ support to enable FEC");
+		throw std::runtime_error("Please compile with FEC support to enable FEC");
 #endif
 }
 
@@ -317,14 +317,15 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 
 void UDPReceiver::run()
 {
-	uint8_t buf[PACKET_SIZE];
+	std::vector<uint8_t> buf;
 
 	ROS_INFO("UDP receiver ready");
 	while(1)
 	{
 		ros::spinOnce();
 
-		ssize_t size = recv(m_fd, buf, sizeof(buf), 0);
+		buf.resize(PACKET_SIZE);
+		ssize_t size = recv(m_fd, buf.data(), buf.size(), 0);
 
 		if(size < 0)
 		{
@@ -332,19 +333,19 @@ void UDPReceiver::run()
 			throw std::runtime_error(strerror(errno));
 		}
 
-		ROS_DEBUG("packet");
+		ROS_DEBUG("packet of size %lu", size);
 
 		Message* msg;
 		uint16_t msg_id;
 
 		if(m_fec)
 		{
-			FECPacket::Header* header = (FECPacket::Header*)buf;
+			FECPacket::Header* header = (FECPacket::Header*)buf.data();
 			msg_id = header->msg_id();
 		}
 		else
 		{
-			UDPGenericPacket* generic = (UDPGenericPacket*)buf;
+			UDPGenericPacket* generic = (UDPGenericPacket*)buf.data();
 			msg_id = generic->msg_id();
 		}
 
@@ -385,14 +386,10 @@ void UDPReceiver::run()
 							received++;
 					}
 
-#if WITH_RAPTORQ
+#if WITH_OPENFEC
 					if(msg.decoder)
 					{
-						unsigned int totalSymbols = 0;
-						for(unsigned int i = 0; i < msg.decoder->blocks(); ++i)
-							totalSymbols += msg.decoder->symbols(i);
-
-						ROS_WARN("Dropping FEC message %d (%u/%u/%u symbols)", msg.id, msg.accepted_symbols, msg.received_symbols, totalSymbols);
+						ROS_WARN("Dropping FEC message %d (%u/%u symbols)", msg.id, msg.received_symbols, msg.params->nb_source_symbols);
 					}
 					else
 #endif
@@ -414,16 +411,64 @@ void UDPReceiver::run()
 
 		if(m_fec)
 		{
-#if WITH_RAPTORQ
-			FECPacket* packet = (FECPacket*)buf;
+#if WITH_OPENFEC
+			// Save the received packet (OpenFEC expects all symbols to stay
+			// available until end of decoding)
+			msg->fecPackets.emplace_back();
+			msg->fecPackets.back().swap(buf);
+
+			FECPacket* packet = (FECPacket*)msg->fecPackets.back().data();
 
 			if(!msg->decoder)
 			{
-				msg->decoder.reset(new Message::Decoder(
-					packet->header.oti_common(), packet->header.oti_specific()
-				));
+				of_session_t* ses = 0;
+				of_parameters_t* params = 0;
+
+				if(packet->header.source_symbols() >= MIN_PACKETS_LDPC)
+				{
+					if(of_create_codec_instance(&ses, OF_CODEC_LDPC_STAIRCASE_STABLE, OF_DECODER, 0) != OF_STATUS_OK)
+					{
+						ROS_ERROR("Could not create LDPC decoder");
+						continue;
+					}
+
+					of_ldpc_parameters_t* ldpc_params = (of_ldpc_parameters_t*)malloc(sizeof(of_ldpc_parameters_t));
+					ldpc_params->nb_source_symbols = packet->header.source_symbols();
+					ldpc_params->nb_repair_symbols = packet->header.repair_symbols();
+					ldpc_params->encoding_symbol_length = packet->header.symbol_length();
+					ldpc_params->prng_seed = rand();
+					ldpc_params->N1 = 7;
+
+					params = (of_parameters*)ldpc_params;
+				}
+				else
+				{
+					if(of_create_codec_instance(&ses, OF_CODEC_REED_SOLOMON_GF_2_M_STABLE, OF_DECODER, 0) != OF_STATUS_OK)
+					{
+						ROS_ERROR("Could not create REED_SOLOMON decoder");
+						continue;
+					}
+
+					of_rs_2_m_parameters* rs_params = (of_rs_2_m_parameters_t*)malloc(sizeof(of_rs_2_m_parameters_t));
+					rs_params->nb_source_symbols = packet->header.source_symbols();
+					rs_params->nb_repair_symbols = packet->header.repair_symbols();
+					rs_params->encoding_symbol_length = packet->header.symbol_length();
+					rs_params->m = 8;
+
+					params = (of_parameters_t*)rs_params;
+				}
+
+				if(of_set_fec_parameters(ses, (of_parameters_t*)params) != OF_STATUS_OK)
+				{
+					ROS_ERROR("Could not set FEC parameters");
+					of_release_codec_instance(ses);
+					continue;
+				}
+
+				msg->decoder.reset(ses, of_release_codec_instance);
+				msg->params.reset(params, free);
+
 				msg->received_symbols = 0;
-				msg->accepted_symbols = 0;
 			}
 
 			msg->received_symbols++;
@@ -431,35 +476,74 @@ void UDPReceiver::run()
 // 			ROS_INFO("msg: %10d, symbol: %10d", msg_id, packet->header.symbol_id());
 
 			uint8_t* symbol_begin = packet->data;
-			if(msg->decoder->add_symbol(symbol_begin, buf + size, packet->header.symbol_id()))
-				msg->accepted_symbols++;
 
-			// Try decoding
-			msg->payload.resize(msg->decoder->bytes());
-			auto outIt = msg->payload.begin();
-
-			ros::WallTime start = ros::WallTime::now();
-			uint64_t written = msg->decoder->decode(outIt, msg->payload.end());
-			ros::WallTime end = ros::WallTime::now();
-
-			if(written != 0)
+			if(size - sizeof(FECPacket::Header) != msg->params->encoding_symbol_length)
 			{
-				ROS_INFO("FEC decode took %f ms", (end - start).toSec() * 1000);
+				ROS_ERROR("Symbol size mismatch: got %d, expected %d",
+					(int)(size - sizeof(FECPacket::Header)),
+					(int)(msg->params->encoding_symbol_length)
+				);
+				continue;
+			}
 
-				if(written < sizeof(FECHeader))
+			if(of_decode_with_new_symbol(msg->decoder.get(), symbol_begin, packet->header.symbol_id()) != OF_STATUS_OK)
+			{
+				ROS_ERROR("Could not decode symbol");
+				continue;
+			}
+
+			bool done = false;
+
+			if(msg->received_symbols >= msg->params->nb_source_symbols)
+			{
+				done = of_is_decoding_complete(msg->decoder.get());
+
+				if(!done)
 				{
-					ROS_ERROR("Invalid short packet");
+					if(of_finish_decoding(msg->decoder.get()) == OF_STATUS_OK)
+						done = true;
+				}
+			}
+
+			if(done)
+			{
+				std::vector<void*> symbols(msg->params->nb_source_symbols);
+
+				if(of_get_source_symbols_tab(msg->decoder.get(), symbols.data()) != OF_STATUS_OK)
+				{
+					ROS_ERROR("Could not get decoded symbols");
+					continue;
+				}
+
+				uint64_t payloadLength = msg->params->nb_source_symbols * msg->params->encoding_symbol_length;
+				if(msg->params->encoding_symbol_length < sizeof(FECHeader) || payloadLength < sizeof(FECHeader))
+				{
+					ROS_ERROR("Invalid short payload");
 					m_incompleteMessages.erase(it);
 					continue;
 				}
 
-				FECHeader msgHeader = *reinterpret_cast<FECHeader*>(msg->payload.data());
+				FECHeader msgHeader;
+				memcpy(&msgHeader, symbols[0], sizeof(FECHeader));
+				payloadLength -= sizeof(FECHeader);
 
-				// Remove header from buffer
-				memmove(msg->payload.data(), msg->payload.data() + sizeof(FECHeader), written - sizeof(FECHeader));
-				msg->payload.resize(written - sizeof(FECHeader));
+				msg->payload.resize(payloadLength);
 
-				msg->size = written;
+				uint8_t* writePtr = msg->payload.data();
+				memcpy(
+					msg->payload.data(),
+					((uint8_t*)symbols[0]) + sizeof(FECHeader),
+					msg->params->encoding_symbol_length - sizeof(FECHeader)
+				);
+				writePtr += msg->params->encoding_symbol_length - sizeof(FECHeader);
+
+				for(unsigned int symbol = 1; symbol < msg->params->nb_source_symbols; ++symbol)
+				{
+					memcpy(writePtr, symbols[symbol], msg->params->encoding_symbol_length);
+					writePtr += msg->params->encoding_symbol_length;
+				}
+
+				msg->size = payloadLength;
 
 				handleFinishedMessage(msg, &msgHeader);
 
@@ -470,10 +554,10 @@ void UDPReceiver::run()
 		}
 		else
 		{
-			UDPGenericPacket* generic = (UDPGenericPacket*)buf;
+			UDPGenericPacket* generic = (UDPGenericPacket*)buf.data();
 			if(generic->frag_id == 0)
 			{
-				UDPFirstPacket* first = (UDPFirstPacket*)buf;
+				UDPFirstPacket* first = (UDPFirstPacket*)buf.data();
 
 				msg->header = first->header;
 
@@ -492,7 +576,7 @@ void UDPReceiver::run()
 			}
 			else
 			{
-				UDPDataPacket* data = (UDPDataPacket*)buf;
+				UDPDataPacket* data = (UDPDataPacket*)buf.data();
 
 				uint32_t offset = UDPFirstPacket::MaxDataSize + (data->header.frag_id-1) * UDPDataPacket::MaxDataSize;
 				uint32_t required_size = offset + size - sizeof(UDPDataPacket);

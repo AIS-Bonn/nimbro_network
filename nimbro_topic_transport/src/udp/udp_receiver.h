@@ -18,8 +18,11 @@
 
 #include "udp_packet.h"
 
-#if WITH_RAPTORQ
-#include <RaptorQ/RaptorQ.hpp>
+#if WITH_OPENFEC
+extern "C"
+{
+#include <of_openfec_api.h>
+}
 #endif
 
 namespace nimbro_topic_transport
@@ -31,10 +34,15 @@ struct Message
 	 : id(id)
 	 , size(0)
 	 , complete(false)
+	 , decoder(0)
 	{}
 
 	Message()
 	{}
+
+	~Message()
+	{
+	}
 
 	uint32_t getLength() const
 	{ return size; }
@@ -52,12 +60,11 @@ struct Message
 
 	bool complete;
 
-#if WITH_RAPTORQ
-	typedef std::vector<uint8_t>::iterator DecoderIterator;
-	typedef RaptorQ::Decoder<uint8_t*,DecoderIterator> Decoder;
-	boost::shared_ptr<Decoder> decoder;
+#if WITH_OPENFEC
+	boost::shared_ptr<of_session_t> decoder;
+	boost::shared_ptr<of_parameters_t> params;
 	unsigned int received_symbols;
-	unsigned int accepted_symbols;
+	std::vector<std::vector<uint8_t>> fecPackets;
 #endif
 };
 

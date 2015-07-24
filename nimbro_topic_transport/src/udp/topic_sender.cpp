@@ -11,8 +11,15 @@
 
 #include <boost/algorithm/string/replace.hpp>
 
-#if WITH_RAPTORQ
-#include <RaptorQ/RaptorQ.hpp>
+#include <random>
+#include <algorithm>
+#include <chrono>
+
+#if WITH_OPENFEC
+extern "C"
+{
+#include <of_openfec_api.h>
+}
 #endif
 
 namespace nimbro_topic_transport
@@ -116,93 +123,194 @@ void TopicSender::send()
 	m_msgCounter++;
 }
 
+inline uint64_t div_round_up(uint64_t a, uint64_t b)
+{
+	return (a + b - 1) / a;
+}
+
 void TopicSender::sendWithFEC()
 {
-#if WITH_RAPTORQ
-	// Prepend a FECHeader (FIXME: Can we avoid the data copy?)
-	std::vector<uint8_t> input(sizeof(FECHeader) + m_buf.size());
-	FECHeader* header = reinterpret_cast<FECHeader*>(input.data());
-	memcpy(input.data() + sizeof(FECHeader), m_buf.data(), m_buf.size());
+#if WITH_OPENFEC
+	uint16_t msg_id = m_sender->allocateMessageID();
+	uint64_t dataSize = sizeof(FECHeader) + m_buf.size();
 
-	// Fill in header fields
-	header->flags = m_flags;
-	header->topic_msg_counter = m_inputMsgCounter;
+	// If the message fits in a single packet, use that as the buffer size
+	uint64_t symbolSize;
+	uint64_t sourceSymbols;
 
-	strncpy(header->topic_name, m_topicName.c_str(), sizeof(header->topic_name));
-	if(header->topic_name[sizeof(header->topic_name)-1] != 0)
+	if(dataSize <= FECPacket::MaxDataSize)
 	{
-		ROS_ERROR("Topic '%s' is too long. Please shorten the name.", m_topicName.c_str());
-		header->topic_name[sizeof(header->topic_name)-1] = 0;
+		sourceSymbols = 1;
+		symbolSize = dataSize;
+	}
+	else
+	{
+		// We need to pad the data to a multiple of our packet payload size.
+		sourceSymbols = div_round_up(dataSize, FECPacket::MaxDataSize);
+		symbolSize = FECPacket::MaxDataSize;
 	}
 
-	strncpy(header->topic_type, m_topicType.c_str(), sizeof(header->topic_type));
-	if(header->topic_type[sizeof(header->topic_type)-1] != 0)
+	ROS_INFO("dataSize: %lu, symbol size: %lu, sourceSymbols: %lu", dataSize, symbolSize, sourceSymbols);
+
+	uint64_t packetSize = sizeof(FECPacket::Header) + symbolSize;
+
+	ROS_INFO("=> packetSize: %lu", packetSize);
+
+	uint64_t repairSymbols = std::ceil(m_sender->fec() * sourceSymbols);
+
+	uint64_t numPackets = sourceSymbols + repairSymbols;
+
+	of_session_t* ses = 0;
+	if(sourceSymbols >= MIN_PACKETS_LDPC)
 	{
-		ROS_ERROR("Topic type '%s' is too long. Please shorten the name.", m_topicType.c_str());
-		header->topic_type[sizeof(header->topic_type)-1] = 0;
-	}
-
-	for(int i = 0; i < 4; ++i)
-		header->topic_md5[i] = m_md5[i];
-
-	using IT = typename std::vector<uint8_t>::iterator;
-	RaptorQ::Encoder<IT, IT> encoder(input.begin(), input.end(), 4, FECPacket::MaxDataSize, 50000);
-
-	if(!encoder)
-		throw std::runtime_error("Could not initialize encoder");
-
-	ros::WallTime start = ros::WallTime::now();
-	encoder.precompute(6, false);
-	ros::WallTime end = ros::WallTime::now();
-	ROS_INFO("FEC took %f ms and produced %d blocks", (end - start).toSec() * 1000, encoder.blocks());
-
-	std::vector<uint8_t> output(PACKET_SIZE);
-	FECPacket* outPacket = reinterpret_cast<FECPacket*>(output.data());
-
-	outPacket->header.msg_id = m_sender->allocateMessageID();
-	outPacket->header.oti_common = encoder.OTI_Common();
-	outPacket->header.oti_specific = encoder.OTI_Scheme_Specific();
-
-	unsigned int packets = 0;
-
-	for(const auto& block : encoder)
-	{
-		// First send source symbols
-		for(auto it = block.begin_source(); it != block.end_source(); ++it)
+		if(of_create_codec_instance(&ses, OF_CODEC_LDPC_STAIRCASE_STABLE, OF_ENCODER, 0) != OF_STATUS_OK)
 		{
-			outPacket->header.symbol_id = (*it).id();
-
-			auto dataStart = output.begin() + sizeof(FECPacket::Header);
-			uint64_t dataSize = (*it)(dataStart, output.end());
-
-			if(!m_sender->send(output.data(), sizeof(FECPacket::Header) + dataSize))
-				return;
-			packets++;
+			ROS_ERROR("Could not create LDPC codec instance");
+			return;
 		}
 
-		// Then repair symbols
-		unsigned int sentRepair = 0;
-		const unsigned int numRepair = std::ceil(m_sender->fec() * block.symbols());
+		of_ldpc_parameters_t params;
+		params.nb_source_symbols = sourceSymbols;
+		params.nb_repair_symbols = std::ceil(m_sender->fec() * sourceSymbols);
+		params.encoding_symbol_length = symbolSize;
+		params.prng_seed = rand();
+		params.N1 = 7;
 
-		for(auto it = block.begin_repair(); it != block.end_repair(block.max_repair()) && sentRepair < numRepair; ++it)
+		if(of_set_fec_parameters(ses, (of_parameters_t*)&params) != OF_STATUS_OK)
 		{
-			outPacket->header.symbol_id = (*it).id();
+			ROS_ERROR("Could not set FEC parameters");
+			of_release_codec_instance(ses);
+			return;
+		}
+	}
+	else
+	{
+		if(of_create_codec_instance(&ses, OF_CODEC_REED_SOLOMON_GF_2_M_STABLE, OF_ENCODER, 0) != OF_STATUS_OK)
+		{
+			ROS_ERROR("Could not create REED_SOLOMON codec instance");
+			return;
+		}
 
-			auto dataStart = output.begin() + sizeof(FECPacket::Header);
-			uint64_t dataSize = (*it)(dataStart, output.end());
+		of_rs_2_m_parameters params;
+		params.nb_source_symbols = sourceSymbols;
+		params.nb_repair_symbols = std::ceil(m_sender->fec() * sourceSymbols);
+		params.encoding_symbol_length = symbolSize;
+		params.m = 8;
 
-			if(!m_sender->send(output.data(), sizeof(FECPacket::Header) + dataSize))
-				return;
-
-			sentRepair++;
-			packets++;
+		if(of_set_fec_parameters(ses, (of_parameters_t*)&params) != OF_STATUS_OK)
+		{
+			ROS_ERROR("Could not set FEC parameters");
+			of_release_codec_instance(ses);
+			return;
 		}
 	}
 
-	ROS_INFO("FEC: Sent msg id %u with %u packets", outPacket->header.msg_id(), packets);
+	std::vector<uint8_t> packetBuffer(numPackets * packetSize);
+	std::vector<void*> symbols(sourceSymbols + repairSymbols);
 
+	uint64_t writtenData = 0;
+
+	// Fill the source packets
+	for(uint64_t i = 0; i < sourceSymbols; ++i)
+	{
+		uint8_t* packetPtr = packetBuffer.data() + i * packetSize;
+
+		FECPacket::Header* header = reinterpret_cast<FECPacket::Header*>(packetPtr);
+
+		header->msg_id = msg_id;
+		header->symbol_id = i;
+		header->symbol_length = symbolSize;
+		header->source_symbols = sourceSymbols;
+		header->repair_symbols = repairSymbols;
+
+		uint8_t* dataPtr = packetPtr + sizeof(FECPacket::Header);
+		uint64_t remainingSpace = symbolSize;
+
+		symbols[i] = dataPtr;
+
+		if(i == 0)
+		{
+			// First packet includes the FECHeader
+			FECHeader* msgHeader = reinterpret_cast<FECHeader*>(dataPtr);
+
+			// Fill in header fields
+			msgHeader->flags = m_flags;
+			msgHeader->topic_msg_counter = m_inputMsgCounter;
+
+			strncpy(msgHeader->topic_name, m_topicName.c_str(), sizeof(msgHeader->topic_name));
+			if(msgHeader->topic_name[sizeof(msgHeader->topic_name)-1] != 0)
+			{
+				ROS_ERROR("Topic '%s' is too long. Please shorten the name.", m_topicName.c_str());
+				msgHeader->topic_name[sizeof(msgHeader->topic_name)-1] = 0;
+			}
+
+			strncpy(msgHeader->topic_type, m_topicType.c_str(), sizeof(msgHeader->topic_type));
+			if(msgHeader->topic_type[sizeof(msgHeader->topic_type)-1] != 0)
+			{
+				ROS_ERROR("Topic type '%s' is too long. Please shorten the name.", m_topicType.c_str());
+				msgHeader->topic_type[sizeof(msgHeader->topic_type)-1] = 0;
+			}
+
+			for(int i = 0; i < 4; ++i)
+				msgHeader->topic_md5[i] = m_md5[i];
+
+			dataPtr += sizeof(FECHeader);
+		}
+
+		uint64_t chunkSize = std::min(remainingSpace, m_buf.size() - writtenData);
+		memcpy(dataPtr, m_buf.data() + writtenData, chunkSize);
+		writtenData += chunkSize;
+
+		// Set any padding to zero
+		if(chunkSize < remainingSpace)
+			memset(dataPtr + chunkSize, 0, remainingSpace - chunkSize);
+	}
+
+	// Fill the repair packets
+	for(uint64_t i = sourceSymbols; i < sourceSymbols + repairSymbols; ++i)
+	{
+		uint8_t* packetPtr = packetBuffer.data() + i * packetSize;
+
+		FECPacket::Header* header = reinterpret_cast<FECPacket::Header*>(packetPtr);
+
+		header->msg_id = msg_id;
+		header->symbol_id = i;
+		header->symbol_length = symbolSize;
+		header->source_symbols = sourceSymbols;
+		header->repair_symbols = repairSymbols;
+
+		uint8_t* dataPtr = packetPtr + sizeof(FECPacket::Header);
+		symbols[i] = dataPtr;
+	}
+	for(uint64_t i = sourceSymbols; i < sourceSymbols + repairSymbols; ++i)
+	{
+		if(of_build_repair_symbol(ses, symbols.data(), i) != OF_STATUS_OK)
+		{
+			ROS_ERROR("Could not build repair symbol");
+			of_release_codec_instance(ses);
+			return;
+		}
+	}
+
+	// FEC work is done
+	of_release_codec_instance(ses);
+
+	std::vector<unsigned int> packetOrder(numPackets);
+	std::iota(packetOrder.begin(), packetOrder.end(), 0);
+
+	// Send the packets in random order
+	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+	std::mt19937 mt(seed);
+	std::shuffle(packetOrder.begin(), packetOrder.end(), mt);
+
+	for(unsigned int idx : packetOrder)
+	{
+		ROS_INFO("Sending packet of size %lu", packetSize);
+		if(!m_sender->send(packetBuffer.data() + idx * packetSize, packetSize))
+			return;
+	}
 #else
-	throw std::runtime_error("Forward error correction requested, but I was not compiled with RaptorQ support...");
+	throw std::runtime_error("Forward error correction requested, but I was not compiled with FEC support...");
 #endif
 }
 

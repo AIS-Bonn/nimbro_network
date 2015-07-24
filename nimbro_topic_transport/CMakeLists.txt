@@ -27,9 +27,13 @@ if(plot_msgs_FOUND)
 	add_definitions(-DWITH_PLOTTING=1)
 endif()
 
-find_library(RAPTORQ_LIBRARY RaptorQ)
-if(RAPTORQ_LIBRARY)
-	add_definitions(-DWITH_RAPTORQ=1)
+set(OPENFEC_PATH "" CACHE PATH "Path to OpenFEC (optional)")
+if(OPENFEC_PATH)
+	include_directories(${OPENFEC_PATH}/src/lib_common)
+	set(OPENFEC_LIBRARY ${OPENFEC_PATH}/bin/Debug/libopenfec.so)
+	add_definitions(-DWITH_OPENFEC=1)
+else()
+	set(OPENFEC_LIBRARY "")
 endif()
 
 execute_process(
@@ -57,7 +61,7 @@ add_dependencies(udp_sender
 target_link_libraries(udp_sender
 	${catkin_LIBRARIES}
 	${BZ2_LIBRARY}
-	${RAPTORQ_LIBRARY}
+	${OPENFEC_LIBRARY}
 )
 
 add_executable(udp_receiver
@@ -71,7 +75,7 @@ add_dependencies(udp_receiver
 target_link_libraries(udp_receiver
 	${catkin_LIBRARIES}
 	${BZ2_LIBRARY}
-	${RAPTORQ_LIBRARY}
+	${OPENFEC_LIBRARY}
 )
 
 add_executable(tcp_sender

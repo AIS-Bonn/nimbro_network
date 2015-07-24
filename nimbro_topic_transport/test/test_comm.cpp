@@ -29,7 +29,7 @@ TEST(TopicTransportTest, test_simple)
 	ros::Publisher pub = nh.advertise<std_msgs::Int64>("/test_topic", 2);
 	ros::Subscriber sub = nh.subscribe("/receive/test_topic", 2, &handle_simple);
 
-	sleep(2);
+	sleep(1);
 
 	msg.data = 0;
 	pub.publish(msg);
