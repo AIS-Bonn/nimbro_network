@@ -8,10 +8,14 @@
 #include <ros/time.h>
 #include <ros/timer.h>
 #include <ros/rate.h>
+#include <ros/wall_timer.h>
+#include <ros/publisher.h>
 
 #include <deque>
 
 #include <boost/thread.hpp>
+
+#include <nimbro_topic_transport/SenderStats.h>
 
 namespace nimbro_topic_transport
 {
@@ -36,11 +40,12 @@ private:
 	void relay();
 	bool internalSend(const void* data, uint32_t size);
 
+	void updateStats();
+
 	uint16_t m_msgID;
 	int m_fd;
 	sockaddr_in m_addr;
 	ros::Time m_lastTime;
-	int m_sleepCounter;
 	bool m_duplicateFirstPacket;
 	std::vector<TopicSender*> m_senders;
 
@@ -56,6 +61,12 @@ private:
 	bool m_relayThreadShouldExit;
 
 	double m_fec;
+
+	nimbro_topic_transport::SenderStats m_stats;
+	ros::Publisher m_pub_stats;
+	ros::WallDuration m_statsInterval;
+	ros::WallTimer m_statsTimer;
+	uint64_t m_sentBytesInStatsInterval;
 };
 
 }

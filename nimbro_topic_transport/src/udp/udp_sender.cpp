@@ -21,11 +21,14 @@
 
 #include <signal.h>
 
+#include <nimbro_topic_transport/SenderStats.h>
+
 namespace nimbro_topic_transport
 {
 
 UDPSender::UDPSender()
  : m_msgID(0)
+ , m_sentBytesInStatsInterval(0)
 {
 	ros::NodeHandle nh("~");
 
@@ -51,9 +54,9 @@ UDPSender::UDPSender()
 	int dest_port;
 	nh.param("destination_port", dest_port, 5050);
 
+	int source_port = dest_port;
 	if(nh.hasParam("source_port"))
 	{
-		int source_port;
 		if(!nh.getParam("source_port", source_port))
 		{
 			ROS_FATAL("Invalid source_port");
@@ -142,6 +145,20 @@ UDPSender::UDPSender()
 			relay_control_rate, target_bitrate, m_relayTokensPerStep
 		);
 	}
+
+	m_stats.node = ros::this_node::getName();
+	m_stats.destination = dest_host;
+	m_stats.destination_port = dest_port;
+	m_stats.source_port = source_port;
+	m_stats.fec = m_fec != 0.0;
+
+	m_pub_stats = nh.advertise<nimbro_topic_transport::SenderStats>("/nimbro_network/sender_stats", 1);
+
+	m_statsInterval = ros::WallDuration(2.0);
+	m_statsTimer = nh.createWallTimer(m_statsInterval,
+		boost::bind(&UDPSender::updateStats, this)
+	);
+	m_statsTimer.start();
 }
 
 UDPSender::~UDPSender()
@@ -179,28 +196,13 @@ bool UDPSender::send(const void* data, uint32_t size)
 
 bool UDPSender::internalSend(const void* data, uint32_t size)
 {
-	ros::Time now = ros::Time::now();
-	ros::Duration delta = now - m_lastTime;
-
-/*	if(delta < ros::Duration(0.008))
-	{
-		m_sleepCounter++;
-		delta.sleep();
-
-		if(m_sleepCounter > 125)
-		{
-			m_sleepCounter = 0;
-			ROS_ERROR("UDPSender: the 8ms rate limit is limiting communication. Please send fewer data or increase the limit!");
-		}
-	}
-	else
-		m_sleepCounter = 0;*/
-
 	if(sendto(m_fd, data, size, 0, (sockaddr*)&m_addr, sizeof(m_addr)) != size)
 	{
 		ROS_ERROR("Could not send data of size %d: %s", size, strerror(errno));
 		return false;
 	}
+
+	m_sentBytesInStatsInterval += size;
 
 	return true;
 }
@@ -267,6 +269,15 @@ void UDPSender::relay()
 	}
 
 	ROS_INFO("Relay thread exiting...");
+}
+
+void UDPSender::updateStats()
+{
+	m_stats.header.stamp = ros::Time::now();
+	m_stats.bandwidth = 8 * m_sentBytesInStatsInterval / m_statsInterval.toSec();
+
+	m_pub_stats.publish(m_stats);
+	m_sentBytesInStatsInterval = 0;
 }
 
 }
