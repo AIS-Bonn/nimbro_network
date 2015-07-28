@@ -36,20 +36,10 @@ else()
 	set(OPENFEC_LIBRARY "")
 endif()
 
-execute_process(
-	COMMAND ${CMAKE_CXX_COMPILER} -dumpversion
-	OUTPUT_VARIABLE GCC_VERSION
-)
-
-if(NOT (GCC_VERSION VERSION_GREATER 4.7 OR GCC_VERSION VERSION_EQUAL 4.7))
-	message(WARNING "C++11 not supported, compiler version ${GCC_VERSION}")
-	return()
-endif()
-
 find_library(BZ2_LIBRARY bz2 REQUIRED)
 
 
-set(CMAKE_CXX_FLAGS "-Wall -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
 add_executable(udp_sender
 	src/udp/topic_sender.cpp
 	src/udp/udp_sender.cpp
