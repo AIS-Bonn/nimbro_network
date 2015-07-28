@@ -33,6 +33,20 @@ void handle_array(const std_msgs::UInt64MultiArray& msg)
 	g_arrayCounter++;
 }
 
+const int HUGE_SIZE = 3 * 1024;
+
+void handle_huge(const std_msgs::UInt64MultiArray& msg)
+{
+	ROS_ERROR("array");
+
+	ASSERT_EQ(HUGE_SIZE, msg.data.size());
+	for(int i = 0; i < HUGE_SIZE; ++i)
+	{
+		ASSERT_EQ(i, msg.data[i]);
+	}
+	g_arrayCounter++;
+}
+
 TEST(TopicTransportTest, test_simple)
 {
 	std_msgs::Int64 msg;
@@ -99,7 +113,7 @@ TEST(TopicTransportTest, test_array)
 {
 	std_msgs::UInt64MultiArray msg;
 
-	g_counter = 0;
+	g_arrayCounter = 0;
 
 	ros::NodeHandle nh("~");
 
@@ -145,6 +159,66 @@ TEST(TopicTransportTest, test_array)
 	sleep(2);
 
 	for(int i = 0; i < 1000; ++i)
+	{
+		ros::spinOnce();
+		usleep(1000);
+
+		if(g_arrayCounter == 2)
+			return;
+	}
+
+	FAIL();
+}
+
+TEST(TopicTransportTest, test_huge)
+{
+	std_msgs::UInt64MultiArray msg;
+
+	ros::NodeHandle nh("~");
+
+	ros::Publisher pub = nh.advertise<std_msgs::UInt64MultiArray>("/array_topic", 2);
+	ros::Subscriber sub = nh.subscribe("/receive/array_topic", 2, &handle_huge);
+
+	sleep(1);
+
+	for(int i = 0; i < HUGE_SIZE; ++i)
+		msg.data.push_back(i);
+	pub.publish(msg);
+
+	for(int i = 0; i < 1000; ++i)
+	{
+		ros::spinOnce();
+		usleep(1000);
+	}
+
+	usleep(1000);
+	sleep(1);
+
+	int timeout = 1000;
+	while(pub.getNumSubscribers() == 0)
+	{
+		ros::spinOnce();
+		if(--timeout == 0)
+			FAIL();
+
+		usleep(200);
+	}
+
+	g_arrayCounter = 0;
+	pub.publish(msg);
+
+	for(int i = 0; i < 1000; ++i)
+	{
+		ros::spinOnce();
+		usleep(1000);
+	}
+
+	pub.publish(msg);
+
+	ROS_ERROR("array published");
+	sleep(2);
+
+	for(int i = 0; i < 10000; ++i)
 	{
 		ros::spinOnce();
 		usleep(1000);

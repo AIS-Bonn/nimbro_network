@@ -125,7 +125,6 @@ void TopicData::decompress()
 }
 
 UDPReceiver::UDPReceiver()
- : m_incompleteMessages(4)
 {
 	ros::NodeHandle nh("~");
 
@@ -255,7 +254,8 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 		topic->msg_def = topic_info::getMsgDef(header->topic_type);
 		topic->md5_str = topic_info::getMd5Sum(header->topic_type);
 
-		ROS_WARN_STREAM("Got " << topic->msg_def << topic->md5_str << "end");
+// 		ROS_WARN_STREAM("Got " << topic->msg_def << topic->md5_str << "end");
+		ROS_INFO("Received first message on topic '%s'", header->topic_name);
 		for(int i = 0; i < 4; ++i)
 		{
 			std::string md5_part = topic->md5_str.substr(8*i, 8);
@@ -416,10 +416,12 @@ void UDPReceiver::run()
 #if WITH_OPENFEC
 			// Save the received packet (OpenFEC expects all symbols to stay
 			// available until end of decoding)
-			msg->fecPackets.emplace_back();
-			msg->fecPackets.back().swap(buf);
+			boost::shared_ptr<std::vector<uint8_t>> fecBuffer(new std::vector<uint8_t>);
+			fecBuffer->swap(buf);
 
-			FECPacket* packet = (FECPacket*)msg->fecPackets.back().data();
+			msg->fecPackets.push_back(fecBuffer);
+
+			FECPacket* packet = (FECPacket*)fecBuffer->data();
 
 			if(!msg->decoder)
 			{
@@ -428,7 +430,7 @@ void UDPReceiver::run()
 
 				if(packet->header.source_symbols() >= MIN_PACKETS_LDPC)
 				{
-					if(of_create_codec_instance(&ses, OF_CODEC_LDPC_STAIRCASE_STABLE, OF_DECODER, 0) != OF_STATUS_OK)
+					if(of_create_codec_instance(&ses, OF_CODEC_LDPC_STAIRCASE_STABLE, OF_DECODER, 1) != OF_STATUS_OK)
 					{
 						ROS_ERROR("Could not create LDPC decoder");
 						continue;
@@ -438,14 +440,16 @@ void UDPReceiver::run()
 					ldpc_params->nb_source_symbols = packet->header.source_symbols();
 					ldpc_params->nb_repair_symbols = packet->header.repair_symbols();
 					ldpc_params->encoding_symbol_length = packet->header.symbol_length();
-					ldpc_params->prng_seed = rand();
+					ldpc_params->prng_seed = packet->header.prng_seed();
 					ldpc_params->N1 = 7;
+
+					ROS_DEBUG("LDPC parameters: %d, %d, %d, 0x%X, %d", ldpc_params->nb_source_symbols, ldpc_params->nb_repair_symbols, ldpc_params->encoding_symbol_length, ldpc_params->prng_seed, ldpc_params->N1);
 
 					params = (of_parameters*)ldpc_params;
 				}
 				else
 				{
-					if(of_create_codec_instance(&ses, OF_CODEC_REED_SOLOMON_GF_2_M_STABLE, OF_DECODER, 0) != OF_STATUS_OK)
+					if(of_create_codec_instance(&ses, OF_CODEC_REED_SOLOMON_GF_2_M_STABLE, OF_DECODER, 1) != OF_STATUS_OK)
 					{
 						ROS_ERROR("Could not create REED_SOLOMON decoder");
 						continue;
@@ -460,7 +464,7 @@ void UDPReceiver::run()
 					params = (of_parameters_t*)rs_params;
 				}
 
-				if(of_set_fec_parameters(ses, (of_parameters_t*)params) != OF_STATUS_OK)
+				if(of_set_fec_parameters(ses, params) != OF_STATUS_OK)
 				{
 					ROS_ERROR("Could not set FEC parameters");
 					of_release_codec_instance(ses);
@@ -475,7 +479,7 @@ void UDPReceiver::run()
 
 			msg->received_symbols++;
 
-// 			ROS_INFO("msg: %10d, symbol: %10d", msg_id, packet->header.symbol_id());
+			ROS_DEBUG("msg: %10d, symbol: %10d/%10d", msg_id, packet->header.symbol_id(), packet->header.source_symbols());
 
 			uint8_t* symbol_begin = packet->data;
 
@@ -498,12 +502,25 @@ void UDPReceiver::run()
 
 			if(msg->received_symbols >= msg->params->nb_source_symbols)
 			{
+				// Are we finished using the iterative decoding already?
 				done = of_is_decoding_complete(msg->decoder.get());
 
-				if(!done)
+				// As it is implemented in OpenFEC right now, we can only
+				// try the ML decoding (gaussian elimination) *once*.
+				// After that the internal state is screwed up and the message
+				// has to be discarded.
+				// So we have to be sure that it's worth it ;-)
+				if(!done && msg->received_symbols >= msg->params->nb_source_symbols + msg->params->nb_repair_symbols / 2)
 				{
-					if(of_finish_decoding(msg->decoder.get()) == OF_STATUS_OK)
+					of_status_t ret = of_finish_decoding(msg->decoder.get());
+					if(ret == OF_STATUS_OK)
 						done = true;
+					else
+					{
+						ROS_ERROR("ML decoding failed, dropping message...");
+						msg->complete = true;
+						continue;
+					}
 				}
 			}
 
@@ -511,7 +528,7 @@ void UDPReceiver::run()
 			{
 				ROS_DEBUG("FEC: Decoding done!");
 
-				std::vector<void*> symbols(msg->params->nb_source_symbols);
+				std::vector<void*> symbols(msg->params->nb_source_symbols, 0);
 
 				if(of_get_source_symbols_tab(msg->decoder.get(), symbols.data()) != OF_STATUS_OK)
 				{

@@ -163,11 +163,14 @@ void TopicSender::sendWithFEC()
 	uint64_t numPackets = sourceSymbols + repairSymbols;
 
 	of_session_t* ses = 0;
+	uint32_t prng_seed = rand();
 	if(sourceSymbols >= MIN_PACKETS_LDPC)
 	{
-		if(of_create_codec_instance(&ses, OF_CODEC_LDPC_STAIRCASE_STABLE, OF_ENCODER, 0) != OF_STATUS_OK)
+		ROS_DEBUG("%s: Choosing LDPC-Staircase codec", m_topicName.c_str());
+
+		if(of_create_codec_instance(&ses, OF_CODEC_LDPC_STAIRCASE_STABLE, OF_ENCODER, 1) != OF_STATUS_OK)
 		{
-			ROS_ERROR("Could not create LDPC codec instance");
+			ROS_ERROR("%s: Could not create LDPC codec instance", m_topicName.c_str());
 			return;
 		}
 
@@ -175,21 +178,25 @@ void TopicSender::sendWithFEC()
 		params.nb_source_symbols = sourceSymbols;
 		params.nb_repair_symbols = std::ceil(m_sender->fec() * sourceSymbols);
 		params.encoding_symbol_length = symbolSize;
-		params.prng_seed = rand();
+		params.prng_seed = prng_seed;
 		params.N1 = 7;
+
+		ROS_DEBUG("LDPC seed: 7, 0x%X", params.prng_seed);
 
 		if(of_set_fec_parameters(ses, (of_parameters_t*)&params) != OF_STATUS_OK)
 		{
-			ROS_ERROR("Could not set FEC parameters");
+			ROS_ERROR("%s: Could not set FEC parameters", m_topicName.c_str());
 			of_release_codec_instance(ses);
 			return;
 		}
 	}
 	else
 	{
+		ROS_DEBUG("%s: Choosing Reed-Solomon codec", m_topicName.c_str());
+
 		if(of_create_codec_instance(&ses, OF_CODEC_REED_SOLOMON_GF_2_M_STABLE, OF_ENCODER, 0) != OF_STATUS_OK)
 		{
-			ROS_ERROR("Could not create REED_SOLOMON codec instance");
+			ROS_ERROR("%s: Could not create REED_SOLOMON codec instance", m_topicName.c_str());
 			return;
 		}
 
@@ -201,7 +208,7 @@ void TopicSender::sendWithFEC()
 
 		if(of_set_fec_parameters(ses, (of_parameters_t*)&params) != OF_STATUS_OK)
 		{
-			ROS_ERROR("Could not set FEC parameters");
+			ROS_ERROR("%s: Could not set FEC parameters", m_topicName.c_str());
 			of_release_codec_instance(ses);
 			return;
 		}
@@ -224,6 +231,7 @@ void TopicSender::sendWithFEC()
 		header->symbol_length = symbolSize;
 		header->source_symbols = sourceSymbols;
 		header->repair_symbols = repairSymbols;
+		header->prng_seed = prng_seed;
 
 		uint8_t* dataPtr = packetPtr + sizeof(FECPacket::Header);
 		uint64_t remainingSpace = symbolSize;
@@ -281,6 +289,7 @@ void TopicSender::sendWithFEC()
 		header->symbol_length = symbolSize;
 		header->source_symbols = sourceSymbols;
 		header->repair_symbols = repairSymbols;
+		header->prng_seed = prng_seed;
 
 		uint8_t* dataPtr = packetPtr + sizeof(FECPacket::Header);
 		symbols[i] = dataPtr;
@@ -289,7 +298,7 @@ void TopicSender::sendWithFEC()
 	{
 		if(of_build_repair_symbol(ses, symbols.data(), i) != OF_STATUS_OK)
 		{
-			ROS_ERROR("Could not build repair symbol");
+			ROS_ERROR("%s: Could not build repair symbol", m_topicName.c_str());
 			of_release_codec_instance(ses);
 			return;
 		}
@@ -306,9 +315,9 @@ void TopicSender::sendWithFEC()
 	std::mt19937 mt(seed);
 	std::shuffle(packetOrder.begin(), packetOrder.end(), mt);
 
+	ROS_DEBUG("Sending %d packets", (int)packetOrder.size());
 	for(unsigned int idx : packetOrder)
 	{
-		ROS_DEBUG("Sending packet of size %lu", packetSize);
 		if(!m_sender->send(packetBuffer.data() + idx * packetSize, packetSize))
 			return;
 	}

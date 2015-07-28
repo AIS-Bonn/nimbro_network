@@ -66,7 +66,7 @@ struct Message
 	boost::shared_ptr<of_session_t> decoder;
 	boost::shared_ptr<of_parameters_t> params;
 	unsigned int received_symbols;
-	std::vector<std::vector<uint8_t>> fecPackets;
+	std::vector<boost::shared_ptr<std::vector<uint8_t>>> fecPackets;
 #endif
 };
 

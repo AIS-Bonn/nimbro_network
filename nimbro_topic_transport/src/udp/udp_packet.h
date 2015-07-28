@@ -9,7 +9,11 @@
 namespace nimbro_topic_transport
 {
 
-const int PACKET_SIZE = 1500 - 20 - 8;
+// Since we sometimes tunnel nimbro_network packets through QuickTun,
+// leave space for one additional UDP/IP envelope.
+const int PACKET_SIZE = 1500 - 20 - 8 - 20 - 8;
+
+// const int PACKET_SIZE = 1024 + 12; // for symbol size == 1024
 
 enum PacketType
 {
@@ -64,7 +68,7 @@ struct UDPDataPacket
 } __attribute__((packed));
 
 // Minimum number of packets for choosing the LDPC-Staircase algorithm
-const int MIN_PACKETS_LDPC = 1000;
+const int MIN_PACKETS_LDPC = 20;
 
 struct FECHeader
 {
@@ -86,6 +90,7 @@ struct FECPacket
 		LEValue<2> symbol_length;
 		LEValue<2> source_symbols;
 		LEValue<2> repair_symbols;
+		LEValue<4> prng_seed;
 	} __attribute__((packed));
 
 	enum { MaxDataSize = PACKET_SIZE - sizeof(Header) };
