@@ -125,6 +125,9 @@ void TopicData::decompress()
 }
 
 UDPReceiver::UDPReceiver()
+ : m_receivedBytesInStatsInterval(0)
+ , m_expectedPacketsInStatsInterval(0)
+ , m_missingPacketsInStatsInterval(0)
 {
 	ros::NodeHandle nh("~");
 
@@ -174,6 +177,16 @@ UDPReceiver::UDPReceiver()
 	if(m_fec)
 		throw std::runtime_error("Please compile with FEC support to enable FEC");
 #endif
+
+	m_stats.node = ros::this_node::getName();
+	m_stats.port = port;
+	m_stats.fec = m_fec;
+
+	m_pub_stats = nh.advertise<ReceiverStats>("/network/receiver_stats", 1);
+	m_statsInterval = ros::WallDuration(2.0);
+	m_statsTimer = nh.createWallTimer(m_statsInterval,
+		boost::bind(&UDPReceiver::updateStats, this)
+	);
 }
 
 UDPReceiver::~UDPReceiver()
@@ -336,6 +349,7 @@ void UDPReceiver::run()
 		}
 
 		ROS_DEBUG("packet of size %lu", size);
+		m_receivedBytesInStatsInterval += size;
 
 		Message* msg;
 		uint16_t msg_id;
@@ -369,6 +383,37 @@ void UDPReceiver::run()
 				itr++;
 				if(itr == it_end)
 					break;
+			}
+
+			// Collect statistics on packets which will be deleted
+			for(MessageBuffer::iterator itd = itr; itd != it_end; ++itd)
+			{
+				const Message& msg = *itd;
+
+#if WITH_OPENFEC
+				if(m_fec)
+				{
+					if(msg.params)
+					{
+						int total = msg.params->nb_source_symbols + msg.params->nb_repair_symbols;
+						m_expectedPacketsInStatsInterval += total;
+						m_missingPacketsInStatsInterval += total - msg.received_symbols;
+					}
+				}
+				else
+#endif
+				{
+					int num_fragments = msg.msgs.size();
+					int received = 0;
+					for(unsigned int i = 0; i < msg.msgs.size(); ++i)
+					{
+						if(msg.msgs[i])
+							received++;
+					}
+
+					m_expectedPacketsInStatsInterval += num_fragments;
+					m_missingPacketsInStatsInterval += num_fragments - received;
+				}
 			}
 
 			if(m_warnDropIncomplete)
@@ -619,10 +664,29 @@ void UDPReceiver::run()
 			{
 				handleFinishedMessage(msg, &msg->header);
 
+				// as we delete the message from the buffer here, immediately
+				// add it to the statistics
+				m_expectedPacketsInStatsInterval += msg->msgs.size();
+
 				m_incompleteMessages.erase(it);
 			}
 		}
 	}
+}
+
+void UDPReceiver::updateStats()
+{
+	m_stats.header.stamp = ros::Time::now();
+	m_stats.bandwidth = m_receivedBytesInStatsInterval / m_statsInterval.toSec();
+
+	m_stats.drop_rate = ((double)m_missingPacketsInStatsInterval) / m_expectedPacketsInStatsInterval;
+
+	m_pub_stats.publish(m_stats);
+
+	// Reset all stats counters
+	m_receivedBytesInStatsInterval = 0;
+	m_missingPacketsInStatsInterval = 0;
+	m_expectedPacketsInStatsInterval = 0;
 }
 
 }

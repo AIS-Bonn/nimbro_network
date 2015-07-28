@@ -7,14 +7,16 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <list>
 
 #include <ros/publisher.h>
+#include <ros/wall_timer.h>
 
 #include <topic_tools/shape_shifter.h>
 
-#include <list>
-
 #include <boost/thread.hpp>
+
+#include <nimbro_topic_transport/ReceiverStats.h>
 
 #include "udp_packet.h"
 
@@ -112,6 +114,8 @@ private:
 	template<class HeaderType>
 	void handleFinishedMessage(Message* msg, HeaderType* header);
 
+	void updateStats();
+
 	int m_fd;
 	MessageBuffer m_incompleteMessages;
 	TopicMap m_topics;
@@ -129,6 +133,14 @@ private:
 	Message m_decompressedMessage;
 
 	bool m_fec;
+
+	nimbro_topic_transport::ReceiverStats m_stats;
+	uint64_t m_receivedBytesInStatsInterval;
+	uint64_t m_expectedPacketsInStatsInterval;
+	uint64_t m_missingPacketsInStatsInterval;
+	ros::Publisher m_pub_stats;
+	ros::WallDuration m_statsInterval;
+	ros::WallTimer m_statsTimer;
 };
 
 }
