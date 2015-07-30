@@ -180,7 +180,12 @@ UDPReceiver::UDPReceiver()
 		throw std::runtime_error("Please compile with FEC support to enable FEC");
 #endif
 
+	char hostnameBuf[256];
+	gethostname(hostnameBuf, sizeof(hostnameBuf));
+	hostnameBuf[sizeof(hostnameBuf)-1] = 0;
+
 	m_stats.node = ros::this_node::getName();
+	m_stats.host = hostnameBuf;
 	m_stats.local_port = port;
 	m_stats.fec = m_fec;
 
