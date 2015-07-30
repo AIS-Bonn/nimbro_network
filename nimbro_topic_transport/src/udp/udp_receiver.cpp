@@ -488,7 +488,12 @@ void UDPReceiver::run()
 		msg = &*it;
 
 		if(msg->complete)
+		{
+#if WITH_OPENFEC
+			msg->received_symbols++;
+#endif
 			continue;
+		}
 
 		if(m_fec)
 		{
