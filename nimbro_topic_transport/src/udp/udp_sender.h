@@ -44,7 +44,8 @@ private:
 
 	uint16_t m_msgID;
 	int m_fd;
-	sockaddr_in m_addr;
+	sockaddr_storage m_addr;
+	socklen_t m_addrLen;
 	ros::Time m_lastTime;
 	bool m_duplicateFirstPacket;
 	std::vector<TopicSender*> m_senders;

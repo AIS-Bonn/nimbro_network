@@ -3,7 +3,7 @@
 
 	<node name="sender" pkg="nimbro_topic_transport" type="udp_sender" output="screen">
 		<!-- Destination: localhost -->
-		<param name="destination_addr" value="127.0.0.1" />
+		<param name="destination_addr" value="localhost" />
 		<param name="destination_port" value="5777" />
 		<param name="source_port" value="5776" />
 

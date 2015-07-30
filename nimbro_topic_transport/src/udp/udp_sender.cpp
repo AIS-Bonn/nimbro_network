@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/timerfd.h>
+#include <netdb.h>
 
 #include <ros/console.h>
 #include <stdio.h>
@@ -32,7 +33,27 @@ UDPSender::UDPSender()
 {
 	ros::NodeHandle nh("~");
 
-	m_fd = socket(AF_INET, SOCK_DGRAM, 0);
+	nh.param("relay_mode", m_relayMode, false);
+
+	std::string dest_host;
+	nh.param("destination_addr", dest_host, std::string("localhost"));
+
+	int dest_port;
+	nh.param("destination_port", dest_port, 5050);
+
+	std::string dest_port_str = boost::lexical_cast<std::string>(dest_port);
+
+	addrinfo *info = 0;
+
+	if(getaddrinfo(dest_host.c_str(), dest_port_str.c_str(), 0, &info) != 0 || !info)
+	{
+		ROS_FATAL("Could not lookup destination address '%s': %s",
+			dest_host.c_str(), strerror(errno)
+		);
+		throw std::runtime_error(strerror(errno));
+	}
+
+	m_fd = socket(info->ai_family, SOCK_DGRAM, 0);
 	if(m_fd < 0)
 	{
 		ROS_FATAL("Could not create socket: %s", strerror(errno));
@@ -45,14 +66,9 @@ UDPSender::UDPSender()
 		ROS_FATAL("Could not enable SO_BROADCAST flag: %s", strerror(errno));
 		throw std::runtime_error(strerror(errno));
 	}
-	
-	nh.param("relay_mode", m_relayMode, false);
 
-	std::string dest_host;
-	nh.param("destination_addr", dest_host, std::string("192.168.178.255"));
-
-	int dest_port;
-	nh.param("destination_port", dest_port, 5050);
+	memcpy(&m_addr, info->ai_addr, info->ai_addrlen);
+	m_addrLen = info->ai_addrlen;
 
 	int source_port = dest_port;
 	if(nh.hasParam("source_port"))
@@ -63,26 +79,34 @@ UDPSender::UDPSender()
 			throw std::runtime_error("Invalid source port");
 		}
 
-		sockaddr_in addr;
-		memset(&addr, 0, sizeof(addr));
-		addr.sin_family = AF_INET;
-		addr.sin_addr.s_addr = INADDR_ANY;
-		addr.sin_port = htons(source_port);
+		std::string source_port_str = boost::lexical_cast<std::string>(source_port);
 
-		if(bind(m_fd, (const sockaddr*)&addr, sizeof(addr)) != 0)
+		addrinfo hints;
+		memset(&hints, 0, sizeof(hints));
+
+		hints.ai_flags = AI_PASSIVE;
+		hints.ai_family = info->ai_family;
+		hints.ai_socktype = SOCK_DGRAM;
+
+		addrinfo* localInfo = 0;
+		if(getaddrinfo(NULL, source_port_str.c_str(), &hints, &localInfo) != 0 || !localInfo)
+		{
+			ROS_FATAL("Could not get local address: %s", strerror(errno));
+			throw std::runtime_error("Could not get local address");
+		}
+
+		if(bind(m_fd, localInfo->ai_addr, localInfo->ai_addrlen) != 0)
 		{
 			ROS_FATAL("Could not bind to source port: %s", strerror(errno));
 			throw std::runtime_error(strerror(errno));
 		}
+
+		freeaddrinfo(localInfo);
 	}
 
-	memset(&m_addr, 0, sizeof(m_addr));
-	m_addr.sin_addr.s_addr = inet_addr(dest_host.c_str());
-	m_addr.sin_port = htons(dest_port);
-	m_addr.sin_family = AF_INET;
+	freeaddrinfo(info);
 
 	nh.param("fec", m_fec, 0.0);
-
 
 	XmlRpc::XmlRpcValue list;
 	nh.getParam("topics", list);
@@ -196,7 +220,7 @@ bool UDPSender::send(const void* data, uint32_t size)
 
 bool UDPSender::internalSend(const void* data, uint32_t size)
 {
-	if(sendto(m_fd, data, size, 0, (sockaddr*)&m_addr, sizeof(m_addr)) != size)
+	if(sendto(m_fd, data, size, 0, (sockaddr*)&m_addr, m_addrLen) != size)
 	{
 		ROS_ERROR("Could not send data of size %d: %s", size, strerror(errno));
 		return false;
