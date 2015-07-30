@@ -152,7 +152,7 @@ UDPSender::UDPSender()
 	m_stats.source_port = source_port;
 	m_stats.fec = m_fec != 0.0;
 
-	m_pub_stats = nh.advertise<nimbro_topic_transport::SenderStats>("/nimbro_network/sender_stats", 1);
+	m_pub_stats = nh.advertise<nimbro_topic_transport::SenderStats>("/network/sender_stats", 1);
 
 	m_statsInterval = ros::WallDuration(2.0);
 	m_statsTimer = nh.createWallTimer(m_statsInterval,
