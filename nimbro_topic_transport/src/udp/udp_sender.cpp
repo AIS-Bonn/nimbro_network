@@ -170,7 +170,12 @@ UDPSender::UDPSender()
 		);
 	}
 
+	char hostnameBuf[256];
+	gethostname(hostnameBuf, sizeof(hostnameBuf));
+	hostnameBuf[sizeof(hostnameBuf)-1] = 0;
+
 	m_stats.node = ros::this_node::getName();
+	m_stats.host = hostnameBuf;
 	m_stats.destination = dest_host;
 	m_stats.destination_port = dest_port;
 	m_stats.source_port = source_port;

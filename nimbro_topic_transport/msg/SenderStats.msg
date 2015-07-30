@@ -3,6 +3,9 @@ Header header
 # Node name
 string node
 
+# Local hostname
+string host
+
 # Destination address
 string destination
 

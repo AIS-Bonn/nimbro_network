@@ -9,6 +9,8 @@
 #include <string>
 #include <list>
 
+#include <sys/socket.h>
+
 #include <ros/publisher.h>
 #include <ros/wall_timer.h>
 
@@ -141,6 +143,9 @@ private:
 	ros::Publisher m_pub_stats;
 	ros::WallDuration m_statsInterval;
 	ros::WallTimer m_statsTimer;
+
+	sockaddr_storage m_remoteAddr;
+	socklen_t m_remoteAddrLen;
 };
 
 }

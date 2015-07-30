@@ -6,6 +6,7 @@
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 #include <ros/console.h>
 #include <ros/node_handle.h>
@@ -128,6 +129,7 @@ UDPReceiver::UDPReceiver()
  : m_receivedBytesInStatsInterval(0)
  , m_expectedPacketsInStatsInterval(0)
  , m_missingPacketsInStatsInterval(0)
+ , m_remoteAddrLen(0)
 {
 	ros::NodeHandle nh("~");
 
@@ -179,7 +181,7 @@ UDPReceiver::UDPReceiver()
 #endif
 
 	m_stats.node = ros::this_node::getName();
-	m_stats.port = port;
+	m_stats.local_port = port;
 	m_stats.fec = m_fec;
 
 	m_pub_stats = nh.advertise<ReceiverStats>("/network/receiver_stats", 1);
@@ -340,7 +342,39 @@ void UDPReceiver::run()
 		ros::spinOnce();
 
 		buf.resize(PACKET_SIZE);
-		ssize_t size = recv(m_fd, buf.data(), buf.size(), 0);
+
+		sockaddr_storage addr;
+		socklen_t addrlen = sizeof(addr);
+
+		ssize_t size = recvfrom(m_fd, buf.data(), buf.size(), 0, (sockaddr*)&addr, &addrlen);
+
+		if(addrlen != m_remoteAddrLen || memcmp(&addr, &m_remoteAddr, addrlen) != 0)
+		{
+			// Perform reverse lookup
+			char nameBuf[256];
+			char serviceBuf[256];
+
+			ros::WallTime startLookup = ros::WallTime::now();
+			if(getnameinfo((sockaddr*)&addr, addrlen, nameBuf, sizeof(nameBuf), serviceBuf, sizeof(serviceBuf), NI_NUMERICSERV) != 0)
+			{
+				ROS_ERROR("Could not resolve remote address to name");
+			}
+			ros::WallTime endLookup = ros::WallTime::now();
+
+			// Warn if lookup takes up time (otherwise the user does not know
+			// what is going on)
+			if(endLookup - startLookup > ros::WallDuration(1.0))
+			{
+				ROS_WARN("Reverse address lookup took more than a second. Consider adding '%s' to /etc/hosts", nameBuf);
+			}
+
+			ROS_INFO("New remote: %s:%s", nameBuf, serviceBuf);
+			m_stats.remote = serviceBuf;
+			m_stats.remote_port = atoi(serviceBuf);
+
+			m_remoteAddr = addr;
+			m_remoteAddrLen = addrlen;
+		}
 
 		if(size < 0)
 		{

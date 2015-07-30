@@ -3,8 +3,17 @@ Header header
 # Node name
 string node
 
+# Local hostname
+string host
+
+# Remote hostname (if resolvable, otherwise IP)
+string remote
+
 # Port
-uint16 port
+uint16 local_port
+
+# Port
+uint16 remote_port
 
 # is Forward Error Correction enabled?
 bool fec
