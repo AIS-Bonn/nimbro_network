@@ -108,9 +108,13 @@ add_library(topic_gui
 	src/gui/topic_gui.cpp
 	src/gui/dot_widget.cpp
 )
+add_dependencies(topic_gui
+	${PROJECT_NAME}_generate_messages_cpp
+)
 target_link_libraries(topic_gui
 	${QT_LIBRARIES}
 )
+
 
 # Tests
 add_rostest_gtest(test_comm test/topic_transport.test
