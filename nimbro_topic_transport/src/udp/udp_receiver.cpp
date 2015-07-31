@@ -374,7 +374,7 @@ void UDPReceiver::run()
 			}
 
 			ROS_INFO("New remote: %s:%s", nameBuf, serviceBuf);
-			m_stats.remote = serviceBuf;
+			m_stats.remote = nameBuf;
 			m_stats.remote_port = atoi(serviceBuf);
 
 			m_remoteAddr = addr;
