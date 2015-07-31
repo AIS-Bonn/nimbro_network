@@ -54,6 +54,10 @@ void TopicGUI::initPlugin(qt_gui_cpp::PluginContext& ctx)
 	m_sub_receiverStats = getPrivateNodeHandle().subscribe(
 		"/network/receiver_stats", 1, &TopicGUI::receiverStatsReceived, this
 	);
+
+	QTimer* updateTimer = new QTimer(this);
+	connect(updateTimer, SIGNAL(timeout()), SLOT(update()));
+	updateTimer->start(2000);
 }
 
 void TopicGUI::shutdownPlugin()
@@ -101,6 +105,9 @@ static std::string sanitize(std::string arg)
 
 void TopicGUI::update()
 {
+	ros::Time now = ros::Time::now();
+	ros::Duration timeoutDuration(4.0);
+
 	std::stringstream ss;
 	ss << "digraph G {\n";
 	ss << "K=0.6;\n";
@@ -138,12 +145,12 @@ void TopicGUI::update()
 
 		float bandwidth = 0.0;
 		int div = 0;
-		if(sender_it != m_senderStats.end())
+		if(sender_it != m_senderStats.end() && now - sender_it->second->header.stamp < timeoutDuration)
 		{
 			bandwidth += sender_it->second->bandwidth;
 			div++;
 		}
-		if(receiver_it != m_receiverStats.end())
+		if(receiver_it != m_receiverStats.end() && now - receiver_it->second->header.stamp < timeoutDuration)
 		{
 			bandwidth += receiver_it->second->bandwidth;
 			div++;
