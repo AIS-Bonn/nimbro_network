@@ -94,6 +94,24 @@ target_link_libraries(tcp_receiver
 	${BZ2_LIBRARY}
 )
 
+# GUI
+find_package(Qt4 REQUIRED)
+include(${QT_USE_FILE})
+
+qt4_wrap_cpp(MOC_SRCS
+	src/gui/topic_gui.h
+	src/gui/dot_widget.h
+)
+
+add_library(topic_gui
+	${MOC_SRCS}
+	src/gui/topic_gui.cpp
+	src/gui/dot_widget.cpp
+)
+target_link_libraries(topic_gui
+	${QT_LIBRARIES}
+)
+
 # Tests
 add_rostest_gtest(test_comm test/topic_transport.test
 	test/test_comm.cpp

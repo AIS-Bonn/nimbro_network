@@ -15,6 +15,9 @@
 	<depend>plot_msgs</depend>
 	<depend>config_server</depend>
 
+	<depend>rqt_gui</depend>
+
 	<export>
+		<rqt_gui plugin="${prefix}/rqt_plugin.xml" />
 	</export>
 </package>
