@@ -27,7 +27,10 @@ public:
 private:
 	ros::NodeHandle m_nh;
 	int m_fd;
-	sockaddr_in m_addr;
+
+	int m_addrFamily;
+	sockaddr_storage m_addr;
+	socklen_t m_addrLen;
 
 	int m_sourcePort;
 	std::vector<ros::Subscriber> m_subs;

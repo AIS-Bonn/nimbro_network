@@ -9,6 +9,8 @@
 #include <netinet/tcp.h>
 #include <boost/algorithm/string/replace.hpp>
 
+#include <netdb.h>
+
 namespace nimbro_topic_transport
 {
 
@@ -30,6 +32,8 @@ TCPSender::TCPSender()
 		throw std::runtime_error("tcp_sender needs a 'port' parameter!");
 	}
 
+	std::string portStr = boost::lexical_cast<std::string>(port);
+
 	if(m_nh.hasParam("source_port"))
 	{
 		if(!m_nh.getParam("source_port", m_sourcePort))
@@ -41,10 +45,18 @@ TCPSender::TCPSender()
 	else
 		m_sourcePort = -1;
 
-	memset(&m_addr, 0, sizeof(m_addr));
-	m_addr.sin_family = AF_INET;
-	m_addr.sin_addr.s_addr = inet_addr(addr.c_str());
-	m_addr.sin_port = htons(port);
+	addrinfo* info = 0;
+	if(getaddrinfo(addr.c_str(), portStr.c_str(), 0, &info) != 0 || !info)
+	{
+		ROS_FATAL("Could not lookup host name '%s'", addr.c_str());
+		throw std::runtime_error("Could not lookup hostname");
+	}
+
+	m_addrFamily = info->ai_family;
+	memcpy(&m_addr, info->ai_addr, info->ai_addrlen);
+	m_addrLen = info->ai_addrlen;
+
+	freeaddrinfo(info);
 
 	XmlRpc::XmlRpcValue list;
 	m_nh.getParam("topics", list);
@@ -91,7 +103,7 @@ TCPSender::~TCPSender()
 
 bool TCPSender::connect()
 {
-	m_fd = socket(AF_INET, SOCK_STREAM, 0);
+	m_fd = socket(m_addrFamily, SOCK_STREAM, 0);
 	if(m_fd < 0)
 	{
 		ROS_ERROR("Could not create socket: %s", strerror(errno));
@@ -100,20 +112,32 @@ bool TCPSender::connect()
 
 	if(m_sourcePort != -1)
 	{
-		sockaddr_in addr;
-		memset(&addr, 0, sizeof(addr));
-		addr.sin_family = AF_INET;
-		addr.sin_addr.s_addr = INADDR_ANY;
-		addr.sin_port = htons(m_sourcePort);
+		std::string source_port_str = boost::lexical_cast<std::string>(m_sourcePort);
 
-		if(bind(m_fd, (const sockaddr*)&addr, sizeof(addr)) != 0)
+		addrinfo hints;
+		memset(&hints, 0, sizeof(hints));
+
+		hints.ai_flags = AI_PASSIVE;
+		hints.ai_family = m_addrFamily;
+		hints.ai_socktype = SOCK_STREAM;
+
+		addrinfo* localInfo = 0;
+		if(getaddrinfo(NULL, source_port_str.c_str(), &hints, &localInfo) != 0 || !localInfo)
+		{
+			ROS_FATAL("Could not get local address: %s", strerror(errno));
+			throw std::runtime_error("Could not get local address");
+		}
+
+		if(bind(m_fd, localInfo->ai_addr, localInfo->ai_addrlen) != 0)
 		{
 			ROS_FATAL("Could not bind to source port: %s", strerror(errno));
 			throw std::runtime_error(strerror(errno));
 		}
+
+		freeaddrinfo(localInfo);
 	}
 
-	if(::connect(m_fd, (sockaddr*)&m_addr, sizeof(m_addr)) != 0)
+	if(::connect(m_fd, (sockaddr*)&m_addr, m_addrLen) != 0)
 	{
 		ROS_ERROR("Could not connect: %s", strerror(errno));
 		return false;
