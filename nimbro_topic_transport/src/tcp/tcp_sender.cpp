@@ -168,12 +168,15 @@ bool TCPSender::connect()
 	if(m_sourcePort == -1)
 	{
 		sockaddr_storage addr;
-		socklen_t addrlen;
+		socklen_t addrlen = sizeof(addr);
 
 		char nameBuf[256];
 		char serviceBuf[256];
 
-		getsockname(m_fd, (sockaddr*)&addr, &addrlen);
+		if(getsockname(m_fd, (sockaddr*)&addr, &addrlen) != 0)
+		{
+			ROS_ERROR("Could not get local socket addr: %s", strerror(errno));
+		}
 
 		if(getnameinfo((sockaddr*)&addr, addrlen, nameBuf, sizeof(nameBuf), serviceBuf, sizeof(serviceBuf), NI_NUMERICSERV | NI_NUMERICHOST) != 0)
 		{
