@@ -5,6 +5,7 @@
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 #include "tcp_packet.h"
 #include "../topic_info.h"
@@ -46,6 +47,7 @@ static bool sureRead(int fd, void* dest, ssize_t size)
 
 TCPReceiver::TCPReceiver()
  : m_nh("~")
+ , m_receivedBytesInStatsInterval(0)
 {
 	m_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if(m_fd < 0)
@@ -84,6 +86,24 @@ TCPReceiver::TCPReceiver()
 	}
 
 	m_nh.param("keep_compressed", m_keepCompressed, false);
+
+	char hostnameBuf[256];
+	gethostname(hostnameBuf, sizeof(hostnameBuf));
+	hostnameBuf[sizeof(hostnameBuf)-1] = 0;
+
+	m_stats.node = ros::this_node::getName();
+	m_stats.protocol = "TCP";
+	m_stats.host = hostnameBuf;
+	m_stats.local_port = port;
+	m_stats.fec = false;
+
+	m_nh.param("label", m_stats.label, std::string());
+
+	m_pub_stats = m_nh.advertise<ReceiverStats>("/network/receiver_stats", 1);
+	m_statsInterval = ros::WallDuration(2.0);
+	m_statsTimer = m_nh.createWallTimer(m_statsInterval,
+		boost::bind(&TCPReceiver::updateStats, this)
+	);
 }
 
 TCPReceiver::~TCPReceiver()
@@ -130,7 +150,34 @@ void TCPReceiver::run()
 		if(ret == 0)
 			continue;
 
-		int client_fd = accept(m_fd, 0, 0);
+		sockaddr_storage remoteAddr;
+		socklen_t remoteAddrLen = sizeof(remoteAddr);
+
+		int client_fd = accept(m_fd, (sockaddr*)&remoteAddr, &remoteAddrLen);
+
+		{
+			// Perform reverse lookup
+			char nameBuf[256];
+			char serviceBuf[256];
+
+			ros::WallTime startLookup = ros::WallTime::now();
+			if(getnameinfo((sockaddr*)&remoteAddr, remoteAddrLen, nameBuf, sizeof(nameBuf), serviceBuf, sizeof(serviceBuf), NI_NUMERICSERV) != 0)
+			{
+				ROS_ERROR("Could not resolve remote address to name");
+			}
+			ros::WallTime endLookup = ros::WallTime::now();
+
+			// Warn if lookup takes up time (otherwise the user does not know
+			// what is going on)
+			if(endLookup - startLookup > ros::WallDuration(1.0))
+			{
+				ROS_WARN("Reverse address lookup took more than a second. Consider adding '%s' to /etc/hosts", nameBuf);
+			}
+
+			ROS_INFO("New remote: %s:%s", nameBuf, serviceBuf);
+			m_stats.remote = nameBuf;
+			m_stats.remote_port = atoi(serviceBuf);
+		}
 
 		ClientHandler* handler = new ClientHandler(client_fd);
 		handler->setKeepCompressed(m_keepCompressed);
@@ -314,6 +361,24 @@ void TCPReceiver::ClientHandler::run()
 bool TCPReceiver::ClientHandler::isRunning() const
 {
 	return m_running;
+}
+
+void TCPReceiver::updateStats()
+{
+	m_stats.header.stamp = ros::Time::now();
+
+	uint64_t totalBytes = 0;
+	for(auto handler : m_handlers)
+	{
+		totalBytes += handler->bytesReceived();
+		handler->resetByteCounter();
+	}
+
+	m_stats.bandwidth = totalBytes / m_statsInterval.toSec();
+
+	m_stats.drop_rate = 0;
+
+	m_pub_stats.publish(m_stats);
 }
 
 }

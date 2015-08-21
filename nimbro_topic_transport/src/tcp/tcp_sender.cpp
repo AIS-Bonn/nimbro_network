@@ -17,6 +17,7 @@ namespace nimbro_topic_transport
 TCPSender::TCPSender()
  : m_nh("~")
  , m_fd(-1)
+ , m_sentBytesInStatsInterval(0)
 {
 	std::string addr;
 	if(!m_nh.getParam("address", addr))
@@ -93,8 +94,29 @@ TCPSender::TCPSender()
 		ROS_INFO_STREAM("config parameter name: " << parameterName);
 		boost::shared_ptr<config_server::Parameter<bool>> parameter( new config_server::Parameter<bool>(parameterName, enabled));
 		m_enableTopic[topic] = parameter;
-
 	}
+
+	char hostnameBuf[256];
+	gethostname(hostnameBuf, sizeof(hostnameBuf));
+	hostnameBuf[sizeof(hostnameBuf)-1] = 0;
+
+	m_stats.node = ros::this_node::getName();
+	m_stats.protocol = "TCP";
+	m_stats.host = hostnameBuf;
+	m_stats.destination = addr;
+	m_stats.destination_port = port;
+	m_stats.source_port = m_sourcePort;
+	m_stats.fec = false;
+
+	m_nh.param("label", m_stats.label, std::string());
+
+	m_pub_stats = m_nh.advertise<SenderStats>("/network/sender_stats", 1);
+
+	m_statsInterval = ros::WallDuration(2.0);
+	m_statsTimer = m_nh.createWallTimer(m_statsInterval,
+		boost::bind(&TCPSender::updateStats, this)
+	);
+	m_statsTimer.start();
 }	
 
 TCPSender::~TCPSender()
@@ -260,6 +282,7 @@ void TCPSender::send(const std::string& topic, int flags, const topic_tools::Sha
 			m_fd = -1;
 			continue;
 		}
+		m_sentBytesInStatsInterval += m_packet.size();
 
 		// Read ACK
 		uint8_t ack;
@@ -275,6 +298,15 @@ void TCPSender::send(const std::string& topic, int flags, const topic_tools::Sha
 	}
 
 	ROS_ERROR("Could not send TCP packet. Dropping message from topic %s!", topic.c_str());
+}
+
+void TCPSender::updateStats()
+{
+	m_stats.header.stamp = ros::Time::now();
+	m_stats.bandwidth = 8 * m_sentBytesInStatsInterval / m_statsInterval.toSec();
+
+	m_pub_stats.publish(m_stats);
+	m_sentBytesInStatsInterval = 0;
 }
 
 }

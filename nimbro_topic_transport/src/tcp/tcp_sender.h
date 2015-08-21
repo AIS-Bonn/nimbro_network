@@ -12,6 +12,8 @@
 
 #include <config_server/parameter.h>
 
+#include <nimbro_topic_transport/SenderStats.h>
+
 namespace nimbro_topic_transport
 {
 
@@ -25,6 +27,8 @@ public:
 
 	void send(const std::string& topic, int flags, const topic_tools::ShapeShifter& shifter);
 private:
+	void updateStats();
+
 	ros::NodeHandle m_nh;
 	int m_fd;
 
@@ -37,6 +41,12 @@ private:
 	std::map<std::string, boost::shared_ptr<config_server::Parameter<bool>>> m_enableTopic;
 	std::vector<uint8_t> m_packet;
 	std::vector<uint8_t> m_compressionBuf;
+
+	nimbro_topic_transport::SenderStats m_stats;
+	ros::Publisher m_pub_stats;
+	ros::WallDuration m_statsInterval;
+	ros::WallTimer m_statsTimer;
+	uint64_t m_sentBytesInStatsInterval;
 };
 
 }
