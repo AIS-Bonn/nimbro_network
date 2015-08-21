@@ -165,6 +165,24 @@ bool TCPSender::connect()
 		return false;
 	}
 
+	if(m_sourcePort == -1)
+	{
+		sockaddr_storage addr;
+		socklen_t addrlen;
+
+		char nameBuf[256];
+		char serviceBuf[256];
+
+		getsockname(m_fd, (sockaddr*)&addr, &addrlen);
+
+		if(getnameinfo((sockaddr*)&addr, addrlen, nameBuf, sizeof(nameBuf), serviceBuf, sizeof(serviceBuf), NI_NUMERICSERV | NI_NUMERICHOST) != 0)
+		{
+			ROS_ERROR("Could not resolve remote address to name");
+		}
+
+		m_stats.source_port = atoi(serviceBuf);
+	}
+
 #ifdef TCP_USER_TIMEOUT
 	int timeout = 8000;
 	if(setsockopt(m_fd, SOL_TCP, TCP_USER_TIMEOUT, &timeout, sizeof(timeout)) != 0)
