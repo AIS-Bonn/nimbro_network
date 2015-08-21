@@ -23,7 +23,6 @@ namespace nimbro_topic_transport
 
 struct ConnectionIdentifier
 {
-	std::string src;
 	std::string dest;
 	std::string protocol;
 	int sourcePort;
@@ -31,18 +30,13 @@ struct ConnectionIdentifier
 
 	bool operator==(const ConnectionIdentifier& other) const
 	{
-		return src == other.src && dest == other.dest
+		return dest == other.dest
 			&& protocol == other.protocol
 			&& sourcePort == other.sourcePort && destPort == other.destPort;
 	}
 
 	bool operator<(const ConnectionIdentifier& other) const
 	{
-		if(src < other.src)
-			return true;
-		if(src > other.src)
-			return false;
-
 		if(dest < other.dest)
 			return true;
 		if(dest > other.dest)

@@ -69,7 +69,6 @@ void TopicGUI::shutdownPlugin()
 void TopicGUI::handleSenderStats(const SenderStatsConstPtr& msg)
 {
 	ConnectionIdentifier ident;
-	ident.src = msg->host;
 	ident.dest = msg->destination;
 	ident.protocol = msg->protocol;
 	ident.sourcePort = msg->source_port;
@@ -83,7 +82,6 @@ void TopicGUI::handleSenderStats(const SenderStatsConstPtr& msg)
 void TopicGUI::handleReceiverStats(const ReceiverStatsConstPtr& msg)
 {
 	ConnectionIdentifier ident;
-	ident.src = msg->remote;
 	ident.dest = msg->host;
 	ident.protocol = msg->protocol;
 	ident.sourcePort = msg->remote_port;
@@ -120,13 +118,13 @@ void TopicGUI::update()
 	for(auto pair : m_receiverStats)
 	{
 		connections.insert(pair.first);
-		hosts.insert(pair.first.src);
+		hosts.insert(pair.second->remote);
 		hosts.insert(pair.first.dest);
 	}
 	for(auto pair : m_senderStats)
 	{
 		connections.insert(pair.first);
-		hosts.insert(pair.first.src);
+		hosts.insert(pair.second->host);
 		hosts.insert(pair.first.dest);
 	}
 
@@ -140,7 +138,17 @@ void TopicGUI::update()
 		auto sender_it = m_senderStats.find(connection);
 		auto receiver_it = m_receiverStats.find(connection);
 
-		ss << "node_" << sanitize(connection.src) << " -> node_" << sanitize(connection.dest) << "[ ";
+		SenderStatsConstPtr sender;
+		if(sender_it != m_senderStats.end())
+			sender = sender_it->second;
+
+		ReceiverStatsConstPtr receiver;
+		if(receiver_it != m_receiverStats.end())
+			receiver = receiver_it->second;
+
+		std::string source = sender ? sender->host : receiver->remote;
+
+		ss << "node_" << sanitize(source) << " -> node_" << sanitize(connection.dest) << "[ ";
 
 		ss << "label=\"";
 
