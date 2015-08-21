@@ -378,6 +378,10 @@ void TCPReceiver::updateStats()
 
 	m_stats.drop_rate = 0;
 
+	// If there is no connection yet, drop the stats msg
+	if(m_handlers.empty())
+		return;
+
 	m_pub_stats.publish(m_stats);
 }
 
