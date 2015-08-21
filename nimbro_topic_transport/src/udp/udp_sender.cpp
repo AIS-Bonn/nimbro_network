@@ -175,11 +175,14 @@ UDPSender::UDPSender()
 	hostnameBuf[sizeof(hostnameBuf)-1] = 0;
 
 	m_stats.node = ros::this_node::getName();
+	m_stats.protocol = "UDP";
 	m_stats.host = hostnameBuf;
 	m_stats.destination = dest_host;
 	m_stats.destination_port = dest_port;
 	m_stats.source_port = source_port;
 	m_stats.fec = m_fec != 0.0;
+
+	nh.param("label", m_stats.label, std::string());
 
 	m_pub_stats = nh.advertise<nimbro_topic_transport::SenderStats>("/network/sender_stats", 1);
 

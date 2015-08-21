@@ -185,9 +185,12 @@ UDPReceiver::UDPReceiver()
 	hostnameBuf[sizeof(hostnameBuf)-1] = 0;
 
 	m_stats.node = ros::this_node::getName();
+	m_stats.protocol = "UDP";
 	m_stats.host = hostnameBuf;
 	m_stats.local_port = port;
 	m_stats.fec = m_fec;
+
+	nh.param("label", m_stats.label, std::string());
 
 	m_pub_stats = nh.advertise<ReceiverStats>("/network/receiver_stats", 1);
 	m_statsInterval = ros::WallDuration(2.0);

@@ -25,12 +25,14 @@ struct ConnectionIdentifier
 {
 	std::string src;
 	std::string dest;
+	std::string protocol;
 	int sourcePort;
 	int destPort;
 
 	bool operator==(const ConnectionIdentifier& other) const
 	{
 		return src == other.src && dest == other.dest
+			&& protocol == other.protocol
 			&& sourcePort == other.sourcePort && destPort == other.destPort;
 	}
 
@@ -44,6 +46,11 @@ struct ConnectionIdentifier
 		if(dest < other.dest)
 			return true;
 		if(dest > other.dest)
+			return false;
+
+		if(protocol < other.protocol)
+			return true;
+		if(protocol > other.protocol)
 			return false;
 
 		if(sourcePort < other.sourcePort)

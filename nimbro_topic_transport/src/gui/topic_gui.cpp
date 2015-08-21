@@ -71,6 +71,7 @@ void TopicGUI::handleSenderStats(const SenderStatsConstPtr& msg)
 	ConnectionIdentifier ident;
 	ident.src = msg->host;
 	ident.dest = msg->destination;
+	ident.protocol = msg->protocol;
 	ident.sourcePort = msg->source_port;
 	ident.destPort = msg->destination_port;
 
@@ -84,6 +85,7 @@ void TopicGUI::handleReceiverStats(const ReceiverStatsConstPtr& msg)
 	ConnectionIdentifier ident;
 	ident.src = msg->remote;
 	ident.dest = msg->host;
+	ident.protocol = msg->protocol;
 	ident.sourcePort = msg->remote_port;
 	ident.destPort = msg->local_port;
 
@@ -94,7 +96,7 @@ void TopicGUI::handleReceiverStats(const ReceiverStatsConstPtr& msg)
 
 static std::string sanitize(std::string arg)
 {
-	for(int i = 0; i < arg.length(); ++i)
+	for(size_t i = 0; i < arg.length(); ++i)
 	{
 		if(!isalnum(arg[i]))
 			arg[i] = '_';
@@ -141,7 +143,17 @@ void TopicGUI::update()
 		ss << "node_" << sanitize(connection.src) << " -> node_" << sanitize(connection.dest) << "[ ";
 
 		ss << "label=\"";
-		ss << connection.sourcePort << " -> " << connection.destPort << "\n";
+
+		std::string label;
+		if(sender_it != m_senderStats.end() && !sender_it->second->label.empty())
+			label = sender_it->second->label;
+		else if(receiver_it != m_receiverStats.end() && !receiver_it->second->label.empty())
+			label = receiver_it->second->label;
+
+		if(!label.empty())
+			ss << label << "\n";
+
+		ss << connection.protocol << " " << connection.sourcePort << " -> " << connection.destPort << "\n";
 
 		float bandwidth = 0.0;
 		int div = 0;

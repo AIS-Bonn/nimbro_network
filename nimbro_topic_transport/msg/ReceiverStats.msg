@@ -3,6 +3,12 @@ Header header
 # Node name
 string node
 
+# Protocol ("TCP" or "UDP")
+string protocol
+
+# Connection label
+string label
+
 # Local hostname
 string host
 
