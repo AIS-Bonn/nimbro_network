@@ -12,6 +12,7 @@
 #include <ros/publisher.h>
 
 #include <deque>
+#include <map>
 
 #include <boost/thread.hpp>
 
@@ -29,7 +30,7 @@ public:
 	~UDPSender();
 
 	uint16_t allocateMessageID();
-	bool send(const void* data, uint32_t size);
+	bool send(const void* data, uint32_t size, const std::string& topic);
 
 	inline bool duplicateFirstPacket() const
 	{ return m_duplicateFirstPacket; }
@@ -38,7 +39,7 @@ public:
 	{ return m_fec; }
 private:
 	void relay();
-	bool internalSend(const void* data, uint32_t size);
+	bool internalSend(const void* data, uint32_t size, const std::string& topic);
 
 	void updateStats();
 
@@ -56,6 +57,7 @@ private:
 	uint64_t m_relayTokens;
 
 	std::deque<std::vector<uint8_t>> m_relayBuffer;
+	std::deque<std::string> m_relayNameBuffer;
 	unsigned int m_relayIndex;
 
 	boost::thread m_relayThread;
@@ -68,6 +70,9 @@ private:
 	ros::WallDuration m_statsInterval;
 	ros::WallTimer m_statsTimer;
 	uint64_t m_sentBytesInStatsInterval;
+
+	// Count sent bytes for each topic seperately for logging
+	std::map<std::string, uint64_t> m_sentTopicBytesInStatsInterval;
 };
 
 }

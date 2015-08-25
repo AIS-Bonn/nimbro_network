@@ -210,7 +210,7 @@ uint16_t UDPSender::allocateMessageID()
 	return m_msgID++;
 }
 
-bool UDPSender::send(const void* data, uint32_t size)
+bool UDPSender::send(const void* data, uint32_t size, const std::string& topic)
 {
 	if(m_relayMode)
 	{
@@ -218,15 +218,16 @@ bool UDPSender::send(const void* data, uint32_t size)
 		memcpy(packet.data(), data, size);
 
 		m_relayBuffer.emplace_back(std::move(packet));
+		m_relayNameBuffer.emplace_back(topic);
 		return true;
 	}
 	else
 	{
-		return internalSend(data, size);
+		return internalSend(data, size, topic);
 	}
 }
 
-bool UDPSender::internalSend(const void* data, uint32_t size)
+bool UDPSender::internalSend(const void* data, uint32_t size, const std::string& topic)
 {
 	if(sendto(m_fd, data, size, 0, (sockaddr*)&m_addr, m_addrLen) != size)
 	{
@@ -235,6 +236,8 @@ bool UDPSender::internalSend(const void* data, uint32_t size)
 	}
 
 	m_sentBytesInStatsInterval += size;
+	if (!topic.empty())
+		m_sentTopicBytesInStatsInterval[topic] += size;
 
 	return true;
 }
@@ -280,13 +283,16 @@ void UDPSender::relay()
 				break;
 
 			const std::vector<uint8_t>& packet = m_relayBuffer.front();
+
+			// Get the topic name the packet is from
+			const std::string& topic = m_relayNameBuffer.front();
 			std::size_t sizeOnWire = packet.size() + 20 + 8;
 
 			// out of tokens? Wait for next iteration.
 			if(sizeOnWire > m_relayTokens)
 				break;
 
-			if(!internalSend(packet.data(), packet.size()))
+			if(!internalSend(packet.data(), packet.size(), topic))
 			{
 				ROS_ERROR("Could not send packet");
 				break;
@@ -295,6 +301,7 @@ void UDPSender::relay()
 			// Consume tokens
 			m_relayTokens -= sizeOnWire;
 			m_relayBuffer.pop_front();
+			m_relayNameBuffer.pop_front();
 		}
 
 		rate.sleep();
@@ -307,6 +314,17 @@ void UDPSender::updateStats()
 {
 	m_stats.header.stamp = ros::Time::now();
 	m_stats.bandwidth = 8 * m_sentBytesInStatsInterval / m_statsInterval.toSec();
+
+	// Get Bytes per topic in the message
+	m_stats.topics.clear();
+	for(auto& pair : m_sentTopicBytesInStatsInterval)
+	{
+		nimbro_topic_transport::TopicBandwidth tp;
+		tp.name = pair.first;
+		tp.bandwidth = 8 * pair.second / m_statsInterval.toSec();
+		pair.second = 0;
+	}
+
 
 	m_pub_stats.publish(m_stats);
 	m_sentBytesInStatsInterval = 0;

@@ -318,7 +318,7 @@ void TopicSender::sendWithFEC()
 	ROS_DEBUG("Sending %d packets", (int)packetOrder.size());
 	for(unsigned int idx : packetOrder)
 	{
-		if(!m_sender->send(packetBuffer.data() + idx * packetSize, packetSize))
+		if(!m_sender->send(packetBuffer.data() + idx * packetSize, packetSize, m_topicName))
 			return;
 	}
 #else
@@ -369,12 +369,12 @@ void TopicSender::sendWithoutFEC()
 	rptr += psize;
 	size -= psize;
 
-	if(!m_sender->send(buf, buf_size))
+	if(!m_sender->send(buf, buf_size, m_topicName))
 		return;
 
 	if(m_sender->duplicateFirstPacket())
 	{
-		if(!m_sender->send(buf, buf_size))
+		if(!m_sender->send(buf, buf_size, m_topicName))
 			return;
 	}
 
@@ -391,7 +391,7 @@ void TopicSender::sendWithoutFEC()
 		rptr += psize;
 		size -= psize;
 
-		if(!m_sender->send(buf, buf_size))
+		if(!m_sender->send(buf, buf_size, m_topicName))
 			return;
 	}
 }
