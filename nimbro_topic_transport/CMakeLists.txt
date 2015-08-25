@@ -14,6 +14,7 @@ add_message_files(FILES
 	CompressedMsg.msg
 	ReceiverStats.msg
 	SenderStats.msg
+	TopicBandwidth.msg
 )
 
 generate_messages(DEPENDENCIES
@@ -103,18 +104,39 @@ qt4_wrap_cpp(MOC_SRCS
 	src/gui/dot_widget.h
 )
 
+qt4_wrap_cpp(BAND_MOC_SRCS
+	src/gui/bandwidth_gui.h
+	src/gui/contrib/qcustomplot.h
+)
+
 add_library(topic_gui
 	${MOC_SRCS}
 	src/gui/topic_gui.cpp
 	src/gui/dot_widget.cpp
 )
+
+add_library(bandwidth_gui
+	${BAND_MOC_SRCS}
+	src/gui/bandwidth_gui.cpp
+	src/gui/contrib/qcustomplot.cpp
+)
+
+
 add_dependencies(topic_gui
 	${PROJECT_NAME}_generate_messages_cpp
 )
+
 target_link_libraries(topic_gui
 	${QT_LIBRARIES}
 )
 
+add_dependencies(bandwidth_gui
+	${PROJECT_NAME}_generate_messages_cpp
+)
+
+target_link_libraries(bandwidth_gui
+	${QT_LIBRARIES}
+)
 
 # Tests
 add_rostest_gtest(test_comm test/topic_transport.test
