@@ -26,3 +26,6 @@ bool fec
 
 # Bandwidth in bit/s
 float32 bandwidth
+
+# Topic specific bandwidth
+TopicBandwidth[] topics
