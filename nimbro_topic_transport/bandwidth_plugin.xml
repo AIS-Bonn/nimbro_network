@@ -1,0 +1,15 @@
+<library path="lib/libbandwidth_gui">
+	<class name="BandwidthGui" type="nimbro_topic_transport::BandwidthGui" base_class_type="rqt_gui_cpp::Plugin">
+		<description>
+			Display bandwidth information for transferred topics
+		</description>
+		<qtgui>
+			<group>
+				<label>nimbro_network</label>
+			</group>
+
+			<label>Topic Bandwidth</label>
+			<statustip>Diagnostic information</statustip>
+		</qtgui>
+	</class>
+</library>
