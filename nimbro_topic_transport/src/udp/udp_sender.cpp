@@ -323,6 +323,7 @@ void UDPSender::updateStats()
 		tp.name = pair.first;
 		tp.bandwidth = 8 * pair.second / m_statsInterval.toSec();
 		pair.second = 0;
+        m_stats.topics.emplace_back(tp);
 	}
 
 
