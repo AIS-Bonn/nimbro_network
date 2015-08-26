@@ -314,12 +314,15 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 		}
 
 		// Try to wait until at least one subscriber has connected...
-		ros::WallTime maxWait = ros::WallTime::now() + ros::WallDuration(0.2);
+		ros::WallTime maxWait = ros::WallTime::now() + ros::WallDuration(0.5);
 		ros::WallRate rate(50.0);
 		while(topic->publisher.getNumSubscribers() == 0)
 		{
 			if(ros::WallTime::now() > maxWait)
+			{
+				ROS_INFO("timeout waiting for subscriber on topic '%s'", header->topic_name);
 				break;
+			}
 
 			ros::spinOnce();
 			rate.sleep();
