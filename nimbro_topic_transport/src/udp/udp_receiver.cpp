@@ -313,6 +313,18 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 			topic->publisher = m_nh.advertise(options);
 		}
 
+		// Try to wait until at least one subscriber has connected...
+		ros::WallTime maxWait = ros::WallTime::now() + ros::WallDuration(0.2);
+		ros::WallRate rate(50.0);
+		while(topic->publisher.getNumSubscribers() == 0)
+		{
+			if(ros::WallTime::now() > maxWait)
+				break;
+
+			ros::spinOnce();
+			rate.sleep();
+		}
+
 		topic->compressed = compressed;
 	}
 
