@@ -91,7 +91,7 @@ TCPSender::TCPSender()
 		std::string parameterName(topic);
 		boost::replace_first(parameterName, "/", "");
 		boost::replace_all(parameterName, "/", "_");
-		ROS_INFO_STREAM("config parameter name: " << parameterName);
+		ROS_DEBUG_STREAM("config parameter name: " << parameterName);
 		boost::shared_ptr<config_server::Parameter<bool>> parameter( new config_server::Parameter<bool>(parameterName, enabled));
 		m_enableTopic[topic] = parameter;
 	}
