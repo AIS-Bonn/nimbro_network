@@ -303,7 +303,7 @@ void TCPReceiver::ClientHandler::run()
 					continue;
 				}
 
-				ROS_INFO("decompress %d KiB (%d) to %d KiB (%d)", (int)data.size() / 1024, (int)data.size(), (int)len / 1024, (int)len);
+				ROS_DEBUG("decompress %d KiB (%d) to %d KiB (%d)", (int)data.size() / 1024, (int)data.size(), (int)len / 1024, (int)len);
 				m_uncompressBuf.resize(len);
 
 				VectorStream stream(&m_uncompressBuf);
