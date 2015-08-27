@@ -38,7 +38,6 @@ TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::stri
  , m_enable(escapeTopicName(topic), enable)
 #endif
 {
-	ROS_INFO_STREAM("Subscribing to" << topic);
 	m_subscriber = nh->subscribe(topic, 1, &TopicSender::handleData, this);
 	m_topicName = topic;
 
