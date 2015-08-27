@@ -10,8 +10,12 @@ Our team was one of the few teams which did not have communication problems.
 The SpaceBotCup network had a few special aspects which forced us to design
 our own network solution, in particular a two-second delay in each direction.
 
+The system was also used extensively in the [DARPA Robotics Challenge][3], in
+which our team NimbRo Rescue achieved the fourth place.
+
 [1]: http://www.ros.org
 [2]: http://www.dlr.de/rd/desktopdefault.aspx/tabid-8101/13875_read-35268/
+[3]: http://www.theroboticschallenge.org/
 
 Why?
 ----
@@ -36,13 +40,17 @@ Features
     * Automatic topic discovery on the receiver side. The transmitter defines
       which topics get transferred
     * Optional rate-limiting for each topic
+    * Experimental Forward Error Correction (FEC) for the UDP transport
 * Service transport:
     * TCP protocol with minimal latency (support for TCP Fast-Open is included)
+    * UDP protocol
 * Additional nodes:
     * Special nimbro_log_transport node for transporting the ROS log over a
       lossy connection
     * Special tf_throttle node for creating & transferring TF snapshots at pre-
       defined intervals.
+    * Special nimbro_cam_transport package for encoding/decoding camera images
+      to/from H.264
 
 Getting started
 ---------------
@@ -54,10 +62,19 @@ State
 -----
 
 `nimbro_network` is mature in the sense that it has been used extensively in
-the preparation and during the competition of the SpaceBotCup.
+the preparation and during the competition of the SpaceBotCup and in the
+DARPA Robotics Challenge.
 
 License
 -------
 
-`nimbro_network` is licensed under the GPLv2, available at
-http://www.gnu.org/licenses/gpl-2.0.txt
+`nimbro_network` is licensed under the BSD 3-clause license.
+
+Authors & Contact
+-----------------
+
+Max Schwarz <max.schwarz@uni-bonn.de>
+Institute of Computer Science VI
+Rheinische Friedrich-Wilhelms-Universität Bonn
+Friedrich Ebert-Allee 144
+53113 Bonn
