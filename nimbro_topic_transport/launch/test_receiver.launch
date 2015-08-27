@@ -1,8 +1,0 @@
-<launch>
-	<arg name="port" default="5050" />
-
-	<node name="recv" pkg="nimbro_topic_transport" type="udp_receiver" output="screen">
-		<param name="port" value="$(arg port)" />
-		<param name="drop_repeated_msgs" value="true" />
-	</node>
-</launch>
