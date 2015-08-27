@@ -7,7 +7,6 @@ find_package(catkin REQUIRED COMPONENTS
 	topic_tools
 	rostest
 	message_generation
-	config_server
 )
 
 add_message_files(FILES
@@ -24,12 +23,20 @@ generate_messages(DEPENDENCIES
 catkin_package()
 include_directories(${catkin_INCLUDE_DIRS})
 
+# Some optional components of the NimbRo software framework
 find_package(plot_msgs)
 if(plot_msgs_FOUND)
 	include_directories(${plot_msgs_INCLUDE_DIRS})
 	add_definitions(-DWITH_PLOTTING=1)
 endif()
 
+find_package(config_server)
+if(config_server_FOUND)
+	include_directories(${config_server_INCLUDE_DIRS})
+	add_definitions(-DWITH_CONFIG_SERVER=1)
+endif()
+
+# If OpenFEC is available, we can enable FEC for the UDP sender
 set(OPENFEC_PATH "" CACHE PATH "Path to OpenFEC (optional)")
 if(OPENFEC_PATH)
 	include_directories(${OPENFEC_PATH}/src/lib_common)
@@ -55,6 +62,7 @@ target_link_libraries(udp_sender
 	${catkin_LIBRARIES}
 	${BZ2_LIBRARY}
 	${OPENFEC_LIBRARY}
+	${config_server_LIBRARIES}
 )
 
 add_executable(udp_receiver
@@ -81,6 +89,7 @@ add_dependencies(tcp_sender
 target_link_libraries(tcp_sender
 	${catkin_LIBRARIES}
 	${BZ2_LIBRARY}
+	${config_server_LIBRARIES}
 )
 
 add_executable(tcp_receiver

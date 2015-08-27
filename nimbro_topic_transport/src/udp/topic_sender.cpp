@@ -34,7 +34,9 @@ TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::stri
  , m_msgCounter(0)
  , m_inputMsgCounter(0)
  , m_directTransmission(true)
+#if WITH_CONFIG_SERVER
  , m_enable(escapeTopicName(topic), enable)
+#endif
 {
 	ROS_INFO_STREAM("Subscribing to" << topic);
 	m_subscriber = nh->subscribe(topic, 1, &TopicSender::handleData, this);
@@ -398,9 +400,11 @@ void TopicSender::sendWithoutFEC()
 
 void TopicSender::handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShifter)
 {
+#if WITH_CONFIG_SERVER
 	if (!m_enable() ) 
-		return; 
-	
+		return;
+#endif
+
 	{
 		boost::lock_guard<boost::mutex> lock(m_dataMutex);
 

@@ -9,7 +9,9 @@
 
 #include <boost/thread.hpp>
 
+#if WITH_CONFIG_SERVER
 #include <config_server/parameter.h>
+#endif
 
 namespace nimbro_topic_transport
 {
@@ -60,8 +62,10 @@ namespace nimbro_topic_transport
 		bool m_directTransmission;
 
 		boost::mutex m_dataMutex;
-		
+
+#if WITH_CONFIG_SERVER
 		config_server::Parameter<bool> m_enable;
+#endif
 	};
 
 };

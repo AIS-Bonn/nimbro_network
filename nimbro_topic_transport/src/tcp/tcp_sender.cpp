@@ -71,10 +71,6 @@ TCPSender::TCPSender()
 		ROS_ASSERT(entry.getType() == XmlRpc::XmlRpcValue::TypeStruct);
 		ROS_ASSERT(entry.hasMember("name"));
 
-		bool enabled = true;
-		if (entry.hasMember("enable"))
-			enabled = entry["enable"];
-			
 		std::string topic = entry["name"];
 		int flags = 0;
 
@@ -87,13 +83,19 @@ TCPSender::TCPSender()
 		m_subs.push_back(
 			m_nh.subscribe<const topic_tools::ShapeShifter>(topic, 20, func)
 		);
-		
+
+#if WITH_CONFIG_SERVER
+		bool enabled = true;
+		if (entry.hasMember("enable"))
+			enabled = entry["enable"];
+
 		std::string parameterName(topic);
 		boost::replace_first(parameterName, "/", "");
 		boost::replace_all(parameterName, "/", "_");
-		ROS_DEBUG_STREAM("config parameter name: " << parameterName);
+
 		boost::shared_ptr<config_server::Parameter<bool>> parameter( new config_server::Parameter<bool>(parameterName, enabled));
 		m_enableTopic[topic] = parameter;
+#endif
 	}
 
 	char hostnameBuf[256];
@@ -215,9 +217,11 @@ private:
 
 void TCPSender::send(const std::string& topic, int flags, const topic_tools::ShapeShifter& shifter)
 {
+#if WITH_CONFIG_SERVER
 	if (! (*m_enableTopic[topic])() )
-		return; 
-	
+		return;
+#endif
+
 	std::string type = shifter.getDataType();
 	std::string md5 = shifter.getMD5Sum();
 	uint32_t size = shifter.size();

@@ -10,7 +10,9 @@
 
 #include "tcp_packet.h"
 
+#if WITH_CONFIG_SERVER
 #include <config_server/parameter.h>
+#endif
 
 #include <nimbro_topic_transport/SenderStats.h>
 
@@ -38,9 +40,12 @@ private:
 
 	int m_sourcePort;
 	std::vector<ros::Subscriber> m_subs;
-	std::map<std::string, boost::shared_ptr<config_server::Parameter<bool>>> m_enableTopic;
 	std::vector<uint8_t> m_packet;
 	std::vector<uint8_t> m_compressionBuf;
+
+#if WITH_CONFIG_SERVER
+	std::map<std::string, boost::shared_ptr<config_server::Parameter<bool>>> m_enableTopic;
+#endif
 
 	nimbro_topic_transport::SenderStats m_stats;
 	ros::Publisher m_pub_stats;
