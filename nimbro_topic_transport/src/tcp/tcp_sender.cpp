@@ -20,17 +20,17 @@ TCPSender::TCPSender()
  , m_sentBytesInStatsInterval(0)
 {
 	std::string addr;
-	if(!m_nh.getParam("address", addr))
+	if(!m_nh.getParam("destination_addr", addr) && !m_nh.getParam("address", addr))
 	{
-		ROS_FATAL("tcp_sender needs an 'address' parameter!");
-		throw std::runtime_error("tcp_sender needs an 'address' parameter!");
+		ROS_FATAL("tcp_sender needs an 'destination_addr' parameter!");
+		throw std::runtime_error("tcp_sender needs an 'destination_addr' parameter!");
 	}
 
 	int port;
-	if(!m_nh.getParam("port", port))
+	if(!m_nh.getParam("destination_port", port) && !m_nh.getParam("port", port))
 	{
-		ROS_FATAL("tcp_sender needs a 'port' parameter!");
-		throw std::runtime_error("tcp_sender needs a 'port' parameter!");
+		ROS_FATAL("tcp_sender needs a 'destination_port' parameter!");
+		throw std::runtime_error("tcp_sender needs a 'destination_port' parameter!");
 	}
 
 	std::string portStr = boost::lexical_cast<std::string>(port);
