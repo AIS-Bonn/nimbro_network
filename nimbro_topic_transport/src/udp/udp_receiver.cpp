@@ -277,7 +277,12 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 		topic->msg_def = topic_info::getMsgDef(header->topic_type);
 		topic->md5_str = topic_info::getMd5Sum(header->topic_type);
 
-// 		ROS_WARN_STREAM("Got " << topic->msg_def << topic->md5_str << "end");
+		if(topic->msg_def.empty() || topic->md5_str.size() != 8*4)
+		{
+			ROS_ERROR("Could not find msg type '%s', please make sure msg definitions are up to date", header->topic_type);
+			return;
+		}
+
 		ROS_INFO("Received first message on topic '%s'", header->topic_name);
 		for(int i = 0; i < 4; ++i)
 		{
