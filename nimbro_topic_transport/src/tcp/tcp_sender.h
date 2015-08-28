@@ -52,6 +52,7 @@ private:
 	ros::WallDuration m_statsInterval;
 	ros::WallTimer m_statsTimer;
 	uint64_t m_sentBytesInStatsInterval;
+	std::map<std::string, uint64_t> m_topicSendBytesInStatsInteral;
 };
 
 }

@@ -114,6 +114,9 @@ TCPSender::TCPSender()
 
 	m_pub_stats = m_nh.advertise<SenderStats>("/network/sender_stats", 1);
 
+	for(auto& pair : m_topicSendBytesInStatsInteral)
+		pair.second = 0;
+
 	m_statsInterval = ros::WallDuration(2.0);
 	m_statsTimer = m_nh.createWallTimer(m_statsInterval,
 		boost::bind(&TCPSender::updateStats, this)
@@ -308,6 +311,7 @@ void TCPSender::send(const std::string& topic, int flags, const topic_tools::Sha
 			continue;
 		}
 		m_sentBytesInStatsInterval += m_packet.size();
+		m_topicSendBytesInStatsInteral[topic] += m_packet.size();
 
 		// Read ACK
 		uint8_t ack;
@@ -329,6 +333,15 @@ void TCPSender::updateStats()
 {
 	m_stats.header.stamp = ros::Time::now();
 	m_stats.bandwidth = 8 * m_sentBytesInStatsInterval / m_statsInterval.toSec();
+	m_stats.topics.clear();
+	for(auto& pair : m_topicSendBytesInStatsInteral)
+	{
+		nimbro_topic_transport::TopicBandwidth tp;
+		tp.name = pair.first;
+		tp.bandwidth = pair.second / m_statsInterval.toSec();
+		pair.second = 0;
+		m_stats.topics.emplace_back(tp);
+	}
 
 	m_pub_stats.publish(m_stats);
 	m_sentBytesInStatsInterval = 0;
