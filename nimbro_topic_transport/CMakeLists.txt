@@ -149,18 +149,16 @@ target_link_libraries(bandwidth_gui
 )
 
 # Tests
-add_rostest_gtest(test_comm test/topic_transport.test
+add_executable(test_comm
 	test/test_comm.cpp
 )
 target_link_libraries(test_comm
 	${catkin_LIBRARIES}
 )
 
+add_rostest(test/udp.test)
+add_rostest(test/tcp.test)
+
 if(OPENFEC_PATH)
-	add_rostest_gtest(test_comm_fec test/topic_transport_fec.test
-		test/test_comm.cpp
-	)
-	target_link_libraries(test_comm_fec
-		${catkin_LIBRARIES}
-	)
+	add_rostest(test/udp_fec.test)
 endif()

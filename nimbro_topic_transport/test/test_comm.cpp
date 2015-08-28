@@ -1,7 +1,8 @@
 // Unit tests for nimbro_topic_transport
 // Author: Max Schwarz <max.schwarz@uni-bonn.de>
 
-#include <gtest/gtest.h>
+#define CATCH_CONFIG_RUNNER
+#include "catch.hpp"
 
 #include <ros/package.h>
 #include <ros/node_handle.h>
@@ -14,8 +15,7 @@ int g_counter = 0;
 
 void handle_simple(const std_msgs::Int64& msg)
 {
-	ROS_ERROR("handler");
-	ASSERT_EQ(g_counter, msg.data);
+	REQUIRE(g_counter == msg.data);
 	g_counter++;
 }
 
@@ -23,12 +23,10 @@ int g_arrayCounter = 0;
 
 void handle_array(const std_msgs::UInt64MultiArray& msg)
 {
-	ROS_ERROR("array");
-
-	ASSERT_EQ(512, msg.data.size());
+	REQUIRE(msg.data.size() == 512);
 	for(int i = 0; i < 512; ++i)
 	{
-		ASSERT_EQ(i, msg.data[i]);
+		REQUIRE(msg.data[i] == i);
 	}
 	g_arrayCounter++;
 }
@@ -37,17 +35,15 @@ const int HUGE_SIZE = 3 * 1024;
 
 void handle_huge(const std_msgs::UInt64MultiArray& msg)
 {
-	ROS_ERROR("array");
-
-	ASSERT_EQ(HUGE_SIZE, msg.data.size());
+	REQUIRE(msg.data.size() == HUGE_SIZE);
 	for(int i = 0; i < HUGE_SIZE; ++i)
 	{
-		ASSERT_EQ(i, msg.data[i]);
+		REQUIRE(msg.data[i] == i);
 	}
 	g_arrayCounter++;
 }
 
-TEST(TopicTransportTest, test_simple)
+TEST_CASE("simple", "[topic]")
 {
 	std_msgs::Int64 msg;
 
@@ -58,29 +54,21 @@ TEST(TopicTransportTest, test_simple)
 	ros::Publisher pub = nh.advertise<std_msgs::Int64>("/test_topic", 2);
 	ros::Subscriber sub = nh.subscribe("/receive/test_topic", 2, &handle_simple);
 
-	sleep(1);
-
-	msg.data = 0;
-	pub.publish(msg);
-
-	for(int i = 0; i < 1000; ++i)
-	{
-		ros::spinOnce();
-		usleep(1000);
-	}
-
-	usleep(1000);
-	sleep(1);
-
-	int timeout = 1000;
+	int timeout = 50;
 	while(pub.getNumSubscribers() == 0)
 	{
 		ros::spinOnce();
 		if(--timeout == 0)
-			FAIL();
+		{
+			CAPTURE(pub.getNumSubscribers());
+			FAIL("sender did not subscribe on our topic");
+			return;
+		}
 
-		usleep(200);
+		usleep(20 * 1000);
 	}
+
+	g_counter = 0;
 
 	msg.data = 0;
 	pub.publish(msg);
@@ -94,9 +82,6 @@ TEST(TopicTransportTest, test_simple)
 	msg.data = 1;
 	pub.publish(msg);
 
-	ROS_ERROR("published");
-	sleep(2);
-
 	for(int i = 0; i < 1000; ++i)
 	{
 		ros::spinOnce();
@@ -109,7 +94,7 @@ TEST(TopicTransportTest, test_simple)
 	FAIL();
 }
 
-TEST(TopicTransportTest, test_array)
+TEST_CASE("array", "[topic]")
 {
 	std_msgs::UInt64MultiArray msg;
 
@@ -118,91 +103,33 @@ TEST(TopicTransportTest, test_array)
 	ros::NodeHandle nh("~");
 
 	ros::Publisher pub = nh.advertise<std_msgs::UInt64MultiArray>("/array_topic", 2);
-	ros::Subscriber sub = nh.subscribe("/receive/array_topic", 2, &handle_array);
+	ros::Subscriber sub;
 
-	sleep(1);
-
-	for(int i = 0; i < 512; ++i)
-		msg.data.push_back(i);
-	pub.publish(msg);
-
-	for(int i = 0; i < 1000; ++i)
+	SECTION("small")
 	{
-		ros::spinOnce();
-		usleep(1000);
+		sub = nh.subscribe("/receive/array_topic", 2, &handle_array);
+		for(int i = 0; i < 512; ++i)
+			msg.data.push_back(i);
+	}
+	SECTION("huge")
+	{
+		sub = nh.subscribe("/receive/array_topic", 2, &handle_huge);
+		for(int i = 0; i < HUGE_SIZE; ++i)
+			msg.data.push_back(i);
 	}
 
-	usleep(1000);
-	sleep(1);
-
-	int timeout = 1000;
+	int timeout = 50;
 	while(pub.getNumSubscribers() == 0)
 	{
 		ros::spinOnce();
 		if(--timeout == 0)
-			FAIL();
-
-		usleep(200);
-	}
-
-	pub.publish(msg);
-
-	for(int i = 0; i < 1000; ++i)
-	{
-		ros::spinOnce();
-		usleep(1000);
-	}
-
-	pub.publish(msg);
-
-	ROS_ERROR("array published");
-	sleep(2);
-
-	for(int i = 0; i < 1000; ++i)
-	{
-		ros::spinOnce();
-		usleep(1000);
-
-		if(g_arrayCounter == 2)
+		{
+			CAPTURE(pub.getNumSubscribers());
+			FAIL("sender did not subscribe on our topic");
 			return;
-	}
+		}
 
-	fprintf(stderr, "g_arrayCounter: %d\n", g_arrayCounter);
-	FAIL();
-}
-
-TEST(TopicTransportTest, test_huge)
-{
-	std_msgs::UInt64MultiArray msg;
-
-	ros::NodeHandle nh("~");
-
-	ros::Publisher pub = nh.advertise<std_msgs::UInt64MultiArray>("/array_topic", 2);
-	ros::Subscriber sub = nh.subscribe("/receive/array_topic", 2, &handle_huge);
-
-	sleep(1);
-
-	for(int i = 0; i < HUGE_SIZE; ++i)
-		msg.data.push_back(i);
-	pub.publish(msg);
-
-	for(int i = 0; i < 1000; ++i)
-	{
-		ros::spinOnce();
-		usleep(1000);
-	}
-
-	usleep(1000);
-	sleep(1);
-
-	int timeout = 1000;
-	while(pub.getNumSubscribers() == 0)
-	{
-		ros::spinOnce();
-		if(--timeout == 0)
-			FAIL();
-
-		usleep(200);
+		usleep(20 * 1000);
 	}
 
 	g_arrayCounter = 0;
@@ -216,10 +143,7 @@ TEST(TopicTransportTest, test_huge)
 
 	pub.publish(msg);
 
-	ROS_ERROR("array published");
-	sleep(2);
-
-	for(int i = 0; i < 10000; ++i)
+	for(int i = 0; i < 1000; ++i)
 	{
 		ros::spinOnce();
 		usleep(1000);
@@ -228,15 +152,30 @@ TEST(TopicTransportTest, test_huge)
 			return;
 	}
 
+	CAPTURE(g_arrayCounter);
 	FAIL();
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
-	::testing::InitGoogleTest(&argc, argv);
 	ros::init(argc, argv, "test_comm");
 
-	sleep(5);
+	Catch::Session session;
 
-	return RUN_ALL_TESTS();
+	std::string test_output;
+	for(int i = 1; i < argc; ++i)
+	{
+		if(strncmp(argv[i], "--gtest_output=xml:", 19) == 0)
+		{
+			test_output = argv[i] + 19;
+		}
+	}
+
+	if(!test_output.empty())
+	{
+		session.configData().reporterName = "junit";
+		session.configData().outputFilename = test_output;
+	}
+
+	return session.run();
 }

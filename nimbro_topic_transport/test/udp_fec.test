@@ -1,5 +1,6 @@
 <launch>
-	<include file="$(find spacebot_launch)/config/server.launch" />
+	<!-- Skip long wait on config server, not needed here -->
+	<param name="config_server/enabled" value="false" />
 
 	<node name="sender" pkg="nimbro_topic_transport" type="udp_sender" output="screen">
 		<!-- Destination: localhost -->
@@ -10,7 +11,7 @@
 		<param name="fec" value="0.5" />
 
 		<!-- Load topics from yaml file -->
-		<rosparam command="load" file="$(find nimbro_topic_transport)/test/udp_sender.yaml" />
+		<rosparam command="load" file="$(find nimbro_topic_transport)/test/topics.yaml" />
 	</node>
 
 	<node name="receiver" pkg="nimbro_topic_transport" type="udp_receiver" output="screen">
@@ -20,6 +21,6 @@
 		<remap from="/array_topic" to="/receive/array_topic" />
 	</node>
 
-	<test test-name="test_udp" pkg="nimbro_topic_transport" type="test_comm">
+	<test test-name="test_udp_fec" pkg="nimbro_topic_transport" type="test_comm">
 	</test>
 </launch>

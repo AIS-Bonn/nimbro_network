@@ -1,4 +1,7 @@
 <launch>
+	<!-- Skip long wait on config server, not needed here -->
+	<param name="config_server/enabled" value="false" />
+
 	<node name="sender" pkg="nimbro_topic_transport" type="udp_sender">
 		<!-- Destination: localhost -->
 		<param name="destination_addr" value="127.0.0.1" />
@@ -6,7 +9,7 @@
 		<param name="source_port" value="5776" />
 
 		<!-- Load topics from yaml file -->
-		<rosparam command="load" file="$(find nimbro_topic_transport)/test/udp_sender.yaml" />
+		<rosparam command="load" file="$(find nimbro_topic_transport)/test/topics.yaml" />
 	</node>
 
 	<node name="receiver" pkg="nimbro_topic_transport" type="udp_receiver">
