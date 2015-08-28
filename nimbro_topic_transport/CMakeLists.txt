@@ -156,9 +156,9 @@ target_link_libraries(test_comm
 	${catkin_LIBRARIES}
 )
 
-add_rostest(test/udp.test)
-add_rostest(test/tcp.test)
+add_rostest(test/topic_transport.test ARGS protocol:=udp)
+add_rostest(test/topic_transport.test ARGS protocol:=tcp)
 
 if(OPENFEC_PATH)
-	add_rostest(test/udp_fec.test)
+	add_rostest(test/topic_transport.test ARGS protocol:=udp fec:=true)
 endif()
