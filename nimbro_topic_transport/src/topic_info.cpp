@@ -4,7 +4,10 @@
 #include "topic_info.h"
 
 #include <ros/names.h>
+
+#include <sys/wait.h>
 #include <stdio.h>
+#include <unistd.h>
 
 namespace nimbro_topic_transport
 {
@@ -12,7 +15,7 @@ namespace nimbro_topic_transport
 namespace topic_info
 {
 
-std::string getMsgDef(const std::string& type)
+static std::string msgQuery(const std::string& cmd, const std::string& type, bool stripNL)
 {
 	std::vector<char> buf(1024);
 	int idx = 0;
@@ -24,69 +27,65 @@ std::string getMsgDef(const std::string& type)
 		return "";
 	}
 
-	// FIXME: This is fricking dangerous!
-	FILE* f = popen(("rosmsg show \'" + type + "\'").c_str(), "r");
+	int fds[2];
+	if(pipe(fds) != 0)
+		throw std::runtime_error("Could not create pipe");
 
-	while(!feof(f))
+	int pid = fork();
+
+	if(pid == 0)
+	{
+		close(fds[0]);
+		dup2(fds[1], STDOUT_FILENO);
+
+		if(execlp("rosmsg", "rosmsg", cmd.c_str(), type.c_str(), 0) != 0)
+		{
+			throw std::runtime_error("Could not execlp() rosmsg");
+		}
+	}
+
+	close(fds[1]);
+
+	while(1)
 	{
 		buf.resize(idx + 1024);
-		size_t size = fread(buf.data() + idx, 1, 1024, f);
-		if(size == 0)
+		int size = read(fds[0], buf.data() + idx, 1024);
+
+		if(size < 0)
+			throw std::runtime_error("Could not read()");
+		else if(size == 0)
 			break;
 
 		idx += size;
 	}
 
-	int exit_code = pclose(f);
+	close(fds[0]);
 
-	if(exit_code != 0)
+	int status;
+	waitpid(pid, &status, 0);
+
+	if(!WIFEXITED(status) || WEXITSTATUS(status) != 0 || idx == 0)
 	{
-		ROS_WARN("Could not get msg def for type '%s'", type.c_str());
+		ROS_WARN("Could not get rosmsg %s for type '%s'", cmd.c_str(), type.c_str());
 		return "";
 	}
+
+	std::string ret(buf.data(), idx);
+
+	if(stripNL)
+		return std::string(buf.data(), idx-1);
 	else
-	{
 		return std::string(buf.data(), idx);
-	}
+}
+
+std::string getMsgDef(const std::string& type)
+{
+	return msgQuery("show", type, false);
 }
 
 std::string getMd5Sum(const std::string& type)
 {
-	std::vector<char> buf(1024);
-	int idx = 0;
-
-	std::string error;
-	if(!ros::names::validate(type, error))
-	{
-		ROS_WARN("Got invalid message type '%s'", type.c_str());
-		return "";
-	}
-
-	// FIXME: This is fricking dangerous!
-	FILE* f = popen(("rosmsg md5 \'" + type + "\'").c_str(), "r");
-
-	while(!feof(f))
-	{
-		buf.resize(idx + 1024);
-		size_t size = fread(buf.data() + idx, 1, 1024, f);
-		if(size == 0)
-			break;
-
-		idx += size;
-	}
-
-	int exit_code = pclose(f);
-
-	if(exit_code != 0)
-	{
-		fprintf(stderr, "Could not get md5 sum for type '%s'\n", type.c_str());
-		return "";
-	}
-	else
-	{
-		std::string ret(buf.data(), idx-1);
-		return ret;
-	}
+	return msgQuery("md5", type, true);
 }
 
 void packMD5(const std::string& str, LEValue< 4 >* dest)
