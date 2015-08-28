@@ -12,6 +12,7 @@
 	<node name="receiver" pkg="nimbro_topic_transport" type="udp_receiver">
 		<param name="port" value="5777" />
 		<remap from="/test_topic" to="/receive/test_topic" />
+		<remap from="/array_topic" to="/receive/array_topic" />
 	</node>
 
 	<test test-name="test_udp" pkg="nimbro_topic_transport" type="test_comm">

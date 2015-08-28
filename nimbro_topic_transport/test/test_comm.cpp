@@ -167,6 +167,7 @@ TEST(TopicTransportTest, test_array)
 			return;
 	}
 
+	fprintf(stderr, "g_arrayCounter: %d\n", g_arrayCounter);
 	FAIL();
 }
 
@@ -234,6 +235,8 @@ int main(int argc, char **argv)
 {
 	::testing::InitGoogleTest(&argc, argv);
 	ros::init(argc, argv, "test_comm");
+
+	sleep(5);
 
 	return RUN_ALL_TESTS();
 }
