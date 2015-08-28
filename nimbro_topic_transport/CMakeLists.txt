@@ -156,9 +156,11 @@ target_link_libraries(test_comm
 	${catkin_LIBRARIES}
 )
 
-add_rostest_gtest(test_comm_fec test/topic_transport_fec.test
-	test/test_comm.cpp
-)
-target_link_libraries(test_comm_fec
-	${catkin_LIBRARIES}
-)
+if(OPENFEC_PATH)
+	add_rostest_gtest(test_comm_fec test/topic_transport_fec.test
+		test/test_comm.cpp
+	)
+	target_link_libraries(test_comm_fec
+		${catkin_LIBRARIES}
+	)
+endif()
