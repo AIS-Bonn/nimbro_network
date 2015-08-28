@@ -9,12 +9,22 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <string>
+
 namespace nimbro_topic_transport
 {
 
 namespace topic_info
 {
 
+/**
+ * Execute a rosmsg query and return result.
+ *
+ * The executed command is "rosmsg @a cmd @a type".
+ *
+ * @param stripNL If true, strip off the final newline.
+ * @return rosmsg output
+ **/
 static std::string msgQuery(const std::string& cmd, const std::string& type, bool stripNL)
 {
 	std::vector<char> buf(1024);

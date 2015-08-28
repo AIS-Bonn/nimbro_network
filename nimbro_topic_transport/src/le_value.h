@@ -10,6 +10,10 @@
 namespace nimbro_topic_transport
 {
 
+/**
+ * The LEValue template provides automatic endianness correction. The bytes
+ * in memory are always ordered little-endian.
+ **/
 template<int Width>
 class LEValue
 {
