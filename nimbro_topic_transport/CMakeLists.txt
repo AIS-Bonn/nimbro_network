@@ -145,6 +145,7 @@ add_dependencies(bandwidth_gui
 
 target_link_libraries(bandwidth_gui
 	${QT_LIBRARIES}
+	yaml-cpp
 )
 
 # Tests
