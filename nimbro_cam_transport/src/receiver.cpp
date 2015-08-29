@@ -19,8 +19,6 @@ SwsContext* g_sws = 0;
 
 void handleImage(const sensor_msgs::CompressedImageConstPtr& img)
 {
-	//ROS_INFO("got data: %lu", img->data.size());
-
 	AVPacket packet;
 	av_init_packet(&packet);
 	packet.data = const_cast<uint8_t*>(img->data.data());
@@ -35,7 +33,6 @@ void handleImage(const sensor_msgs::CompressedImageConstPtr& img)
 
 	if(avcodec_decode_video2(g_codec, &frame, &gotPicture, &packet) < 0)
 	{
-		//ROS_ERROR("Could not decode frame");
 		return;
 	}
 
@@ -64,7 +61,6 @@ void handleImage(const sensor_msgs::CompressedImageConstPtr& img)
 		sws_scale(g_sws, frame.data, frame.linesize, 0, frame.height,
 			destData, linesize);
 
-		//ROS_DEBUG("frame");
 		g_pub.publish(img);
 	}
 }
