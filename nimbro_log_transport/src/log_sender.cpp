@@ -46,6 +46,9 @@ int main(int argc, char** argv)
 	int bufferSize;
 	nh.param<int>("buffer_size", bufferSize, 10);
 
+	double rate;
+	nh.param<double>("rate", rate, 2.0);
+
 	buffer.resize(bufferSize);
 
 	std::random_device rd;
@@ -59,7 +62,7 @@ int main(int argc, char** argv)
 	pub = nh.advertise<nimbro_log_transport::LogBlock>("/rosout_transport", 1);
 	ros::Subscriber sub = nh.subscribe("/rosout_agg", bufferSize, &handleMsg);
 
-	ros::Timer timer = nh.createTimer(ros::Duration(0.5), &publish);
+	ros::Timer timer = nh.createTimer(ros::Duration(1.0 / rate), &publish);
 
 	ros::spin();
 	return 0;
