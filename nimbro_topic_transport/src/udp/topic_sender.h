@@ -33,14 +33,14 @@ namespace nimbro_topic_transport
 		void setDirectTransmissionEnabled(bool value);
 
 		void sendCurrentMessage();
-		
-		std::string escapeTopicName(std::string topicName);
 	private:
 		void send();
 		void resend();
 
 		void sendWithFEC();
 		void sendWithoutFEC();
+
+		static std::string escapeTopicName(std::string topicName);
 
 		UDPSender* m_sender;
 		ros::Subscriber m_subscriber;
