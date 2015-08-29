@@ -383,9 +383,17 @@ void UDPReceiver::run()
 			char serviceBuf[256];
 
 			ros::WallTime startLookup = ros::WallTime::now();
-			if(getnameinfo((sockaddr*)&addr, addrlen, nameBuf, sizeof(nameBuf), serviceBuf, sizeof(serviceBuf), NI_NUMERICSERV) != 0)
+			if(getnameinfo((sockaddr*)&addr, addrlen, nameBuf, sizeof(nameBuf), serviceBuf, sizeof(serviceBuf), NI_NUMERICSERV) == 0)
+			{
+				ROS_INFO("New remote: %s:%s", nameBuf, serviceBuf);
+				m_stats.remote = nameBuf;
+				m_stats.remote_port = atoi(serviceBuf);
+			}
+			else
 			{
 				ROS_ERROR("Could not resolve remote address to name");
+				m_stats.remote = "unknown";
+				m_stats.remote_port = -1;
 			}
 			ros::WallTime endLookup = ros::WallTime::now();
 
@@ -395,10 +403,6 @@ void UDPReceiver::run()
 			{
 				ROS_WARN("Reverse address lookup took more than a second. Consider adding '%s' to /etc/hosts", nameBuf);
 			}
-
-			ROS_INFO("New remote: %s:%s", nameBuf, serviceBuf);
-			m_stats.remote = nameBuf;
-			m_stats.remote_port = atoi(serviceBuf);
 
 			m_remoteAddr = addr;
 			m_remoteAddrLen = addrlen;

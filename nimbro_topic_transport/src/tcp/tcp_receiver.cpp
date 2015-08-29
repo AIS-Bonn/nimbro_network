@@ -161,9 +161,17 @@ void TCPReceiver::run()
 			char serviceBuf[256];
 
 			ros::WallTime startLookup = ros::WallTime::now();
-			if(getnameinfo((sockaddr*)&remoteAddr, remoteAddrLen, nameBuf, sizeof(nameBuf), serviceBuf, sizeof(serviceBuf), NI_NUMERICSERV) != 0)
+			if(getnameinfo((sockaddr*)&remoteAddr, remoteAddrLen, nameBuf, sizeof(nameBuf), serviceBuf, sizeof(serviceBuf), NI_NUMERICSERV) == 0)
+			{
+				ROS_INFO("New remote: %s:%s", nameBuf, serviceBuf);
+				m_stats.remote = nameBuf;
+				m_stats.remote_port = atoi(serviceBuf);
+			}
+			else
 			{
 				ROS_ERROR("Could not resolve remote address to name");
+				m_stats.remote = "unknown";
+				m_stats.remote_port = -1;
 			}
 			ros::WallTime endLookup = ros::WallTime::now();
 
@@ -173,10 +181,6 @@ void TCPReceiver::run()
 			{
 				ROS_WARN("Reverse address lookup took more than a second. Consider adding '%s' to /etc/hosts", nameBuf);
 			}
-
-			ROS_INFO("New remote: %s:%s", nameBuf, serviceBuf);
-			m_stats.remote = nameBuf;
-			m_stats.remote_port = atoi(serviceBuf);
 		}
 
 		ClientHandler* handler = new ClientHandler(client_fd);
