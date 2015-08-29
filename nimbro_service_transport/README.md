@@ -34,10 +34,8 @@ The UDP transport was developed for situations where TCP is not usable because
 of the handshakes built into the protocol. It sends a single UDP packet for
 the request, and receives a single UDP packet as response.
 
-There is a retransmit mechanism that is triggered after a user-definable
-timeout. The request packets contain sequence numbers, so that the callee side
-will not erronously re-do the service call if it has already done so. Instead,
-it will respond with the cached response of that previous call.
+If the UDP client does not receive a response in a user-defined timeout, it
+considers the service call as failed.
 
 The UDP transport thus achieves the theoretical minimum in call latency if no
-packets are lost. In the case of packet loss, the retransmit timeouts are added.
+packets are lost.
