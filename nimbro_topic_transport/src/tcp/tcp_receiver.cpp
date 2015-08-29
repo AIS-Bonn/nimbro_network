@@ -179,7 +179,10 @@ void TCPReceiver::run()
 			// what is going on)
 			if(endLookup - startLookup > ros::WallDuration(1.0))
 			{
-				ROS_WARN("Reverse address lookup took more than a second. Consider adding '%s' to /etc/hosts", nameBuf);
+				ROS_WARN("Reverse address lookup took more than a second. "
+					"Consider adding '%s' to /etc/hosts",
+					m_stats.remote.c_str()
+				);
 			}
 		}
 
