@@ -119,7 +119,7 @@ UDPSender::UDPSender()
 		ROS_ASSERT(list[i].hasMember("name"));
 
 		int flags = 0;
-		
+
 		bool resend = false;
 
 		double rate = 100.0;
@@ -250,7 +250,7 @@ void UDPSender::relay()
 
 	while(!m_relayThreadShouldExit)
 	{
-		// New tokens! Bound to 2*m_relayTokensPerStep to prevent token buildup.
+		// New tokens! Bound to 100*m_relayTokensPerStep to prevent token buildup.
 		m_relayTokens = std::min<uint64_t>(
 			100*m_relayTokensPerStep,
 			m_relayTokens + m_relayTokensPerStep
@@ -264,6 +264,9 @@ void UDPSender::relay()
 		{
 			unsigned int tries = 0;
 			bool noData = false;
+
+			// Find a topic sender that has some data for us. Note that we
+			// do not consume the message!
 			while(m_relayBuffer.empty())
 			{
 				if(tries++ == m_senders.size())
@@ -274,9 +277,6 @@ void UDPSender::relay()
 
 				m_senders[m_relayIndex]->sendCurrentMessage();
 				m_relayIndex = (m_relayIndex + 1) % m_senders.size();
-
-	//			if(m_relayIndex == 0)
-	//				ROS_INFO("Full circle");
 			}
 
 			if(noData)
@@ -326,7 +326,6 @@ void UDPSender::updateStats()
         m_stats.topics.emplace_back(tp);
 	}
 
-
 	m_pub_stats.publish(m_stats);
 	m_sentBytesInStatsInterval = 0;
 }
@@ -345,3 +344,4 @@ int main(int argc, char** argv)
 
 	return 0;
 }
+
