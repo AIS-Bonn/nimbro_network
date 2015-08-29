@@ -3,7 +3,11 @@ nimbro_topic_transport
 ======================
 
 This package includes nodes for transmitting ROS topic messages over a network
-connection.
+connection. For an overview over the available parameters, see
+`doc/configuration.md`.
+
+The remainder of this document introduces the features of the topic transport
+and explains the choices you have in detail.
 
 The fundamental choice you have is whether you want to use the TCP or the UDP
 protocol.
@@ -45,6 +49,15 @@ The nimbro_topic_transport package provides GUI plugins for the `rqt` GUI:
 Note that it may be necessary to transmit the topics `/network/sender_stats` and
 `/network/receiver_stats` over the network to get the full amount of
 information.
+
+Relay mode
+----------
+
+The UDP transport supports a special "relay" mode that was used in the DARPA
+Robotics Challenge. Basically, it saturates a given target bitrate, repeating
+messages if necessary. In the DRC, the high bandwidth link was switched on for
+very short times (1 second). By saturating the available bandwidth, we made
+sure that we got the maximum amount of data across in that window.
 
 Forward error correction (FEC)
 ------------------------------
