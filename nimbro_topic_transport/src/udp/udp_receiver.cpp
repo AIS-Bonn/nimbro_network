@@ -420,6 +420,7 @@ void UDPReceiver::run()
 		Message* msg;
 		uint16_t msg_id;
 
+		// Obtain the message ID from the packet
 		if(m_fec)
 		{
 			FECPacket::Header* header = (FECPacket::Header*)buf.data();
@@ -431,6 +432,7 @@ void UDPReceiver::run()
 			msg_id = generic->msg_id();
 		}
 
+		// Look up the message ID in our list of incomplete messages
 		MessageBuffer::iterator it = std::find_if(m_incompleteMessages.begin(), m_incompleteMessages.end(),
 			[=](const Message& msg) { return msg.id == msg_id; }
 		);
@@ -444,7 +446,7 @@ void UDPReceiver::run()
 			// Erase messages that are too old (after index 31)
 			MessageBuffer::iterator itr = m_incompleteMessages.begin();
 			MessageBuffer::iterator it_end = m_incompleteMessages.end();
-			for(int i = 0; i < 15; ++i)
+			for(int i = 0; i < 31; ++i)
 			{
 				itr++;
 				if(itr == it_end)
@@ -482,6 +484,7 @@ void UDPReceiver::run()
 				}
 			}
 
+			// If enabled, warn each time we drop an incomplete message
 			if(m_warnDropIncomplete)
 			{
 				for(MessageBuffer::iterator itd = itr; itd != it_end; ++itd)
@@ -514,14 +517,18 @@ void UDPReceiver::run()
 				}
 			}
 
+			// Finally, delete all messages after index 31
 			m_incompleteMessages.erase(itr, it_end);
 		}
 
 		msg = &*it;
 
+		// If the message is already completed (happens especially with FEC),
+		// drop this packet.
 		if(msg->complete)
 		{
 #if WITH_OPENFEC
+			// ... but still include it in the statistics!
 			msg->received_symbols++;
 #endif
 			continue;
@@ -608,6 +615,7 @@ void UDPReceiver::run()
 				continue;
 			}
 
+			// FEC iterative decoding
 			if(of_decode_with_new_symbol(msg->decoder.get(), symbol_begin, packet->header.symbol_id()) != OF_STATUS_OK)
 			{
 				ROS_ERROR("Could not decode symbol");
