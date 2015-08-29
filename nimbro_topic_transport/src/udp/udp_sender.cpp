@@ -131,9 +131,9 @@ UDPSender::UDPSender()
 
 		if(list[i].hasMember("resend") && ((bool)list[i]["resend"]))
 			resend = true;
-		
+
 		bool enabled = true;
-		if(list[i].hasMember("resend") && (!(bool)list[i]["resend"]))
+		if(list[i].hasMember("enable") && (!(bool)list[i]["enable"]))
 			enabled = false;
 
 		TopicSender* sender = new TopicSender(this, &nh, list[i]["name"], rate, resend, flags, enabled);
