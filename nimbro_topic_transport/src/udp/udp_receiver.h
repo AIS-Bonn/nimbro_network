@@ -38,9 +38,6 @@ struct Message
 	 : id(id)
 	 , size(0)
 	 , complete(false)
-#if WITH_OPENFEC
-	 , decoder(0)
-#endif
 	{}
 
 	Message()
