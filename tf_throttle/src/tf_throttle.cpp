@@ -56,9 +56,15 @@ int main(int argc, char** argv)
 
 	ros::NodeHandle nh("~");
 
-	g_tf.reset(new tf::TransformListener(nh, ros::Duration(4.0)));
+	g_tf.reset(new tf::TransformListener(nh, ros::Duration(10.0)));
 
-	ros::Timer timer = nh.createTimer(ros::Duration(0.25), boost::bind(&sendTransforms));
+	double rate;
+	nh.param("rate", rate, 4.0);
+
+	ros::Timer timer = nh.createTimer(
+		ros::Duration(1.0 / rate),
+		boost::bind(&sendTransforms)
+	);
 	pub = nh.advertise<tf::tfMessage>("tf", 1);
 
 	ros::spin();
