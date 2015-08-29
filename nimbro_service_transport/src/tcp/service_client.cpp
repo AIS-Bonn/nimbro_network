@@ -224,8 +224,6 @@ int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "service_client");
 
-	ROS_WARN("service_client: nimbro_service_transport is a proof-of-concept. It is NOT safe!");
-
 	nimbro_service_transport::ServiceClient client;
 
 	ros::spin();
