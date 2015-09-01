@@ -38,8 +38,12 @@ private:
 	typedef std::map<std::string, boost::shared_ptr<TopicReceiver>> TopicMap;
 	typedef std::list<Message> MessageBuffer;
 
+	void handleMessagePacket(MessageBuffer::iterator it, std::vector<uint8_t>* buf, std::size_t size);
+
 	template<class HeaderType>
 	void handleFinishedMessage(Message* msg, HeaderType* header);
+
+	void pruneMessages();
 
 	void updateStats();
 
