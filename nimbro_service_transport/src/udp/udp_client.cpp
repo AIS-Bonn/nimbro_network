@@ -14,6 +14,8 @@
 #include <ros/names.h>
 #include <ros/package.h>
 
+#include <nimbro_service_transport/ServiceStatus.h>
+
 #include "protocol.h"
 #include "../common.h"
 
@@ -48,29 +50,34 @@ UDPClient::UDPClient()
  , m_fd(-1)
  , m_counter(0)
 {
-	int port;
-
-	m_nh.param("port", port, 5000);
+	m_nh.param("port", m_remotePort, 5000);
 
 	char portString[100];
-	snprintf(portString, sizeof(portString), "%d", port);
+	snprintf(portString, sizeof(portString), "%d", m_remotePort);
 
-	std::string host;
-	if(!m_nh.getParam("server", host))
+	if(!m_nh.getParam("server", m_remote))
 		throw std::runtime_error("udp_client requires the 'server' parameter");
+
+	// Get local host name for visualization messages
+	char hostnameBuf[256];
+	gethostname(hostnameBuf, sizeof(hostnameBuf));
+	hostnameBuf[sizeof(hostnameBuf)-1] = 0;
+
+	m_host = hostnameBuf;
 
 	m_nh.param("timeout", m_timeout, 5.0);
 
+	// Resolve remote address
 	addrinfo hints;
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_socktype = SOCK_DGRAM;
 
 	addrinfo* info;
 
-	if(getaddrinfo(host.c_str(), portString, &hints, &info) != 0 || !info)
+	if(getaddrinfo(m_remote.c_str(), portString, &hints, &info) != 0 || !info)
 	{
 		std::stringstream ss;
-		ss << "getaddrinfo() failed for host '" << host << "': " << strerror(errno);
+		ss << "getaddrinfo() failed for host '" << m_remote << "': " << strerror(errno);
 		throw std::runtime_error(ss.str());
 	}
 
@@ -122,6 +129,8 @@ UDPClient::UDPClient()
 		m_servers.push_back(srv);
 	}
 
+	m_pub_status = m_nh.advertise<ServiceStatus>("/network/service_status", 10);
+
 	ROS_INFO("Service client initialized.");
 }
 
@@ -157,11 +166,14 @@ bool UDPClient::call(const std::string& name, ros::ServiceCallbackHelperCallPara
 
 	boost::unique_lock<boost::mutex> lock(m_mutex);
 
+	publishStatus(name, header->counter, ServiceStatus::STATUS_IN_PROGRESS);
+
 	auto it = m_requests.insert(m_requests.end(), &record);
 
 	if(send(m_fd, buffer.data(), buffer.size(), 0) != (int)buffer.size())
 	{
 		ROS_ERROR("Could not send UDP data: %s", strerror(errno));
+		publishStatus(name, header->counter, ServiceStatus::STATUS_CONNECTION_ERROR);
 		return false;
 	}
 
@@ -174,11 +186,13 @@ bool UDPClient::call(const std::string& name, ros::ServiceCallbackHelperCallPara
 	if(gotMsg)
 	{
 		params.response = record.response;
+		publishStatus(name, header->counter, ServiceStatus::STATUS_FINISHED_SUCCESS);
 		return true;
 	}
 	else
 	{
 		ROS_WARN("timeout!");
+		publishStatus(name, header->counter, ServiceStatus::STATUS_TIMEOUT);
 		return false;
 	}
 }
@@ -275,6 +289,21 @@ void UDPClient::handlePacket()
 	}
 
 	ROS_ERROR("Received unexpected UDP service packet answer, ignoring");
+}
+
+void UDPClient::publishStatus(const std::string& service, uint32_t call, uint8_t status)
+{
+	ServiceStatus msg;
+	msg.host = m_host;
+	msg.remote = m_remote;
+	msg.remote_port = m_remotePort;
+
+	msg.call_id = call;
+	msg.service = service;
+
+	msg.status = status;
+
+	m_pub_status.publish(msg);
 }
 
 }

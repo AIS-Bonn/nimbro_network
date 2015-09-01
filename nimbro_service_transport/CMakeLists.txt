@@ -10,6 +10,10 @@ find_package(catkin REQUIRED COMPONENTS
 	rostest
 )
 
+add_message_files(FILES
+	ServiceStatus.msg
+)
+
 add_service_files(FILES
 	AddTwoInts.srv
 )
@@ -39,6 +43,9 @@ add_executable(service_client
 target_link_libraries(service_client
 	${catkin_LIBRARIES}
 )
+add_dependencies(service_client
+	${PROJECT_NAME}_generate_messages_cpp
+)
 
 add_executable(udp_server
 	src/udp/udp_server.cpp
@@ -53,6 +60,9 @@ add_executable(udp_client
 )
 target_link_libraries(udp_client
 	${catkin_LIBRARIES}
+)
+add_dependencies(udp_client
+	${PROJECT_NAME}_generate_messages_cpp
 )
 
 # Tests

@@ -17,6 +17,8 @@
 #include <ros/names.h>
 #include <ros/package.h>
 
+#include <nimbro_service_transport/ServiceStatus.h>
+
 namespace nimbro_service_transport
 {
 
@@ -77,26 +79,33 @@ private:
 
 ServiceClient::ServiceClient()
  : m_nh("~")
+ , m_currentCallID(0)
  , m_fd(-1)
 {
-	std::string server;
-	if(!m_nh.getParam("server", server))
+	if(!m_nh.getParam("server", m_remote))
 	{
 		throw std::logic_error("service_client needs a server parameter (IP of the server)");
 	}
 
-	int port;
-	m_nh.param("port", port, 6050);
+	m_nh.param("port", m_remotePort, 6050);
 
-	std::string portString = boost::lexical_cast<std::string>(port);
+	std::string portString = boost::lexical_cast<std::string>(m_remotePort);
 
+	// Get local host name for visualization messages
+	char hostnameBuf[256];
+	gethostname(hostnameBuf, sizeof(hostnameBuf));
+	hostnameBuf[sizeof(hostnameBuf)-1] = 0;
+
+	m_host = hostnameBuf;
+
+	// Resolve remote address
 	addrinfo hint;
 	memset(&hint, 0, sizeof(hint));
 
 	hint.ai_socktype = SOCK_STREAM;
 
 	addrinfo* info = 0;
-	if(getaddrinfo(server.c_str(), portString.c_str(), &hint, &info) != 0 || !info)
+	if(getaddrinfo(m_remote.c_str(), portString.c_str(), &hint, &info) != 0 || !info)
 	{
 		std::stringstream ss;
 		ss << "Could not resolve server: " << strerror(errno);
@@ -139,6 +148,8 @@ ServiceClient::ServiceClient()
 		m_servers.push_back(srv);
 	}
 
+	m_pub_status = m_nh.advertise<ServiceStatus>("/network/service_status", 10);
+
 	ROS_INFO("Service client initialized.");
 }
 
@@ -148,6 +159,8 @@ ServiceClient::~ServiceClient()
 
 bool ServiceClient::call(const std::string& name, ros::ServiceCallbackHelperCallParams& params)
 {
+	m_currentCallID++;
+
 	protocol::ServiceCallRequest req;
 	req.name_length = name.length();
 	req.request_length = params.request.num_bytes + 4;
@@ -157,6 +170,10 @@ bool ServiceClient::call(const std::string& name, ros::ServiceCallbackHelperCall
 	for(int i = 0; i < params.request.num_bytes; ++i)
 		ROS_INFO(" %d: 0x%02X (%c)", i, params.request.buf.get()[i], params.request.buf.get()[i]);
 #endif
+
+	publishStatus(name, ServiceStatus::STATUS_IN_PROGRESS);
+
+	uint8_t failure_reason = 0;
 
 	for(int tries = 0; tries < 10; ++tries)
 	{
@@ -176,6 +193,7 @@ bool ServiceClient::call(const std::string& name, ros::ServiceCallbackHelperCall
 
 				close(m_fd);
 				m_fd = -1;
+				failure_reason = ServiceStatus::STATUS_CONNECTION_ERROR;
 				continue;
 			}
 
@@ -206,16 +224,35 @@ bool ServiceClient::call(const std::string& name, ros::ServiceCallbackHelperCall
 
 			params.response = ros::SerializedMessage(data, resp.response_length());
 
+			publishStatus(name, ServiceStatus::STATUS_FINISHED_SUCCESS);
+
 			return true;
 		}
 		catch(IOException&)
 		{
+			failure_reason = ServiceStatus::STATUS_TIMEOUT;
 			close(m_fd);
 			m_fd = -1;
 		}
 	}
 
+	publishStatus(name, failure_reason);
 	return false;
+}
+
+void ServiceClient::publishStatus(const std::string& service, uint8_t status)
+{
+	ServiceStatus msg;
+	msg.host = m_host;
+	msg.remote = m_remote;
+	msg.remote_port = m_remotePort;
+
+	msg.call_id = m_currentCallID;
+	msg.service = service;
+
+	msg.status = status;
+
+	m_pub_status.publish(msg);
 }
 
 }

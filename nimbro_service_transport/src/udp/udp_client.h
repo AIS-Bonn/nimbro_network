@@ -24,6 +24,7 @@ public:
 private:
 	uint8_t acquireCounterValue();
 	void handlePacket();
+	void publishStatus(const std::string& service, uint32_t call, uint8_t status);
 
 	ros::NodeHandle m_nh;
 	int m_fd;
@@ -47,6 +48,12 @@ private:
 	std::list<RequestRecord*> m_requests;
 
 	double m_timeout;
+
+	std::string m_remote;
+	int m_remotePort;
+	std::string m_host;
+
+	ros::Publisher m_pub_status;
 };
 
 }
