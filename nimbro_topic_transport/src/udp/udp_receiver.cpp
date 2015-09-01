@@ -21,8 +21,6 @@
 
 #include "../topic_info.h"
 
-#include <bzlib.h>
-
 #include <nimbro_topic_transport/CompressedMsg.h>
 
 #if WITH_PLOTTING
@@ -33,160 +31,6 @@
 
 namespace nimbro_topic_transport
 {
-
-bool Message::decompress(Message* dest)
-{
-	unsigned int destLen = 1024;
-	dest->payload.resize(destLen);
-
-	while(1)
-	{
-		int ret = BZ2_bzBuffToBuffDecompress((char*)dest->payload.data(), &destLen, (char*)payload.data(), payload.size(), 0, 0);
-
-		if(ret == BZ_OUTBUFF_FULL)
-		{
-			destLen *= 2;
-			dest->payload.resize(destLen);
-			continue;
-		}
-
-		if(ret != BZ_OK)
-		{
-			ROS_ERROR("Could not decompress message");
-			return false;
-		}
-
-		break;
-	}
-
-	dest->payload.resize(destLen);
-	dest->header = header;
-	dest->id = id;
-	dest->size = destLen;
-	return true;
-}
-
-TopicData::TopicData()
- : waiting_for_subscriber(true)
- , m_decompressionThreadRunning(false)
-{
-}
-
-TopicData::~TopicData()
-{
-	{
-		boost::unique_lock<boost::mutex> lock(m_mutex);
-		m_decompressionThreadShouldExit = true;
-	}
-	m_cond.notify_one();
-}
-
-void TopicData::takeForDecompression(const boost::shared_ptr<Message>& msg)
-{
-	if(!m_decompressionThreadRunning)
-	{
-		m_decompressionThreadShouldExit = false;
-		m_decompressionThread = boost::thread(boost::bind(&TopicData::decompress, this));
-		m_decompressionThreadRunning = true;
-	}
-
-	boost::unique_lock<boost::mutex> lock(m_mutex);
-	m_compressedMsg = msg;
-	m_cond.notify_one();
-}
-
-void TopicData::decompress()
-{
-	while(1)
-	{
-		boost::shared_ptr<Message> currentMessage;
-
-		{
-			boost::unique_lock<boost::mutex> lock(m_mutex);
-
-			while(!m_compressedMsg && !m_decompressionThreadShouldExit)
-				m_cond.wait(lock);
-
-			if(m_decompressionThreadShouldExit)
-				return;
-
-			currentMessage = m_compressedMsg;
-			m_compressedMsg.reset();
-		}
-
-		Message decompressed;
-		currentMessage->decompress(&decompressed);
-
-		boost::shared_ptr<topic_tools::ShapeShifter> shapeShifter(new topic_tools::ShapeShifter);
-		shapeShifter->morph(md5_str, decompressed.header.topic_type, msg_def, "");
-
-		shapeShifter->read(decompressed);
-
-		publish(shapeShifter);
-	}
-}
-
-void TopicData::publish(const boost::shared_ptr<topic_tools::ShapeShifter>& msg)
-{
-	if(!waiting_for_subscriber)
-	{
-		publisher.publish(msg);
-	}
-	else
-	{
-		m_msgInQueue = msg;
-		m_queueTime = ros::WallTime::now();
-	}
-}
-
-void TopicData::publishCompressed(const CompressedMsgConstPtr& msg)
-{
-	if(!waiting_for_subscriber)
-	{
-		publisher.publish(msg);
-	}
-	else
-	{
-		m_compressedMsgInQueue = msg;
-		m_queueTime = ros::WallTime::now();
-	}
-}
-
-void TopicData::handleSubscriber()
-{
-	if(!waiting_for_subscriber)
-		return;
-
-	if(!m_compressedMsg && !m_msgInQueue)
-	{
-		// No msg arrived before the first subscriber
-		waiting_for_subscriber = false;
-		return;
-	}
-
-	ros::WallTime now = ros::WallTime::now();
-	if(now - m_queueTime > ros::WallDuration(1.0))
-	{
-		// Message to old, drop it
-		waiting_for_subscriber = false;
-		m_msgInQueue.reset();
-		m_compressedMsgInQueue.reset();
-		return;
-	}
-
-	if(m_msgInQueue)
-	{
-		publisher.publish(m_msgInQueue);
-		m_msgInQueue.reset();
-	}
-	else if(m_compressedMsgInQueue)
-	{
-		publisher.publish(m_compressedMsgInQueue);
-		m_compressedMsgInQueue.reset();
-	}
-
-	waiting_for_subscriber = false;
-}
 
 UDPReceiver::UDPReceiver()
  : m_receivedBytesInStatsInterval(0)
@@ -284,12 +128,12 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 	// Find topic
 	TopicMap::iterator topic_it = m_topics.find(header->topic_name);
 
-	boost::shared_ptr<TopicData> topic;
+	boost::shared_ptr<TopicReceiver> topic;
 	if(topic_it == m_topics.end())
 	{
-		m_topics.insert(std::pair<std::string, boost::shared_ptr<TopicData>>(
+		m_topics.insert(std::pair<std::string, boost::shared_ptr<TopicReceiver>>(
 			header->topic_name,
-			boost::make_shared<TopicData>()
+			boost::make_shared<TopicReceiver>()
 		));
 		topic = m_topics[header->topic_name];
 
@@ -366,7 +210,7 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 			topic->publisher = m_nh.advertise<CompressedMsg>(
 				header->topic_name,
 				1,
-				boost::bind(&TopicData::handleSubscriber, topic)
+				boost::bind(&TopicReceiver::handleSubscriber, topic)
 			);
 		}
 		else
@@ -378,7 +222,7 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 				topic->md5_str,
 				header->topic_type,
 				topic->msg_def,
-				boost::bind(&TopicData::handleSubscriber, topic)
+				boost::bind(&TopicReceiver::handleSubscriber, topic)
 			);
 
 			// Latching is often unexpected. Better to lose the first msg.

@@ -67,6 +67,7 @@ target_link_libraries(udp_sender
 
 add_executable(udp_receiver
 	src/udp/udp_receiver.cpp
+	src/udp/topic_receiver.cpp
 	src/topic_info.cpp
 )
 add_dependencies(udp_receiver
