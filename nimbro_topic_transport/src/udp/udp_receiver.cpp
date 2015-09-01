@@ -67,7 +67,8 @@ bool Message::decompress(Message* dest)
 }
 
 TopicData::TopicData()
- : m_decompressionThreadRunning(false)
+ : waiting_for_subscriber(true)
+ , m_decompressionThreadRunning(false)
 {
 }
 
@@ -116,13 +117,75 @@ void TopicData::decompress()
 		Message decompressed;
 		currentMessage->decompress(&decompressed);
 
-		topic_tools::ShapeShifter shapeShifter;
-		shapeShifter.morph(md5_str, decompressed.header.topic_type, msg_def, "");
+		boost::shared_ptr<topic_tools::ShapeShifter> shapeShifter(new topic_tools::ShapeShifter);
+		shapeShifter->morph(md5_str, decompressed.header.topic_type, msg_def, "");
 
-		shapeShifter.read(decompressed);
+		shapeShifter->read(decompressed);
 
-		publisher.publish(shapeShifter);
+		publish(shapeShifter);
 	}
+}
+
+void TopicData::publish(const boost::shared_ptr<topic_tools::ShapeShifter>& msg)
+{
+	if(!waiting_for_subscriber)
+	{
+		publisher.publish(msg);
+	}
+	else
+	{
+		m_msgInQueue = msg;
+		m_queueTime = ros::WallTime::now();
+	}
+}
+
+void TopicData::publishCompressed(const CompressedMsgConstPtr& msg)
+{
+	if(!waiting_for_subscriber)
+	{
+		publisher.publish(msg);
+	}
+	else
+	{
+		m_compressedMsgInQueue = msg;
+		m_queueTime = ros::WallTime::now();
+	}
+}
+
+void TopicData::handleSubscriber()
+{
+	if(!waiting_for_subscriber)
+		return;
+
+	if(!m_compressedMsg && !m_msgInQueue)
+	{
+		// No msg arrived before the first subscriber
+		waiting_for_subscriber = false;
+		return;
+	}
+
+	ros::WallTime now = ros::WallTime::now();
+	if(now - m_queueTime > ros::WallDuration(1.0))
+	{
+		// Message to old, drop it
+		waiting_for_subscriber = false;
+		m_msgInQueue.reset();
+		m_compressedMsgInQueue.reset();
+		return;
+	}
+
+	if(m_msgInQueue)
+	{
+		publisher.publish(m_msgInQueue);
+		m_msgInQueue.reset();
+	}
+	else if(m_compressedMsgInQueue)
+	{
+		publisher.publish(m_compressedMsgInQueue);
+		m_compressedMsgInQueue.reset();
+	}
+
+	waiting_for_subscriber = false;
 }
 
 UDPReceiver::UDPReceiver()
@@ -300,7 +363,11 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 		if(m_keepCompressed && compressed)
 		{
 			// If we are requested to keep the messages compressed, we advertise our compressed msg type
-			topic->publisher = m_nh.advertise<CompressedMsg>(header->topic_name, 1);
+			topic->publisher = m_nh.advertise<CompressedMsg>(
+				header->topic_name,
+				1,
+				boost::bind(&TopicData::handleSubscriber, topic)
+			);
 		}
 		else
 		{
@@ -310,7 +377,8 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 				1,
 				topic->md5_str,
 				header->topic_type,
-				topic->msg_def
+				topic->msg_def,
+				boost::bind(&TopicData::handleSubscriber, topic)
 			);
 
 			// Latching is often unexpected. Better to lose the first msg.
@@ -318,43 +386,29 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 			topic->publisher = m_nh.advertise(options);
 		}
 
-		// Try to wait until at least one subscriber has connected...
-		ros::WallTime maxWait = ros::WallTime::now() + ros::WallDuration(0.5);
-		ros::WallRate rate(50.0);
-		while(topic->publisher.getNumSubscribers() == 0)
-		{
-			if(ros::WallTime::now() > maxWait)
-			{
-				ROS_INFO("timeout waiting for subscriber on topic '%s'", header->topic_name);
-				break;
-			}
-
-			ros::spinOnce();
-			rate.sleep();
-		}
-
 		topic->compressed = compressed;
 	}
 
 	if(compressed && m_keepCompressed)
 	{
-		CompressedMsg compressed;
-		compressed.type = header->topic_type;
-		memcpy(compressed.md5.data(), topic->md5, sizeof(topic->md5));
+		CompressedMsgPtr compressed(new CompressedMsg);
+		compressed->type = header->topic_type;
+		memcpy(compressed->md5.data(), topic->md5, sizeof(topic->md5));
 
-		compressed.data.swap(msg->payload);
-		topic->publisher.publish(compressed);
+		compressed->data.swap(msg->payload);
+
+		topic->publishCompressed(compressed);
 	}
 	else if(header->flags & UDP_FLAG_COMPRESSED)
 		topic->takeForDecompression(boost::make_shared<Message>(*msg));
 	else
 	{
-		topic_tools::ShapeShifter shapeShifter;
-		shapeShifter.morph(topic->md5_str, header->topic_type, topic->msg_def, "");
+		boost::shared_ptr<topic_tools::ShapeShifter> shapeShifter(new topic_tools::ShapeShifter);
+		shapeShifter->morph(topic->md5_str, header->topic_type, topic->msg_def, "");
 
-		shapeShifter.read(*msg);
+		shapeShifter->read(*msg);
 
-		topic->publisher.publish(shapeShifter);
+		topic->publish(shapeShifter);
 	}
 
 	topic->last_message_counter = header->topic_msg_counter();
@@ -371,10 +425,36 @@ void UDPReceiver::run()
 
 		buf.resize(PACKET_SIZE);
 
+		fd_set fds;
+		FD_ZERO(&fds);
+		FD_SET(m_fd, &fds);
+
+		timeval timeout;
+		timeout.tv_usec = 50 * 1000;
+		timeout.tv_sec = 0;
+
+		int ret = select(m_fd+1, &fds, 0, 0, &timeout);
+		if(ret < 0)
+		{
+			if(errno == EINTR || errno == EAGAIN)
+				continue;
+
+			ROS_FATAL("Could not select(): %s", strerror(errno));
+			throw std::runtime_error(strerror(errno));
+		}
+		if(ret == 0)
+			continue;
+
 		sockaddr_storage addr;
 		socklen_t addrlen = sizeof(addr);
 
 		ssize_t size = recvfrom(m_fd, buf.data(), buf.size(), 0, (sockaddr*)&addr, &addrlen);
+
+		if(size < 0)
+		{
+			ROS_FATAL("Could not recv(): %s", strerror(errno));
+			throw std::runtime_error(strerror(errno));
+		}
 
 		if(addrlen != m_remoteAddrLen || memcmp(&addr, &m_remoteAddr, addrlen) != 0)
 		{
@@ -409,12 +489,6 @@ void UDPReceiver::run()
 
 			m_remoteAddr = addr;
 			m_remoteAddrLen = addrlen;
-		}
-
-		if(size < 0)
-		{
-			ROS_FATAL("Could not recv(): %s", strerror(errno));
-			throw std::runtime_error(strerror(errno));
 		}
 
 		ROS_DEBUG("packet of size %lu", size);

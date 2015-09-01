@@ -19,6 +19,7 @@
 #include <boost/thread.hpp>
 
 #include <nimbro_topic_transport/ReceiverStats.h>
+#include <nimbro_topic_transport/CompressedMsg.h>
 
 #include "udp_packet.h"
 
@@ -86,7 +87,13 @@ struct TopicData
 
 	int last_message_counter;
 
+	bool waiting_for_subscriber;
+
 	void takeForDecompression(const boost::shared_ptr<Message>& compressed);
+
+	void publish(const boost::shared_ptr<topic_tools::ShapeShifter>& msg);
+	void publishCompressed(const CompressedMsgConstPtr& msg);
+	void handleSubscriber();
 private:
 	boost::shared_ptr<Message> m_compressedMsg;
 	boost::condition_variable m_cond;
@@ -95,6 +102,10 @@ private:
 	boost::thread m_decompressionThread;
 	bool m_decompressionThreadRunning;
 	bool m_decompressionThreadShouldExit;
+
+	boost::shared_ptr<topic_tools::ShapeShifter> m_msgInQueue;
+	CompressedMsgConstPtr m_compressedMsgInQueue;
+	ros::WallTime m_queueTime;
 
 	void decompress();
 };
