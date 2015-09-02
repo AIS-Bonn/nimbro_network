@@ -20,6 +20,8 @@
 Q_DECLARE_METATYPE(nimbro_topic_transport::SenderStatsConstPtr)
 
 static const int WINDOW_SIZE = 64;
+static const int BRUSH_VALUE = 180;
+static const int BRUSH_SATURATION = 150;
 static const std::string DEFAULT_GROUPS =
 	"cameras: [\"/camera_center/h264\", \"/camera_left/h264\", \"/camera_right/h264\"]\n"
 	"hand_cameras: [\"/camera_left_hand/h264\", \"/camera_right_hand/h264\"]\n"
@@ -162,7 +164,7 @@ void BandwidthGui::handleSenderStats(const nimbro_topic_transport::SenderStatsCo
 			auto graph = m_plot->addGraph();
 			graph->setName(QString::fromStdString(name));
 			graph->setPen(QPen(QColor::fromHsv(0,110,150)));
-			graph->setBrush(QBrush(QColor::fromHsv(m_hue, 150, 180)));
+			graph->setBrush(QBrush(QColor::fromHsv(m_hue, BRUSH_SATURATION, BRUSH_VALUE)));
 			m_hue = (m_hue + 137) % 360;
 			m_bandwidths[name].graph = graph;
 			m_bandwidths[name].last_timestamp = std::numeric_limits<double>::max();
@@ -245,7 +247,6 @@ void BandwidthGui::updatePlot()
 			gv.graph->setChannelFillGraph(prevGraph);
 		prevGraph = gv.graph;
 
-		//TODO(sebastian): figure out correct conversion
 		gv.graph->addData(gv.timestamp, plotValue);
 		m_maxBandwidth = std::max(m_maxBandwidth, plotValue);
 		m_plot->yAxis->setRangeUpper(m_maxBandwidth + (m_maxBandwidth/50.0));
