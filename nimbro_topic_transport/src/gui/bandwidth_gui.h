@@ -15,6 +15,9 @@
 
 class QCustomPlot;
 class QCPGraph;
+class QCPLegend;
+class QCPAbstractLegendItem;
+class QMouseEvent;
 class QComboBox;
 class QTextEdit;
 
@@ -45,6 +48,7 @@ private Q_SLOTS:
 	void updateGroupInfo();
 	void updatePlot();
 	void clearPlot();
+	void handleClickedLegend(QCPLegend *legend, QCPAbstractLegendItem *item, QMouseEvent *event);
 
 private:
 	struct GraphValue

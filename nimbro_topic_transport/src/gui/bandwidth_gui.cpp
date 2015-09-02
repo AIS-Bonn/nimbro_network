@@ -66,6 +66,11 @@ void BandwidthGui::initPlugin(qt_gui_cpp::PluginContext& ctx)
 	ctx.addWidget(wrapper);
 
 	connect(
+		m_plot, SIGNAL(legendClick(QCPLegend *, QCPAbstractLegendItem *, QMouseEvent *)),
+		this, SLOT(handleClickedLegend(QCPLegend*, QCPAbstractLegendItem*, QMouseEvent*))
+	);
+
+	connect(
 		m_connectionBox, SIGNAL(currentIndexChanged(int)),
 		this, SLOT(clearPlot())
 	);
@@ -255,6 +260,31 @@ void BandwidthGui::updatePlot()
 	}
 	m_plot->xAxis->setRange(ros::Time::now().toSec() + 0.25, WINDOW_SIZE, Qt::AlignRight);
 	m_plot->replot();
+}
+
+void BandwidthGui::handleClickedLegend(QCPLegend *legend, QCPAbstractLegendItem *item, QMouseEvent *event)
+{
+	QCPPlottableLegendItem* graphItem = dynamic_cast<QCPPlottableLegendItem*>(item);
+	if(!graphItem)
+		return;
+
+	auto color = graphItem->plottable()->brush().color();
+	auto hue = color.hue() + 180 % 360;
+	auto sat = color.saturation();
+	auto val = color.value();
+
+	if(sat == BRUSH_SATURATION)
+	{
+		sat = 255;
+		val = 255;
+	}
+	else
+	{
+		sat = BRUSH_SATURATION;
+		val = BRUSH_VALUE;
+	}
+	color.setHsv(hue, sat, val);
+	graphItem->plottable()->setBrush(QBrush(color));
 }
 
 void BandwidthGui::saveSettings(qt_gui_cpp::Settings& pluginSettings, qt_gui_cpp::Settings& instanceSettings) const
