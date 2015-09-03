@@ -1,0 +1,14 @@
+<library path="lib/libservice_widget">
+	<class name="service_widget" type="nimbro_service_transport::ServiceWidget" base_class_type="rqt_gui_cpp::Plugin">
+		<description>
+			Display Service Status
+		</description>
+		<qtgui>
+			<group>
+				<label>nimbro_network</label>
+			</group>
+			<label>Service Status</label>
+			<statustip>Diagnostic information</statustip>
+		</qtgui>
+	</class>
+</library>
