@@ -18,17 +18,6 @@ static const QColor CLR_FAILURE  = QColor::fromHsv(0,   100, 200);
 static const QColor CLR_TIMEOUT  = QColor::fromHsv(0,   60,  180);
 static const QColor CLR_PROGRESS = QColor::fromHsv(0,   0,   200);
 
-static const size_t STATUS_NAMES_SIZE = 6;
-static const QString STATUS_NAMES[] = {
-	"Unknown",
-	"Success (finished)",
-	"Error (finished)",
-	"In Progress",
-	"Timeout",
-	"Connection Error"
-};
-
-
 namespace nimbro_service_transport
 {
 
@@ -108,27 +97,7 @@ void ServiceWidget::handleServiceStatus(const nimbro_service_transport::ServiceS
 	if(connection != m_connectionBox->currentText())
 		return;
 
-	uint8_t status = 0;
-	switch(msg->status)
-	{
-		case nimbro_service_transport::ServiceStatus::STATUS_FINISHED_SUCCESS:
-			status = 1;
-			break;
-		case nimbro_service_transport::ServiceStatus::STATUS_FINISHED_ERROR:
-			status = 2;
-			break;
-		case nimbro_service_transport::ServiceStatus::STATUS_IN_PROGRESS:
-			status = 3;
-			break;
-		case nimbro_service_transport::ServiceStatus::STATUS_TIMEOUT:
-			status = 4;
-			break;
-		case nimbro_service_transport::ServiceStatus::STATUS_CONNECTION_ERROR:
-			status = 5;
-			break;
-	}
-
-	m_model->addService(msg->service, status, msg->call_id);
+	m_model->addService(msg->service, msg->status, msg->call_id);
 }
 
 
@@ -160,23 +129,34 @@ QVariant ServiceStatusModel::data(const QModelIndex& parent, int role) const
 				return QString::fromStdString(m_data[parent.row()].name);
 			if(parent.column() == STATUS_COL)
 			{
-				auto status = m_data[parent.row()].status;
-				if(status < 0 || status > STATUS_NAMES_SIZE)
-					return QVariant();
-				return STATUS_NAMES[status];
+				switch(m_data[parent.row()].status)
+				{
+					case nimbro_service_transport::ServiceStatus::STATUS_FINISHED_SUCCESS:
+						return "Success (finished)";
+					case nimbro_service_transport::ServiceStatus::STATUS_FINISHED_ERROR:
+						return "Error (finished)";
+					case nimbro_service_transport::ServiceStatus::STATUS_IN_PROGRESS:
+						return "In Progress";
+					case nimbro_service_transport::ServiceStatus::STATUS_TIMEOUT:
+						return "Timeout";
+					case nimbro_service_transport::ServiceStatus::STATUS_CONNECTION_ERROR:
+						return "Connection Error";
+					default:
+						return "Unknown";
+				}
 			}
 
 		case Qt::BackgroundRole:
 			switch(m_data[parent.row()].status)
 			{
-				case 1:
+				case nimbro_service_transport::ServiceStatus::STATUS_FINISHED_SUCCESS:
 					return QBrush(CLR_SUCCESS);
-				case 3:
+				case nimbro_service_transport::ServiceStatus::STATUS_IN_PROGRESS:
 					return QBrush(CLR_PROGRESS);
-				case 4:
+				case nimbro_service_transport::ServiceStatus::STATUS_TIMEOUT:
 					return QBrush(CLR_TIMEOUT);
-				case 2:
-				case 5:
+				case nimbro_service_transport::ServiceStatus::STATUS_FINISHED_ERROR:
+				case nimbro_service_transport::ServiceStatus::STATUS_CONNECTION_ERROR:
 					return QBrush(CLR_FAILURE);
 				default:
 					return QVariant();

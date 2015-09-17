@@ -340,7 +340,7 @@ void TCPSender::updateStats()
 		tp.name = pair.first;
 		tp.bandwidth = pair.second / m_statsInterval.toSec();
 		pair.second = 0;
-		m_stats.topics.emplace_back(tp);
+		m_stats.topics.push_back(tp);
 	}
 
 	m_pub_stats.publish(m_stats);

@@ -55,7 +55,7 @@ private:
 	{
 		float value; // bandwidth value
 		double timestamp; // in seconds since epoch
-		double last_timestamp; // in sec, timestamp of last point
+		double last_timestamp; // in seconds, timestamp of last point
 		QCPGraph* graph;
 	};
 

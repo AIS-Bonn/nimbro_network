@@ -218,7 +218,7 @@ bool UDPSender::send(const void* data, uint32_t size, const std::string& topic)
 		memcpy(packet.data(), data, size);
 
 		m_relayBuffer.emplace_back(std::move(packet));
-		m_relayNameBuffer.emplace_back(topic);
+		m_relayNameBuffer.push_back(topic);
 		return true;
 	}
 	else
