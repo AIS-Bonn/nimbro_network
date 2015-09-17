@@ -69,7 +69,7 @@ License
 -------
 
 `nimbro_network` is licensed under the BSD 3-clause license.
-This Repository includes the [QCustomPlot][4] library, which is licensed under
+This repository includes the [QCustomPlot][4] library, which is licensed under
 the GPLv3 license.
 
 [4]: http://www.qcustomplot.com
