@@ -2,7 +2,7 @@
 // Author: Sebastian Schüller
 
 #include "bandwidth_gui.h"
-#include "contrib/qcustomplot.h"
+#include "contrib/qcustomplot/qcustomplot.h"
 
 #include <pluginlib/class_list_macros.h>
 #include <ros/node_handle.h>

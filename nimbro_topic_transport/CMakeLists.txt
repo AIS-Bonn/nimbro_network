@@ -116,7 +116,7 @@ qt4_wrap_cpp(MOC_SRCS
 
 qt4_wrap_cpp(BAND_MOC_SRCS
 	src/gui/bandwidth_gui.h
-	src/gui/contrib/qcustomplot.h
+	src/gui/contrib/qcustomplot/qcustomplot.h
 )
 
 add_library(topic_gui
@@ -128,7 +128,7 @@ add_library(topic_gui
 add_library(bandwidth_gui
 	${BAND_MOC_SRCS}
 	src/gui/bandwidth_gui.cpp
-	src/gui/contrib/qcustomplot.cpp
+	src/gui/contrib/qcustomplot/qcustomplot.cpp
 )
 
 
