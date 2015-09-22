@@ -77,8 +77,11 @@ the GPLv3 license.
 Authors & Contact
 -----------------
 
+```
 Max Schwarz <max.schwarz@uni-bonn.de>
 Institute of Computer Science VI
 Rheinische Friedrich-Wilhelms-Universität Bonn
 Friedrich Ebert-Allee 144
 53113 Bonn
+```
+
