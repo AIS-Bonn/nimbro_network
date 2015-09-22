@@ -29,12 +29,16 @@ ROS has a network transparency layer. But it has issues, namely:
 * ROS service calls need several handshakes for each call
 * Messages are transmitted at the rate at which they are published
 
+Our network stack offers the same functions as the ROS network transparency,
+but addresses each of the above issues.
+
 Features
 --------
 
 * Topic transport:
-    * TCP protocol for reliable connections (still with communication timeouts!)
-    * UDP protocol for unreliable connections (data which has no meaning if it
+    * TCP protocol for transmission guarantee
+      (still with communication timeouts!)
+    * UDP protocol for streaming data (data which has no meaning if it
       arrives late)
     * Optional transparent BZip2 compression using libbz2
     * Automatic topic discovery on the receiver side. The transmitter defines
@@ -64,6 +68,10 @@ State
 `nimbro_network` is mature in the sense that it has been used extensively in
 the preparation and during the competition of the SpaceBotCup and in the
 DARPA Robotics Challenge.
+
+In the DRC, the software was used for the high-bandwidth link. Communication
+over the low-bandwidth link was handled by custom, highly specific code, which
+is not released at this point.
 
 License
 -------
