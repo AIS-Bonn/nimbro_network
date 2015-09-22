@@ -1,5 +1,13 @@
 <launch>
+	<!--
+	  This launch file runs a udp_receiver node, which receives topics
+	  over the network on port 17001 and publishes them on the local roscore.
+
+	  See udp_sender.launch for the sender part.
+	-->
+
 	<node name="udp_receiver" pkg="nimbro_topic_transport" type="udp_receiver" output="screen">
+		<!-- The port to receive packets on -->
 		<param name="port" value="17001" />
 
 		<!-- Remap topics so that sender & receiver do not clash if run on the
