@@ -32,6 +32,17 @@ ROS has a network transparency layer. But it has issues, namely:
 Our network stack offers the same functions as the ROS network transparency,
 but addresses each of the above issues.
 
+Alternatives
+------------
+
+`nimbro_network` offers robust transport of ROS topics and services over
+unreliable networks. For high-level features like auto-discovery, job scheduling
+etc. take a look at alternatives like [rocon][rocon] or
+[multimaster_fkie][multimaster_fkie].
+
+[rocon]: http://www.robotconcert.org
+[multimaster_fkie]: https://fkie.github.io/multimaster_fkie/
+
 Features
 --------
 

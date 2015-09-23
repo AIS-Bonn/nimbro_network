@@ -63,6 +63,7 @@ Forward error correction (FEC)
 ------------------------------
 
 The UDP transport can do forward error correction if [OpenFEC][1] is available.
-Use the CMake variable OPENFEC_PATH to point the build system to OpenFEC.
+A short guide on how to install and configure the system is available
+in `doc/FEC.md`.
 
 [1]: http://openfec.org/
