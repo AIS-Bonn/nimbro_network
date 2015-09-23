@@ -6,6 +6,8 @@ This package includes nodes for transmitting ROS topic messages over a network
 connection. For an overview over the available parameters, see
 `doc/configuration.md`.
 
+For a quick getting-started guide see `doc/getting_started.md`.
+
 The remainder of this document introduces the features of the topic transport
 and explains the choices you have in detail.
 
