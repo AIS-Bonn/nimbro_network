@@ -11,6 +11,8 @@
 	<depend>roscpp</depend>
 	<depend>topic_tools</depend>
 
+	<build_depend>message_generation</build_depend>
+
 	<depend>rqt_gui</depend>
 
 	<export>
