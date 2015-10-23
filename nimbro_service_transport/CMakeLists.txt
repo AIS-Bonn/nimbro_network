@@ -10,6 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
 	rostest
 )
 
+find_package(catch_ros)
+
 add_message_files(FILES
 	ServiceStatus.msg
 )
@@ -87,25 +89,29 @@ target_link_libraries(service_widget
 )
 
 # Tests
-add_executable(test_server
-	test/test_server.cpp
-)
-target_link_libraries(test_server
-	${catkin_LIBRARIES}
-)
-add_dependencies(test_server
-	${PROJECT_NAME}_generate_messages_cpp
-)
+if(catch_ros_FOUND)
+	include_directories(${catch_ros_INCLUDE_DIRS})
 
-add_executable(test_client
-	test/test_client.cpp
-)
-target_link_libraries(test_client
-	${catkin_LIBRARIES}
-)
-add_dependencies(test_client
-	${PROJECT_NAME}_generate_messages_cpp
-)
+	add_executable(test_server
+		test/test_server.cpp
+	)
+	target_link_libraries(test_server
+		${catkin_LIBRARIES}
+	)
+	add_dependencies(test_server
+		${PROJECT_NAME}_generate_messages_cpp
+	)
 
-add_rostest(test/test_udp.test)
-add_rostest(test/test_tcp.test)
+	catch_add_rostest_node(test_client
+		test/test_client.cpp
+	)
+	target_link_libraries(test_client
+		${catkin_LIBRARIES}
+	)
+	add_dependencies(test_client
+		${PROJECT_NAME}_generate_messages_cpp
+	)
+
+	add_rostest(test/test_udp.test)
+	add_rostest(test/test_tcp.test)
+endif()

@@ -1,8 +1,7 @@
 // Unit tests for nimbro_topic_transport
 // Author: Max Schwarz <max.schwarz@uni-bonn.de>
 
-#define CATCH_CONFIG_RUNNER
-#include "catch.hpp"
+#include <catch_ros/catch.hpp>
 
 #include <ros/package.h>
 #include <ros/node_handle.h>
@@ -154,28 +153,4 @@ TEST_CASE("array", "[topic]")
 
 	CAPTURE(g_arrayCounter);
 	FAIL();
-}
-
-int main(int argc, char** argv)
-{
-	ros::init(argc, argv, "test_comm");
-
-	Catch::Session session;
-
-	std::string test_output;
-	for(int i = 1; i < argc; ++i)
-	{
-		if(strncmp(argv[i], "--gtest_output=xml:", 19) == 0)
-		{
-			test_output = argv[i] + 19;
-		}
-	}
-
-	if(!test_output.empty())
-	{
-		session.configData().reporterName = "junit";
-		session.configData().outputFilename = test_output;
-	}
-
-	return session.run();
 }

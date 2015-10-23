@@ -36,6 +36,8 @@ if(config_server_FOUND)
 	add_definitions(-DWITH_CONFIG_SERVER=1)
 endif()
 
+find_package(catch_ros)
+
 # If OpenFEC is available, we can enable FEC for the UDP sender
 set(OPENFEC_PATH "" CACHE PATH "Path to OpenFEC (optional)")
 if(OPENFEC_PATH)
@@ -150,16 +152,20 @@ target_link_libraries(bandwidth_gui
 )
 
 # Tests
-add_executable(test_comm
-	test/test_comm.cpp
-)
-target_link_libraries(test_comm
-	${catkin_LIBRARIES}
-)
+if(catch_ros_FOUND)
+	include_directories(${catch_ros_INCLUDE_DIRS})
 
-add_rostest(test/topic_transport.test ARGS protocol:=udp)
-add_rostest(test/topic_transport.test ARGS protocol:=tcp)
+	catch_add_rostest_node(test_comm
+		test/test_comm.cpp
+	)
+	target_link_libraries(test_comm
+		${catkin_LIBRARIES}
+	)
 
-if(OPENFEC_PATH)
-	add_rostest(test/topic_transport.test ARGS protocol:=udp fec:=true)
+	add_rostest(test/topic_transport.test ARGS protocol:=udp)
+	add_rostest(test/topic_transport.test ARGS protocol:=tcp)
+
+	if(OPENFEC_PATH)
+		add_rostest(test/topic_transport.test ARGS protocol:=udp fec:=true)
+	endif()
 endif()

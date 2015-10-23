@@ -6,8 +6,7 @@
 #include <std_srvs/Empty.h>
 #include <nimbro_service_transport/AddTwoInts.h>
 
-#define CATCH_CONFIG_RUNNER
-#include "catch.hpp"
+#include <catch_ros/catch.hpp>
 
 TEST_CASE("empty success", "[empty]")
 {
@@ -31,28 +30,4 @@ TEST_CASE("add two ints", "[add]")
 	ROS_INFO("Calling add");
 	REQUIRE(ros::service::call("/remote/test_server/add", srv));
 	REQUIRE(srv.response.sum == 12);
-}
-
-int main(int argc, char** argv)
-{
-	ros::init(argc, argv, "test_client");
-
-	Catch::Session session;
-
-	std::string test_output;
-	for(int i = 1; i < argc; ++i)
-	{
-		if(strncmp(argv[i], "--gtest_output=xml:", 19) == 0)
-		{
-			test_output = argv[i] + 19;
-		}
-	}
-
-	if(!test_output.empty())
-	{
-		session.configData().reporterName = "junit";
-		session.configData().outputFilename = test_output;
-	}
-
-	return session.run();
 }
