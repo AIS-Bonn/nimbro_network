@@ -31,6 +31,8 @@ x264_picture_t g_outPicture;
 
 ros::Publisher g_pub;
 
+double g_crf;
+
 void handleImage(const sensor_msgs::ImageConstPtr& img)
 {
 	ros::Time now = ros::Time::now();
@@ -70,6 +72,7 @@ void handleImage(const sensor_msgs::ImageConstPtr& img)
 	// 	params.rc.i_vbv_max_bitrate = 6000;
 	// 	params.rc.i_bitrate = 6;
 		params.rc.i_rc_method = X264_RC_CRF;
+		params.rc.f_rf_constant = g_crf;
 		params.rc.i_vbv_buffer_size = 1000;
 		params.rc.i_vbv_max_bitrate = 1000;
 		params.rc.i_bitrate = 1000;
@@ -142,6 +145,8 @@ int main(int argc, char** argv)
 
 	double rate;
 	nh.param("rate", rate, 60.0);
+
+	nh.param("crf", g_crf, 30.0);
 
 	g_minTimeBetweenImages = ros::Duration(1.0 / rate);
 
