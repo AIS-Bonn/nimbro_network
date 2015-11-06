@@ -63,6 +63,7 @@ void BandwidthGui::initPlugin(qt_gui_cpp::PluginContext& ctx)
 	gl->addWidget(m_connectionBox, 1, 0);
 	gl->addWidget(groupBtn, 1, 1);
 	wrapper->setLayout(gl);
+	wrapper->setWindowTitle("Bandwidth");
 	ctx.addWidget(wrapper);
 
 	connect(
