@@ -27,7 +27,7 @@ public:
 
 	bool connect();
 
-	void send(const std::string& topic, int flags, const topic_tools::ShapeShifter& shifter);
+	void send(const std::string& topic, int flags, const topic_tools::ShapeShifter::ConstPtr& shifter);
 private:
 	void updateStats();
 

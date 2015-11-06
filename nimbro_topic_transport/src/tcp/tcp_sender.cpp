@@ -77,11 +77,11 @@ TCPSender::TCPSender()
 		if(entry.hasMember("compress") && ((bool)entry["compress"]) == true)
 			flags |= TCP_FLAG_COMPRESSED;
 
-		boost::function<void(const topic_tools::ShapeShifter&)> func;
+		boost::function<void(const topic_tools::ShapeShifter::ConstPtr&)> func;
 		func = boost::bind(&TCPSender::send, this, topic, flags, _1);
 
 		ros::SubscribeOptions options;
-		options.initByFullCallbackType<const topic_tools::ShapeShifter>(topic, 20, func);
+		options.initByFullCallbackType<topic_tools::ShapeShifter::ConstPtr>(topic, 20, func);
 
 		if(entry.hasMember("type"))
 		{
@@ -234,16 +234,16 @@ private:
 	uint8_t* m_ptr;
 };
 
-void TCPSender::send(const std::string& topic, int flags, const topic_tools::ShapeShifter& shifter)
+void TCPSender::send(const std::string& topic, int flags, const topic_tools::ShapeShifter::ConstPtr& shifter)
 {
 #if WITH_CONFIG_SERVER
 	if (! (*m_enableTopic[topic])() )
 		return;
 #endif
 
-	std::string type = shifter.getDataType();
-	std::string md5 = shifter.getMD5Sum();
-	uint32_t size = shifter.size();
+	std::string type = shifter->getDataType();
+	std::string md5 = shifter->getMD5Sum();
+	uint32_t size = shifter->size();
 
 	uint32_t maxDataSize = size;
 
@@ -269,9 +269,9 @@ void TCPSender::send(const std::string& topic, int flags, const topic_tools::Sha
 	{
 		unsigned int len = m_packet.size() - (wptr - m_packet.data());
 
-		m_compressionBuf.resize(shifter.size());
+		m_compressionBuf.resize(shifter->size());
 		PtrStream stream(m_compressionBuf.data());
-		shifter.write(stream);
+		shifter->write(stream);
 
 		if(BZ2_bzBuffToBuffCompress((char*)wptr, &len, (char*)m_compressionBuf.data(), m_compressionBuf.size(), 7, 0, 30) == BZ_OK)
 		{
@@ -291,7 +291,7 @@ void TCPSender::send(const std::string& topic, int flags, const topic_tools::Sha
 	else
 	{
 		PtrStream stream(wptr);
-		shifter.write(stream);
+		shifter->write(stream);
 		header->data_len = size;
 		wptr += size;
 	}
