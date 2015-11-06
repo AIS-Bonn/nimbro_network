@@ -4,6 +4,7 @@
 #include "topic_sender.h"
 #include "udp_sender.h"
 #include "udp_packet.h"
+#include "../topic_info.h"
 
 #include <bzlib.h>
 
@@ -27,7 +28,7 @@ extern "C"
 namespace nimbro_topic_transport
 {
 
-TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate, bool resend, int flags, bool enable)
+TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate, bool resend, int flags, bool enable, const std::string& type)
  : m_sender(sender)
  , m_flags(flags)
  , m_updateBuf(true)
@@ -38,7 +39,17 @@ TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::stri
  , m_enable(escapeTopicName(topic), enable)
 #endif
 {
-	m_subscriber = nh->subscribe(topic, 1, &TopicSender::handleData, this);
+	ros::SubscribeOptions ops;
+	boost::function<void(const topic_tools::ShapeShifter::ConstPtr&)> func = boost::bind(&TopicSender::handleData, this, _1);
+	ops.initByFullCallbackType(topic, 1, func);
+
+	if(!type.empty())
+	{
+		ops.datatype = type;
+		ops.md5sum = topic_info::getMd5Sum(type);
+	}
+
+	m_subscriber = nh->subscribe(ops);
 	m_topicName = topic;
 
 	m_durationBetweenPackets = ros::Duration(1.0 / rate);

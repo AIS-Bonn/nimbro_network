@@ -55,6 +55,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
 add_executable(udp_sender
 	src/udp/topic_sender.cpp
 	src/udp/udp_sender.cpp
+	src/topic_info.cpp
 )
 add_dependencies(udp_sender
 	${PROJECT_NAME}_generate_messages_cpp

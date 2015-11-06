@@ -20,7 +20,7 @@ namespace nimbro_topic_transport
 	class TopicSender
 	{
 	public:
-		TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate, bool resend, int flags, bool enable = true);
+		TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::string& topic, double rate, bool resend, int flags, bool enable = true, const std::string& type = "");
 		~TopicSender();
 
 		void handleData(const topic_tools::ShapeShifter::ConstPtr& shapeShifter);

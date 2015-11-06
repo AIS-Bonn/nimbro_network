@@ -136,7 +136,11 @@ UDPSender::UDPSender()
 		if(list[i].hasMember("enable") && (!(bool)list[i]["enable"]))
 			enabled = false;
 
-		TopicSender* sender = new TopicSender(this, &nh, list[i]["name"], rate, resend, flags, enabled);
+		std::string type;
+		if(list[i].hasMember("type"))
+			type = (std::string)(list[i]["type"]);
+
+		TopicSender* sender = new TopicSender(this, &nh, list[i]["name"], rate, resend, flags, enabled, type);
 
 		if(m_relayMode)
 			sender->setDirectTransmissionEnabled(false);
