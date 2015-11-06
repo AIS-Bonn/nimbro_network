@@ -42,6 +42,14 @@ void handleStatus(const actionlib_msgs::GoalStatusArray& status)
 	m_pub_status.publish(status);
 }
 
+ros::Subscriber m_sub_feedback;
+ros::Publisher m_pub_feedback;
+
+void handleFeedback(const topic_tools::ShapeShifter::ConstPtr& fb)
+{
+	m_pub_feedback.publish(fb);
+}
+
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "action_proxy");
@@ -102,6 +110,21 @@ int main(int argc, char** argv)
 		subops.datatype = type + "ActionResult";
 		subops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(subops.datatype);
 		m_sub_result = nh.subscribe(subops);
+	}
+
+	{
+		ros::AdvertiseOptions ops;
+		ops.topic = output + "/feedback";
+		ops.datatype = type + "ActionFeedback";
+		ops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(ops.datatype);
+
+		m_pub_feedback = nh.advertise(ops);
+
+		ros::SubscribeOptions subops;
+		subops.init<topic_tools::ShapeShifter>(input + "/feedback", 10, boost::bind(&handleFeedback, _1));
+		subops.datatype = type + "ActionFeedback";
+		subops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(subops.datatype);
+		m_sub_feedback = nh.subscribe(subops);
 	}
 
 	{
