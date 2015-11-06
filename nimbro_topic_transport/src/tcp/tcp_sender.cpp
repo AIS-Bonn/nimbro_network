@@ -80,9 +80,25 @@ TCPSender::TCPSender()
 		boost::function<void(const topic_tools::ShapeShifter&)> func;
 		func = boost::bind(&TCPSender::send, this, topic, flags, _1);
 
-		m_subs.push_back(
-			m_nh.subscribe<const topic_tools::ShapeShifter>(topic, 20, func)
-		);
+		ros::SubscribeOptions options;
+		options.initByFullCallbackType<const topic_tools::ShapeShifter>(topic, 20, func);
+
+		if(entry.hasMember("type"))
+		{
+			std::string type = entry["type"];
+
+			std::string md5 = topic_info::getMd5Sum(type);
+			if(md5.empty())
+			{
+				ROS_ERROR("Could not get md5 sum of topic type '%s'", type.c_str());
+				continue;
+			}
+
+			options.datatype = type;
+			options.md5sum = md5;
+		}
+
+		m_subs.push_back(m_nh.subscribe(options));
 
 #if WITH_CONFIG_SERVER
 		bool enabled = true;
