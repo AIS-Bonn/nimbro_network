@@ -117,12 +117,18 @@ void TopicGUI::update()
 
 	for(auto pair : m_receiverStats)
 	{
+		if(now - pair.second->header.stamp > timeoutDuration)
+			continue;
+
 		connections.insert(pair.first);
 		hosts.insert(pair.second->remote);
 		hosts.insert(pair.first.dest);
 	}
 	for(auto pair : m_senderStats)
 	{
+		if(now - pair.second->header.stamp > timeoutDuration)
+			continue;
+
 		connections.insert(pair.first);
 		hosts.insert(pair.second->host);
 		hosts.insert(pair.first.dest);
