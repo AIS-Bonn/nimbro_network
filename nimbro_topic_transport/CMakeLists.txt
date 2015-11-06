@@ -107,6 +107,15 @@ target_link_libraries(tcp_receiver
 	${BZ2_LIBRARY}
 )
 
+# Tools
+add_executable(action_proxy
+	src/action_proxy.cpp
+	src/topic_info.cpp
+)
+target_link_libraries(action_proxy
+	${catkin_LIBRARIES}
+)
+
 # GUI
 find_package(Qt4 REQUIRED)
 include(${QT_USE_FILE})
