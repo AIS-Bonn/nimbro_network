@@ -9,7 +9,8 @@ Dependencies
 ------------
 
 The `sender` node uses the `x264` library for encoding the video stream. In most
-distributions, this library can be installed from the repositories.
+distributions, this library can be installed from the repositories
+(Ubuntu: package libx264-dev).
 
 The `receiver` node uses the `ffmpeg` library for decoding. Note that the
 `avconv` framework is *not* supported. Also, most distribution packages are
