@@ -24,7 +24,7 @@ private:
 	class ClientHandler
 	{
 	public:
-		ClientHandler(int fd);
+		ClientHandler(int fd, const std::string& topicPrefix);
 		~ClientHandler();
 		void start();
 		void run();
@@ -47,6 +47,7 @@ private:
 		bool m_running;
 		bool m_keepCompressed;
 		uint64_t m_bytesReceived;
+		std::string m_topicPrefix;
 	};
 
 	void updateStats();
@@ -62,6 +63,8 @@ private:
 	ros::Publisher m_pub_stats;
 	ros::WallDuration m_statsInterval;
 	ros::WallTimer m_statsTimer;
+
+	std::string m_topicPrefix;
 };
 
 }

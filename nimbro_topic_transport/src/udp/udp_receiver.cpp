@@ -104,6 +104,8 @@ UDPReceiver::UDPReceiver()
 	m_statsTimer = nh.createWallTimer(m_statsInterval,
 		boost::bind(&UDPReceiver::updateStats, this)
 	);
+
+	nh.param("topic_prefix", m_topicPrefix, std::string());
 }
 
 UDPReceiver::~UDPReceiver()
@@ -208,7 +210,7 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 		{
 			// If we are requested to keep the messages compressed, we advertise our compressed msg type
 			topic->publisher = m_nh.advertise<CompressedMsg>(
-				header->topic_name,
+				m_topicPrefix + header->topic_name,
 				1,
 				boost::bind(&TopicReceiver::handleSubscriber, topic)
 			);
@@ -217,7 +219,7 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 		{
 			// ... otherwise, we advertise the native type
 			ros::AdvertiseOptions options(
-				header->topic_name,
+				m_topicPrefix + header->topic_name,
 				1,
 				topic->md5_str,
 				header->topic_type,

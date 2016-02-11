@@ -104,6 +104,8 @@ TCPReceiver::TCPReceiver()
 	m_statsTimer = m_nh.createWallTimer(m_statsInterval,
 		boost::bind(&TCPReceiver::updateStats, this)
 	);
+
+	m_nh.param("topic_prefix", m_topicPrefix, std::string());
 }
 
 TCPReceiver::~TCPReceiver()
@@ -186,18 +188,19 @@ void TCPReceiver::run()
 			}
 		}
 
-		ClientHandler* handler = new ClientHandler(client_fd);
+		ClientHandler* handler = new ClientHandler(client_fd, m_topicPrefix);
 		handler->setKeepCompressed(m_keepCompressed);
 
 		m_handlers.push_back(handler);
 	}
 }
 
-TCPReceiver::ClientHandler::ClientHandler(int fd)
+TCPReceiver::ClientHandler::ClientHandler(int fd, const std::string& topicPrefix)
  : m_fd(fd)
  , m_uncompressBuf(1024)
  , m_running(true)
  , m_keepCompressed(false)
+ , m_topicPrefix(topicPrefix)
 {
 	m_thread = boost::thread(boost::bind(&ClientHandler::start, this));
 }
@@ -272,7 +275,7 @@ void TCPReceiver::ClientHandler::run()
 			if(it == m_pub.end())
 			{
 				ros::NodeHandle nh;
-				ros::Publisher pub = nh.advertise<CompressedMsg>(topic, 2);
+				ros::Publisher pub = nh.advertise<CompressedMsg>(m_topicPrefix + topic, 2);
 				m_pub[topic] = pub;
 
 				pub.publish(compressed);
@@ -329,13 +332,13 @@ void TCPReceiver::ClientHandler::run()
 			std::map<std::string, ros::Publisher>::iterator it = m_pub.find(topic);
 			if(it == m_pub.end())
 			{
-				ROS_DEBUG("Advertising new topic '%s'", topic.c_str());
+				ROS_DEBUG("Advertising new topic '%s'", (m_topicPrefix + topic).c_str());
 				std::string msgDef = topic_info::getMsgDef(type);
 
 				ros::NodeHandle nh;
 
 				ros::AdvertiseOptions options(
-					topic,
+					m_topicPrefix + topic,
 					2,
 					md5,
 					type,

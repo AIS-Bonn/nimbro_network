@@ -23,6 +23,7 @@ Optional:
    publish them as the type `nimbro_topic_transport/CompressedMsg`
    (default false)
  - `label` (string): Display a label in the visualization GUIs
+ - `topic_prefix` (string): prepend topic_prefix before advertised topic names
  - `warn_drop_incomplete` (bool): Display a warning every time an incomplete
    packet is dropped (UDP only, default true)
 

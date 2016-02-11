@@ -47,7 +47,7 @@ UDPSender::UDPSender()
 
 	if(getaddrinfo(dest_host.c_str(), dest_port_str.c_str(), 0, &info) != 0 || !info)
 	{
-		ROS_FATAL("Could not lookup destination address '%s': %s",
+		ROS_FATAL("Could not lookup destination address\n '%s': %s",
 			dest_host.c_str(), strerror(errno)
 		);
 		throw std::runtime_error(strerror(errno));

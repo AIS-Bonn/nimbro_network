@@ -75,6 +75,8 @@ private:
 
 	sockaddr_storage m_remoteAddr;
 	socklen_t m_remoteAddrLen;
+
+	std::string m_topicPrefix;
 };
 
 }
