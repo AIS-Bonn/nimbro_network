@@ -179,3 +179,9 @@ if(catch_ros_FOUND)
 		add_rostest(test/topic_transport.test ARGS protocol:=udp fec:=true)
 	endif()
 endif()
+
+#install
+install(TARGETS udp_receiver tcp_receiver udp_sender tcp_sender
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
