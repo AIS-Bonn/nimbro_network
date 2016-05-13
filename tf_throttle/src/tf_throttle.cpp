@@ -5,6 +5,8 @@
 #include <ros/node_handle.h>
 #include <tf/transform_listener.h>
 
+#include <tf2_msgs/TFMessage.h>
+
 #include <boost/foreach.hpp>
 
 boost::scoped_ptr<tf::TransformListener> g_tf;
@@ -15,7 +17,7 @@ void sendTransforms()
 	std::vector<std::string> frames;
 	g_tf->getFrameStrings(frames);
 
-	tf::tfMessage msg;
+	tf2_msgs::TFMessage msg;
 	msg.transforms.reserve(frames.size());
 
 	ros::Time now = ros::Time::now();
@@ -65,7 +67,7 @@ int main(int argc, char** argv)
 		ros::Duration(1.0 / rate),
 		boost::bind(&sendTransforms)
 	);
-	pub = nh.advertise<tf::tfMessage>("tf", 1);
+	pub = nh.advertise<tf2_msgs::TFMessage>("tf", 1);
 
 	ros::spin();
 
