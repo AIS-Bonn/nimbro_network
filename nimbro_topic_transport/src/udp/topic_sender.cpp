@@ -41,7 +41,7 @@ TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::stri
 {
 	ros::SubscribeOptions ops;
 	boost::function<void(const topic_tools::ShapeShifter::ConstPtr&)> func = boost::bind(&TopicSender::handleData, this, _1);
-	ops.initByFullCallbackType(topic, 1, func);
+	ops.initByFullCallbackType(topic, 20, func);
 
 	if(!type.empty())
 	{
