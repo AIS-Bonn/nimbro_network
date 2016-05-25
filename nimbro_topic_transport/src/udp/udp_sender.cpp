@@ -122,7 +122,7 @@ UDPSender::UDPSender()
 
 		bool resend = false;
 
-		double rate = 100.0;
+		double rate = 0.0; // unlimited
 		if(list[i].hasMember("rate"))
 			rate = list[i]["rate"];
 

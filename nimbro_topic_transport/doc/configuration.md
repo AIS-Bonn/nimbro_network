@@ -60,7 +60,10 @@ parameter is `name`.
 
  - `name`: Name of the topic to be sent over.
  - `rate`: Rate limit on messages / sec (floating point). Messages over the
-   rate limit are silently dropped on the sender side.
+   rate limit are silently dropped on the sender side. The default is 0.0
+   (no rate limit).
+   Note: Limiting only works well for lower rates (<20 Hz).
+   (UDP only)
  - `resend`: If the sender does not get a message 1.0/`rate` after the last one,
    it will re-send the last received one. (UDP only)
  - `compress`: If true, compress the data on the wire with bz2.

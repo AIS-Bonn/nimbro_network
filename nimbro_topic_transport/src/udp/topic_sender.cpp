@@ -52,7 +52,10 @@ TopicSender::TopicSender(UDPSender* sender, ros::NodeHandle* nh, const std::stri
 	m_subscriber = nh->subscribe(ops);
 	m_topicName = topic;
 
-	m_durationBetweenPackets = ros::Duration(1.0 / rate);
+	if(rate == 0.0)
+		m_durationBetweenPackets = ros::Duration(0.0);
+	else
+		m_durationBetweenPackets = ros::Duration(1.0 / rate);
 
 	if(resend)
 	{
