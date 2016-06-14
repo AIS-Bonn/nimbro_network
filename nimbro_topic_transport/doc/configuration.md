@@ -16,9 +16,7 @@ Optional:
  - `drop_repeated_msgs` (bool): If a message with the same sequence number
    arrives twice, drop it. Needed in conjunction with the relay mode.
    (UDP only, default true)
- - `fec` (float): If non-zero, this is the proportion of repair packets sent for
-   Forward Error Correction (0.5 -> Send 50% more data). This needs support for
-   FEC compiled in, see README.md (default 0.0)
+ - `fec` (bool): Enable Forward Error correction (UDP only, default false)
  - `keep_compressed` (bool): Do not uncompress compressed topics, instead
    publish them as the type `nimbro_topic_transport/CompressedMsg`
    (default false)
@@ -41,7 +39,9 @@ Required:
  - `topics` (list): List of topics to be transmitted (see below)
 
 Optional:
- - `fec` (bool): Enable Forward Error correction (UDP only, default false)
+ - `fec` (float): If non-zero, this is the proportion of repair packets sent for
+   Forward Error Correction (0.5 -> Send 50% more data). This needs support for
+   FEC compiled in, see README.md (default 0.0)
  - `label` (string): Display a label in the visualization GUIs
  - `relay_mode` (bool): Enable relay mode, see README.md
    (UDP only, default false)
