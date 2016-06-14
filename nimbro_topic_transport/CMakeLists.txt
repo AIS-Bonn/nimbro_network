@@ -39,17 +39,21 @@ endif()
 find_package(catch_ros)
 
 # If OpenFEC is available, we can enable FEC for the UDP sender
+set(DEFAULT_OPENFEC_PATH /opt/openfec_v1.4.2)
 set(OPENFEC_PATH "" CACHE PATH "Path to OpenFEC (optional)")
+if(NOT OPENFEC_PATH AND IS_DIRECTORY ${DEFAULT_OPENFEC_PATH})
+	set(OPENFEC_PATH ${DEFAULT_OPENFEC_PATH})
+endif()
 if(OPENFEC_PATH)
 	include_directories(${OPENFEC_PATH}/src/lib_common)
 	set(OPENFEC_LIBRARY ${OPENFEC_PATH}/bin/Release/libopenfec.so)
 	add_definitions(-DWITH_OPENFEC=1)
+	message(STATUS "Found and using OpenFEC at: ${OPENFEC_PATH}")
 else()
 	set(OPENFEC_LIBRARY "")
 endif()
 
 find_library(BZ2_LIBRARY bz2 REQUIRED)
-
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
 add_executable(udp_sender
