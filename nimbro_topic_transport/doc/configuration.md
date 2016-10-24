@@ -67,3 +67,5 @@ parameter is `name`.
  - `resend`: If the sender does not get a message 1.0/`rate` after the last one,
    it will re-send the last received one. (UDP only)
  - `compress`: If true, compress the data on the wire with bz2.
+ - `type`: Topic type. This is entirely optional, but enforces the topic type.
+   Otherwise, the type is detected from the first message arriving on the topic.

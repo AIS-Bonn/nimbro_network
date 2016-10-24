@@ -95,7 +95,8 @@ void TopicSender::send()
 		else
 		{
 			m_buf.resize(m_lastData->size());
-			m_lastData->write(*this);
+			m_buf.beginWrite();
+			m_lastData->write(m_buf);
 
 			if(m_flags & UDP_FLAG_COMPRESSED)
 			{
