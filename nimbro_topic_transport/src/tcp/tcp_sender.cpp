@@ -77,8 +77,11 @@ TCPSender::TCPSender()
 		if(entry.hasMember("compress") && ((bool)entry["compress"]) == true)
 			flags |= TCP_FLAG_COMPRESSED;
 
+		if(entry.hasMember("latch") && ((bool)entry["latch"]) == true)
+			flags |= TCP_FLAG_LATCHED;
+
 		boost::function<void(const topic_tools::ShapeShifter::ConstPtr&)> func;
-		func = boost::bind(&TCPSender::send, this, topic, flags, _1);
+		func = boost::bind(&TCPSender::send, this, topic, flags, _1, true);
 
 		ros::SubscribeOptions options;
 		options.initByFullCallbackType<topic_tools::ShapeShifter::ConstPtr>(topic, 20, func);
@@ -138,7 +141,7 @@ TCPSender::TCPSender()
 		boost::bind(&TCPSender::updateStats, this)
 	);
 	m_statsTimer.start();
-}	
+}
 
 TCPSender::~TCPSender()
 {
@@ -218,6 +221,8 @@ bool TCPSender::connect()
 	ROS_WARN("Not setting TCP_USER_TIMEOUT");
 #endif
 
+	this->sendLatched();
+
 	return true;
 }
 
@@ -234,7 +239,8 @@ private:
 	uint8_t* m_ptr;
 };
 
-void TCPSender::send(const std::string& topic, int flags, const topic_tools::ShapeShifter::ConstPtr& shifter)
+void TCPSender::send(const std::string& topic, int flags, const topic_tools::ShapeShifter::ConstPtr& shifter,
+					 const bool reconnect)
 {
 #if WITH_CONFIG_SERVER
 	if (! (*m_enableTopic[topic])() )
@@ -249,6 +255,9 @@ void TCPSender::send(const std::string& topic, int flags, const topic_tools::Sha
 
 	if(flags & TCP_FLAG_COMPRESSED)
 		maxDataSize = size + size / 100 + 1200; // taken from bzip2 docs
+
+	if (flags & TCP_FLAG_LATCHED)
+		this->m_latchedMessages[topic] = std::make_pair(shifter, flags);
 
 	m_packet.resize(
 		sizeof(TCPHeader) + topic.length() + type.length() + maxDataSize
@@ -312,10 +321,12 @@ void TCPSender::send(const std::string& topic, int flags, const topic_tools::Sha
 	{
 		if(m_fd == -1)
 		{
-			if(!connect())
+			if(reconnect && !connect())
 			{
 				ROS_WARN("Connection failed, trying again");
 				continue;
+			} else if (!reconnect) {
+				break;
 			}
 		}
 
@@ -361,6 +372,18 @@ void TCPSender::updateStats()
 
 	m_pub_stats.publish(m_stats);
 	m_sentBytesInStatsInterval = 0;
+}
+
+void TCPSender::sendLatched() {
+
+	std::map<std::string, std::pair<topic_tools::ShapeShifter::ConstPtr, int>>::iterator it =
+			this->m_latchedMessages.begin();
+
+	// send all latched messages
+	while (it != this->m_latchedMessages.end()) {
+		this->send(it->first, it->second.second, it->second.first, false);
+		it++;
+	}
 }
 
 }
