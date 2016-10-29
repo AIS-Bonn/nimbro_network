@@ -81,7 +81,7 @@ TCPSender::TCPSender()
 			flags |= TCP_FLAG_LATCHED;
 
 		boost::function<void(const topic_tools::ShapeShifter::ConstPtr&)> func;
-		func = boost::bind(&TCPSender::send, this, topic, flags, _1);
+		func = boost::bind(&TCPSender::send, this, topic, flags, _1, true);
 
 		ros::SubscribeOptions options;
 		options.initByFullCallbackType<topic_tools::ShapeShifter::ConstPtr>(topic, 20, func);
@@ -141,9 +141,6 @@ TCPSender::TCPSender()
 		boost::bind(&TCPSender::updateStats, this)
 	);
 	m_statsTimer.start();
-
-    m_latchedMessageRequestServer = m_nh.advertiseService(
-            "request_latched_message", &TCPSender::sendLatched, this);
 }
 
 TCPSender::~TCPSender()
@@ -224,6 +221,8 @@ bool TCPSender::connect()
 	ROS_WARN("Not setting TCP_USER_TIMEOUT");
 #endif
 
+	this->sendLatched();
+
 	return true;
 }
 
@@ -240,7 +239,8 @@ private:
 	uint8_t* m_ptr;
 };
 
-void TCPSender::send(const std::string& topic, int flags, const topic_tools::ShapeShifter::ConstPtr& shifter)
+void TCPSender::send(const std::string& topic, int flags, const topic_tools::ShapeShifter::ConstPtr& shifter,
+					 const bool reconnect)
 {
 #if WITH_CONFIG_SERVER
 	if (! (*m_enableTopic[topic])() )
@@ -321,10 +321,12 @@ void TCPSender::send(const std::string& topic, int flags, const topic_tools::Sha
 	{
 		if(m_fd == -1)
 		{
-			if(!connect())
+			if(reconnect && !connect())
 			{
 				ROS_WARN("Connection failed, trying again");
 				continue;
+			} else if (!reconnect) {
+				break;
 			}
 		}
 
@@ -372,21 +374,16 @@ void TCPSender::updateStats()
 	m_sentBytesInStatsInterval = 0;
 }
 
-bool TCPSender::sendLatched(nimbro_topic_transport::LatchedMessageRequest::Request& request,
-                            nimbro_topic_transport::LatchedMessageRequest::Response& response) {
+void TCPSender::sendLatched() {
 
-    if (this->m_latchedMessages.find(request.topic_name) == this->m_latchedMessages.end()) {
-        response.message_sent = false;
-        return true;
-    }
+	std::map<std::string, std::pair<topic_tools::ShapeShifter::ConstPtr, int>>::iterator it =
+			this->m_latchedMessages.begin();
 
-    std::pair<topic_tools::ShapeShifter::ConstPtr, int> record =
-            this->m_latchedMessages.find(request.topic_name)->second;
-
-    this->send(request.topic_name, record.second, record.first);
-    response.message_sent = true;
-
-    return true;
+	// send all latched messages
+	while (it != this->m_latchedMessages.end()) {
+		this->send(it->first, it->second.second, it->second.first, false);
+		it++;
+	}
 }
 
 }

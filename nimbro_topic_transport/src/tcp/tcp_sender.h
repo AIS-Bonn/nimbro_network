@@ -17,7 +17,6 @@
 #include <map>
 
 #include <nimbro_topic_transport/SenderStats.h>
-#include <nimbro_topic_transport/LatchedMessageRequest.h>
 
 namespace nimbro_topic_transport
 {
@@ -30,9 +29,9 @@ public:
 
 	bool connect();
 
-	void send(const std::string& topic, int flags, const topic_tools::ShapeShifter::ConstPtr& shifter);
-    bool sendLatched(nimbro_topic_transport::LatchedMessageRequest::Request& request,
-                     nimbro_topic_transport::LatchedMessageRequest::Response& response);
+	void send(const std::string& topic, int flags, const topic_tools::ShapeShifter::ConstPtr& shifter,
+			  const bool reconnect = true);
+    void sendLatched();
 private:
 	void updateStats();
 
@@ -60,7 +59,6 @@ private:
 	ros::WallTimer m_statsTimer;
 	uint64_t m_sentBytesInStatsInterval;
 	std::map<std::string, uint64_t> m_topicSendBytesInStatsInteral;
-    ros::ServiceServer m_latchedMessageRequestServer;
 };
 
 }
