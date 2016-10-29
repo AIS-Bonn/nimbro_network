@@ -143,7 +143,7 @@ TCPSender::TCPSender()
 	m_statsTimer.start();
 
     m_latchedMessageRequestServer = m_nh.advertiseService(
-            "request_latched_message", &TCPSender::sendLatched, this);
+            "publish_latched_messages", &TCPSender::sendLatched, this);
 }
 
 TCPSender::~TCPSender()
@@ -372,19 +372,16 @@ void TCPSender::updateStats()
 	m_sentBytesInStatsInterval = 0;
 }
 
-bool TCPSender::sendLatched(nimbro_topic_transport::LatchedMessageRequest::Request& request,
-                            nimbro_topic_transport::LatchedMessageRequest::Response& response) {
+bool TCPSender::sendLatched(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response) {
 
-    if (this->m_latchedMessages.find(request.topic_name) == this->m_latchedMessages.end()) {
-        response.message_sent = false;
-        return true;
+    std::map<std::string, std::pair<topic_tools::ShapeShifter::ConstPtr, int>>::iterator it =
+            this->m_latchedMessages.begin();
+
+    // send all latched messages
+    while (it != this->m_latchedMessages.end()) {
+        this->send(it->first, it->second.second, it->second.first);
+        it++;
     }
-
-    std::pair<topic_tools::ShapeShifter::ConstPtr, int> record =
-            this->m_latchedMessages.find(request.topic_name)->second;
-
-    this->send(request.topic_name, record.second, record.first);
-    response.message_sent = true;
 
     return true;
 }

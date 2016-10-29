@@ -16,8 +16,9 @@
 
 #include <map>
 
+#include <std_srvs/Empty.h>
+
 #include <nimbro_topic_transport/SenderStats.h>
-#include <nimbro_topic_transport/LatchedMessageRequest.h>
 
 namespace nimbro_topic_transport
 {
@@ -31,8 +32,7 @@ public:
 	bool connect();
 
 	void send(const std::string& topic, int flags, const topic_tools::ShapeShifter::ConstPtr& shifter);
-    bool sendLatched(nimbro_topic_transport::LatchedMessageRequest::Request& request,
-                     nimbro_topic_transport::LatchedMessageRequest::Response& response);
+    bool sendLatched(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
 private:
 	void updateStats();
 

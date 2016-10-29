@@ -1,4 +1,9 @@
 <launch>
+	<arg name="support_latching" default="0" />
+	<arg name="latch_helper_server_port" default="17010" />
+	<arg name="latch_helper_server_hostname" default="localhost" />
+	<arg name="latch_helper_service_server_name" default="tcp_sender" />
+
 	<node name="tcp_receiver" pkg="nimbro_topic_transport" type="tcp_receiver" output="screen">
 		<param name="port" value="17001" />
 
@@ -8,4 +13,10 @@
 		<remap from="/my_first_topic" to="/recv/my_first_topic" />
 		<remap from="/my_second_topic" to="/recv/my_second_topic" />
 	</node>
+
+	<include file="$(find nimbro_topic_transport)/launch/tcp_receiver_latch_helper.launch" if="$(arg support_latching)">
+		<arg name="server_port" value="$(arg latch_helper_server_port)" />
+		<arg name="server_hostname" value="$(arg latch_helper_server_hostname)" />
+		<arg name="service_server_name" value="$(arg latch_helper_service_server_name)" />
+	</include>
 </launch>

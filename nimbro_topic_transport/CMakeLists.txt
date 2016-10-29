@@ -7,6 +7,8 @@ find_package(catkin REQUIRED COMPONENTS
 	topic_tools
 	rostest
 	message_generation
+    std_msgs
+    std_srvs
 )
 
 add_message_files(FILES
@@ -14,10 +16,6 @@ add_message_files(FILES
 	ReceiverStats.msg
 	SenderStats.msg
 	TopicBandwidth.msg
-)
-
-add_service_files(FILES
-	LatchedMessageRequest.srv
 )
 
 generate_messages(DEPENDENCIES

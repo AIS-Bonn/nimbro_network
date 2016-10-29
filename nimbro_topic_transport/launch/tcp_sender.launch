@@ -1,5 +1,7 @@
 <launch>
 	<arg name="target" default="localhost" />
+	<arg name="support_latching" default="0" />
+	<arg name="latch_helper_server_port" default="17010" />
 
 	<!-- The UDP sender node -->
 	<node name="tcp_sender" pkg="nimbro_topic_transport" type="tcp_sender" output="screen">
@@ -11,4 +13,8 @@
 		<!-- Load the list of topics from a YAML file -->
 		<rosparam command="load" file="$(find nimbro_topic_transport)/launch/topics.yaml" />
 	</node>
+
+	<include file="$(find nimbro_topic_transport)/launch/tcp_sender_latch_helper.launch" if="$(arg support_latching)">
+		<arg name="server_port" value="$(arg latch_helper_server_port)" />
+	</include>
 </launch>
