@@ -10,6 +10,7 @@
 #include "tcp_packet.h"
 #include "../topic_info.h"
 #include <topic_tools/shape_shifter.h>
+#include <std_msgs/String.h>
 
 #include <bzlib.h>
 
@@ -106,6 +107,8 @@ TCPReceiver::TCPReceiver()
 	);
 
 	m_nh.param("topic_prefix", m_topicPrefix, std::string());
+
+    m_pub_ready = m_nh.advertise<std_msgs::String>("/network/receiver_ready", 1, true);
 }
 
 TCPReceiver::~TCPReceiver()
@@ -115,6 +118,10 @@ TCPReceiver::~TCPReceiver()
 void TCPReceiver::run()
 {
 	fd_set fds;
+
+    std_msgs::String readyMessage;
+    readyMessage.data = "";
+    m_pub_ready.publish(readyMessage);
 
 	while(ros::ok())
 	{
@@ -344,6 +351,10 @@ void TCPReceiver::ClientHandler::run()
 					type,
 					topic_info::getMsgDef(type)
 				);
+
+				if (header.flags() & TCP_FLAG_LATCHED) {
+					options.latch = true;
+				}
 
 				// It will take subscribers some time to connect to our publisher.
 				// Therefore, latch messages so they will not be lost.

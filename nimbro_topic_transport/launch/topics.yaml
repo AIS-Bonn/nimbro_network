@@ -3,3 +3,4 @@ topics:
    compress: true # enable bz2 compression
    rate: 1.0 # rate limit at 1Hz
  - name: "/my_second_topic"
+   latch: True

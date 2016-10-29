@@ -14,6 +14,10 @@
 #include <config_server/parameter.h>
 #endif
 
+#include <map>
+
+#include <std_srvs/Empty.h>
+
 #include <nimbro_topic_transport/SenderStats.h>
 
 namespace nimbro_topic_transport
@@ -28,6 +32,7 @@ public:
 	bool connect();
 
 	void send(const std::string& topic, int flags, const topic_tools::ShapeShifter::ConstPtr& shifter);
+    bool sendLatched(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
 private:
 	void updateStats();
 
@@ -43,6 +48,8 @@ private:
 	std::vector<uint8_t> m_packet;
 	std::vector<uint8_t> m_compressionBuf;
 
+	std::map<std::string, std::pair<topic_tools::ShapeShifter::ConstPtr, int> > m_latchedMessages;
+
 #if WITH_CONFIG_SERVER
 	std::map<std::string, boost::shared_ptr<config_server::Parameter<bool>>> m_enableTopic;
 #endif
@@ -53,6 +60,7 @@ private:
 	ros::WallTimer m_statsTimer;
 	uint64_t m_sentBytesInStatsInterval;
 	std::map<std::string, uint64_t> m_topicSendBytesInStatsInteral;
+    ros::ServiceServer m_latchedMessageRequestServer;
 };
 
 }

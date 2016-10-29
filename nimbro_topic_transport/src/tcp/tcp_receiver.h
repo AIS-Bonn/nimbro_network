@@ -65,6 +65,7 @@ private:
 	ros::WallTimer m_statsTimer;
 
 	std::string m_topicPrefix;
+	ros::Publisher m_pub_ready;
 };
 
 }

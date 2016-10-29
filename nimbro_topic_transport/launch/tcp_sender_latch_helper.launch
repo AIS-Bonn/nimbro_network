@@ -1,0 +1,7 @@
+<launch>
+    <arg name="server_port" />
+
+    <node name="$(anon tcp_sender_latch_helper_service_server)" pkg="nimbro_service_transport" type="service_server">
+        <param name="port" value="$(arg server_port)" />
+    </node>
+</launch>

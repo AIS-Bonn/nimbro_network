@@ -1,0 +1,21 @@
+<launch>
+    <arg name="service_server_name" />
+    <arg name="server_hostname" />
+    <arg name="server_port" />
+
+    <node pkg="nimbro_topic_transport" type="tcp_receiver_latch_helper.py" name="$(anon tcp_receiver_latch_helper)">
+        <param name="service_server_name" value="$(arg service_server_name)" />
+    </node>
+
+    <node pkg="nimbro_service_transport" type="service_client" name="$(anon tcp_receiver_latch_helper_service_client)">
+        <param name="server" value="$(arg server_hostname)" />
+        <param name="port" value="$(arg server_port)" />
+
+<rosparam subst_value="true">
+services:
+  - name: "$(arg service_server_name)/publish_latched_topics"
+    type: "std_srvs/Empty"
+</rosparam>
+
+    </node>
+</launch>
