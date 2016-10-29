@@ -21,7 +21,13 @@ class LatchHelper(object):
         self._service_server = rospy.ServiceProxy(self._service_server_name + "/publish_latched_messages", Empty)
 
     def receiver_ready_cb(self, receiver_name_msg):
-        self._service_server(EmptyRequest())
+        try:
+            self._service_server.wait_for_service(timeout=0.1)
+            self._service_server(EmptyRequest())
+        except rospy.ROSException:  # It means the waiting timed out
+            # So we have nobody to contact and we can omit calling the service
+            pass
+
 
 if __name__ == '__main__':
     rospy.init_node("tcp_receiver_latch_helper")
