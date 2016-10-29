@@ -77,6 +77,9 @@ TCPSender::TCPSender()
 		if(entry.hasMember("compress") && ((bool)entry["compress"]) == true)
 			flags |= TCP_FLAG_COMPRESSED;
 
+		if(entry.hasMember("latch") && ((bool)entry["latch"]) == true)
+			flags |= TCP_FLAG_LATCHED;
+
 		boost::function<void(const topic_tools::ShapeShifter::ConstPtr&)> func;
 		func = boost::bind(&TCPSender::send, this, topic, flags, _1);
 
@@ -138,7 +141,10 @@ TCPSender::TCPSender()
 		boost::bind(&TCPSender::updateStats, this)
 	);
 	m_statsTimer.start();
-}	
+
+    m_latchedMessageRequestServer = m_nh.advertiseService(
+            "request_latched_message", &TCPSender::sendLatched, this);
+}
 
 TCPSender::~TCPSender()
 {
@@ -249,6 +255,9 @@ void TCPSender::send(const std::string& topic, int flags, const topic_tools::Sha
 
 	if(flags & TCP_FLAG_COMPRESSED)
 		maxDataSize = size + size / 100 + 1200; // taken from bzip2 docs
+
+	if (flags & TCP_FLAG_LATCHED)
+		this->m_latchedMessages[topic] = std::make_pair(shifter, flags);
 
 	m_packet.resize(
 		sizeof(TCPHeader) + topic.length() + type.length() + maxDataSize
@@ -361,6 +370,23 @@ void TCPSender::updateStats()
 
 	m_pub_stats.publish(m_stats);
 	m_sentBytesInStatsInterval = 0;
+}
+
+bool TCPSender::sendLatched(nimbro_topic_transport::LatchedMessageRequest::Request& request,
+                            nimbro_topic_transport::LatchedMessageRequest::Response& response) {
+
+    if (this->m_latchedMessages.find(request.topic_name) == this->m_latchedMessages.end()) {
+        response.message_sent = false;
+        return true;
+    }
+
+    std::pair<topic_tools::ShapeShifter::ConstPtr, int> record =
+            this->m_latchedMessages.find(request.topic_name)->second;
+
+    this->send(request.topic_name, record.second, record.first);
+    response.message_sent = true;
+
+    return true;
 }
 
 }

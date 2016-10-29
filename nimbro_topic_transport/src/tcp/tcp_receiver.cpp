@@ -345,6 +345,10 @@ void TCPReceiver::ClientHandler::run()
 					topic_info::getMsgDef(type)
 				);
 
+				if (header.flags() & TCP_FLAG_LATCHED) {
+					options.latch = true;
+				}
+
 				// It will take subscribers some time to connect to our publisher.
 				// Therefore, latch messages so they will not be lost.
 				// No, this is often unexpected. Instead, wait before publishing.
