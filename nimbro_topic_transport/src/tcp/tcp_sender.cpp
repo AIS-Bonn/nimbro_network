@@ -9,6 +9,8 @@
 #include <netinet/tcp.h>
 #include <boost/algorithm/string/replace.hpp>
 
+#include "ros/message_traits.h"
+
 #include <netdb.h>
 
 namespace nimbro_topic_transport
@@ -77,11 +79,14 @@ TCPSender::TCPSender()
 		if(entry.hasMember("compress") && ((bool)entry["compress"]) == true)
 			flags |= TCP_FLAG_COMPRESSED;
 
-		boost::function<void(const topic_tools::ShapeShifter::ConstPtr&)> func;
-		func = boost::bind(&TCPSender::send, this, topic, flags, _1);
+		if(entry.hasMember("latch") && ((bool)entry["latch"]) == true)
+			flags |= TCP_FLAG_LATCHED;
+
+		boost::function<void(const ros::MessageEvent<topic_tools::ShapeShifter const>&)> func;
+		func = boost::bind(&TCPSender::messageCallback, this, topic, flags, _1);
 
 		ros::SubscribeOptions options;
-		options.initByFullCallbackType<topic_tools::ShapeShifter::ConstPtr>(topic, 20, func);
+		options.initByFullCallbackType<const ros::MessageEvent<topic_tools::ShapeShifter const>&>(topic, 20, func);
 
 		if(entry.hasMember("type"))
 		{
@@ -114,6 +119,9 @@ TCPSender::TCPSender()
 #endif
 	}
 
+    if (m_nh.hasParam("ignored_publishers"))
+        m_nh.getParam("ignored_publishers", m_ignoredPubs);
+
 	char hostnameBuf[256];
 	gethostname(hostnameBuf, sizeof(hostnameBuf));
 	hostnameBuf[sizeof(hostnameBuf)-1] = 0;
@@ -138,7 +146,7 @@ TCPSender::TCPSender()
 		boost::bind(&TCPSender::updateStats, this)
 	);
 	m_statsTimer.start();
-}	
+}
 
 TCPSender::~TCPSender()
 {
@@ -218,6 +226,8 @@ bool TCPSender::connect()
 	ROS_WARN("Not setting TCP_USER_TIMEOUT");
 #endif
 
+	this->sendLatched();
+
 	return true;
 }
 
@@ -234,7 +244,31 @@ private:
 	uint8_t* m_ptr;
 };
 
-void TCPSender::send(const std::string& topic, int flags, const topic_tools::ShapeShifter::ConstPtr& shifter)
+void TCPSender::messageCallback(const std::string& topic, int flags,
+                                const ros::MessageEvent<topic_tools::ShapeShifter const>& event)
+{
+#if WITH_CONFIG_SERVER
+    if (! (*m_enableTopic[topic])() )
+		return;
+#endif
+
+    if (m_ignoredPubs.size() > 0) // check if the message wasn't published by an ignored publisher
+    {
+        std::string messagePublisher = event.getConnectionHeader()["callerid"];
+        for (std::vector<std::string>::iterator ignoredPublisher = m_ignoredPubs.begin();
+             ignoredPublisher != m_ignoredPubs.end(); ignoredPublisher++) {
+            if (messagePublisher == *ignoredPublisher) {
+                return;
+            }
+        }
+    }
+
+    this->send(topic, flags, event.getMessage());
+}
+
+
+void TCPSender::send(const std::string& topic, int flags, topic_tools::ShapeShifter::ConstPtr shifter,
+					 const bool reconnect)
 {
 #if WITH_CONFIG_SERVER
 	if (! (*m_enableTopic[topic])() )
@@ -249,6 +283,9 @@ void TCPSender::send(const std::string& topic, int flags, const topic_tools::Sha
 
 	if(flags & TCP_FLAG_COMPRESSED)
 		maxDataSize = size + size / 100 + 1200; // taken from bzip2 docs
+
+	if (flags & TCP_FLAG_LATCHED)
+		this->m_latchedMessages[topic] = std::make_pair(shifter, flags);
 
 	m_packet.resize(
 		sizeof(TCPHeader) + topic.length() + type.length() + maxDataSize
@@ -312,10 +349,12 @@ void TCPSender::send(const std::string& topic, int flags, const topic_tools::Sha
 	{
 		if(m_fd == -1)
 		{
-			if(!connect())
+			if(reconnect && !connect())
 			{
 				ROS_WARN("Connection failed, trying again");
 				continue;
+			} else if (!reconnect) {
+				break;
 			}
 		}
 
@@ -361,6 +400,18 @@ void TCPSender::updateStats()
 
 	m_pub_stats.publish(m_stats);
 	m_sentBytesInStatsInterval = 0;
+}
+
+void TCPSender::sendLatched() {
+
+	std::map<std::string, std::pair<topic_tools::ShapeShifter::ConstPtr, int> >::iterator it =
+			this->m_latchedMessages.begin();
+
+	// send all latched messages
+	while (it != this->m_latchedMessages.end()) {
+		this->send(it->first, it->second.second, it->second.first, false);
+		it++;
+	}
 }
 
 }

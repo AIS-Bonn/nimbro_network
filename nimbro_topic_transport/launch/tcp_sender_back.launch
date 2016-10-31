@@ -3,18 +3,18 @@
 	<arg name="allow_bidirectional" default="true" />
 
 	<!-- The UDP sender node -->
-	<node name="tcp_sender" pkg="nimbro_topic_transport" type="tcp_sender" output="screen">
+	<node name="tcp_sender_back" pkg="nimbro_topic_transport" type="tcp_sender" output="screen">
 
 		<!-- The destination host name or IP address -->
 		<param name="destination_addr" value="$(arg target)" />
-		<param name="destination_port" value="17001" />
+		<param name="destination_port" value="17002" />
 
 		<!-- Load the list of topics from a YAML file -->
-		<rosparam command="load" file="$(find nimbro_topic_transport)/launch/topics.yaml" />
+		<rosparam command="load" file="$(find nimbro_topic_transport)/launch/topics_back.yaml" />
 
 		<!-- If bidirectional traffic over a topic is expected, fill this parameter.
 		     See details in bidirectional_topics.launch -->
-		<rosparam param="ignored_publishers" if="$(arg allow_bidirectional)">["/tcp_receiver_back"]</rosparam>
+		<rosparam param="ignored_publishers" if="$(arg allow_bidirectional)">["/tcp_receiver"]</rosparam>
 		<rosparam param="ignored_publishers" unless="$(arg allow_bidirectional)">[]</rosparam>
 	</node>
 </launch>
