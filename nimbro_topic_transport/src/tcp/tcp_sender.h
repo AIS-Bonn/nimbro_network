@@ -33,7 +33,7 @@ public:
 
 	void send(const std::string& topic, int flags, const topic_tools::ShapeShifter::ConstPtr& shifter);
 	void messageCallback(const std::string& topic, int flags,
-						 const ros::MessageEvent<topic_tools::ShapeShifter const>& shifter);
+		const ros::MessageEvent<topic_tools::ShapeShifter const>& shifter);
 private:
 	void updateStats();
 

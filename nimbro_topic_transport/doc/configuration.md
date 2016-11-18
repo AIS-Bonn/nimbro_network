@@ -52,7 +52,7 @@ Optional:
    ignored if received by this sender. This should be used on both senders when 
    messages are to be sent to a topic both ways (always specify the name of the
    receiver belonging to the other sender). See `launch/bidirectional_topics.launch`
-   for an example setup.
+   for an example setup (TCP only)
 
 Topic configuration
 -------------------

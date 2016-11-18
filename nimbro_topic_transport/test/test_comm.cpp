@@ -12,7 +12,7 @@
 
 int g_counter = 0;
 
-void handle_simple(const std_msgs::Int64& msg)
+void handleMessageLocal(const std_msgs::Int64 &msg)
 {
 	REQUIRE(g_counter == msg.data);
 	g_counter++;
@@ -51,7 +51,7 @@ TEST_CASE("simple", "[topic]")
 	ros::NodeHandle nh("~");
 
 	ros::Publisher pub = nh.advertise<std_msgs::Int64>("/test_topic", 2);
-	ros::Subscriber sub = nh.subscribe("/receive/test_topic", 2, &handle_simple);
+	ros::Subscriber sub = nh.subscribe("/receive/test_topic", 2, &handleMessageLocal);
 
 	int timeout = 50;
 	while(pub.getNumSubscribers() == 0)

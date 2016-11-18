@@ -116,8 +116,13 @@ TCPSender::TCPSender()
 #endif
 	}
 
-	if (m_nh.hasParam("ignored_publishers"))
+	if (m_nh.hasParam("ignored_publishers")) {
 		m_nh.getParam("ignored_publishers", m_ignoredPubs);
+		for (std::vector<std::string>::iterator ignoredPublisher = m_ignoredPubs.begin();
+			 	ignoredPublisher != m_ignoredPubs.end(); ignoredPublisher++) {
+			*ignoredPublisher = ros::names::resolve(*ignoredPublisher);
+		}
+	}
 
 	char hostnameBuf[256];
 	gethostname(hostnameBuf, sizeof(hostnameBuf));
@@ -240,23 +245,17 @@ private:
 };
 
 void TCPSender::messageCallback(const std::string& topic, int flags,
-								const ros::MessageEvent<topic_tools::ShapeShifter const>& event)
+		const ros::MessageEvent<topic_tools::ShapeShifter const>& event)
 {
 #if WITH_CONFIG_SERVER
 	if (! (*m_enableTopic[topic])() )
 		return;
 #endif
 
-	if (m_ignoredPubs.size() > 0) // check if the message wasn't published by an ignored publisher
-	{
-		std::string messagePublisher = event.getConnectionHeader()["callerid"];
-		for (std::vector<std::string>::iterator ignoredPublisher = m_ignoredPubs.begin();
-			 ignoredPublisher != m_ignoredPubs.end(); ignoredPublisher++) {
-			if (messagePublisher == *ignoredPublisher) {
-				return;
-			}
-		}
-	}
+	// check if the message wasn't published by an ignored publisher
+	std::string const &messagePublisher = event.getConnectionHeader()["callerid"];
+	if (std::find(m_ignoredPubs.begin(), m_ignoredPubs.end(), messagePublisher) != m_ignoredPubs.end())
+		return;
 
 	send(topic, flags, event.getMessage());
 }
