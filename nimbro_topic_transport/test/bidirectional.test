@@ -1,0 +1,11 @@
+<launch>
+	<arg name="allow_bidirectional" default="true" />
+
+	<include file="$(find nimbro_topic_transport)/launch/bidirectional_topics.launch">
+		<arg name="allow_bidirectional" value="$(arg allow_bidirectional)" />
+	</include>
+
+	<test test-name="test_bidirectional_$(arg allow_bidirectional)" pkg="nimbro_topic_transport" type="test_bidirectional">
+		<param name="allow_bidirectional" value="$(arg allow_bidirectional)" />
+	</test>
+</launch>

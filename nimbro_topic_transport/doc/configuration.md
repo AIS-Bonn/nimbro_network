@@ -48,6 +48,11 @@ Optional:
  - `relay_target_bitrate` (float): Target bitrate for relay mode (UDP only)
  - `relay_control_rate` (float): Check if new packets can be sent in relay mode
    at this rate (UDP only)
+ - `ignored_publishers` (list of string): Names of nodes whose messages should be 
+   ignored if received by this sender. This should be used on both senders when 
+   messages are to be sent to a topic both ways (always specify the name of the
+   receiver belonging to the other sender). See `launch/bidirectional_topics.launch`
+   for an example setup (TCP only)
 
 Topic configuration
 -------------------

@@ -1,0 +1,22 @@
+<launch>
+    <arg name="allow_bidirectional" default="true" />
+
+    <!--
+    If you set up transports for a topic in both directions, don't forget to
+    provide the `ignored_publishers` parameter to both senders. Otherwise,
+    nimbro_network would enter an infinite republishing loop. You can test it
+    by playing with the `allow_bidirectional` argument and publishing to one
+    of the topics.
+
+    The `ignored_publishers` sender parameter is a list of node-names of
+    all receivers receiving any of the topics this publisher publishes.
+    -->
+
+    <include file="$(find nimbro_topic_transport)/launch/bidirectional_machine1.launch">
+        <arg name="allow_bidirectional" value="$(arg allow_bidirectional)" />
+    </include>
+
+    <include file="$(find nimbro_topic_transport)/launch/bidirectional_machine2.launch">
+        <arg name="allow_bidirectional" value="$(arg allow_bidirectional)" />
+    </include>
+</launch>

@@ -182,6 +182,16 @@ if(catch_ros_FOUND)
 	if(OPENFEC_PATH)
 		add_rostest(test/topic_transport.test ARGS protocol:=udp fec:=true)
 	endif()
+
+	catch_add_rostest_node(test_bidirectional
+		test/test_bidirectional.cpp
+	)
+	target_link_libraries(test_bidirectional
+		${catkin_LIBRARIES}
+	)
+
+	add_rostest(test/bidirectional.test ARGS allow_bidirectional:=true)
+	add_rostest(test/bidirectional.test ARGS allow_bidirectional:=false)
 endif()
 
 #install

@@ -9,6 +9,8 @@
 #include <netinet/tcp.h>
 #include <boost/algorithm/string/replace.hpp>
 
+#include "ros/message_traits.h"
+
 #include <netdb.h>
 
 namespace nimbro_topic_transport
@@ -77,11 +79,11 @@ TCPSender::TCPSender()
 		if(entry.hasMember("compress") && ((bool)entry["compress"]) == true)
 			flags |= TCP_FLAG_COMPRESSED;
 
-		boost::function<void(const topic_tools::ShapeShifter::ConstPtr&)> func;
-		func = boost::bind(&TCPSender::send, this, topic, flags, _1);
+		boost::function<void(const ros::MessageEvent<topic_tools::ShapeShifter const>&)> func;
+		func = boost::bind(&TCPSender::messageCallback, this, topic, flags, _1);
 
 		ros::SubscribeOptions options;
-		options.initByFullCallbackType<topic_tools::ShapeShifter::ConstPtr>(topic, 20, func);
+		options.initByFullCallbackType<const ros::MessageEvent<topic_tools::ShapeShifter const>&>(topic, 20, func);
 
 		if(entry.hasMember("type"))
 		{
@@ -112,6 +114,14 @@ TCPSender::TCPSender()
 		boost::shared_ptr<config_server::Parameter<bool>> parameter( new config_server::Parameter<bool>(parameterName, enabled));
 		m_enableTopic[topic] = parameter;
 #endif
+	}
+
+	if (m_nh.hasParam("ignored_publishers")) {
+		m_nh.getParam("ignored_publishers", m_ignoredPubs);
+		for (std::vector<std::string>::iterator ignoredPublisher = m_ignoredPubs.begin();
+			 	ignoredPublisher != m_ignoredPubs.end(); ignoredPublisher++) {
+			*ignoredPublisher = ros::names::resolve(*ignoredPublisher);
+		}
 	}
 
 	char hostnameBuf[256];
@@ -233,6 +243,23 @@ public:
 private:
 	uint8_t* m_ptr;
 };
+
+void TCPSender::messageCallback(const std::string& topic, int flags,
+		const ros::MessageEvent<topic_tools::ShapeShifter const>& event)
+{
+#if WITH_CONFIG_SERVER
+	if (! (*m_enableTopic[topic])() )
+		return;
+#endif
+
+	// check if the message wasn't published by an ignored publisher
+	std::string const &messagePublisher = event.getConnectionHeader()["callerid"];
+	if (std::find(m_ignoredPubs.begin(), m_ignoredPubs.end(), messagePublisher) != m_ignoredPubs.end())
+		return;
+
+	send(topic, flags, event.getMessage());
+}
+
 
 void TCPSender::send(const std::string& topic, int flags, const topic_tools::ShapeShifter::ConstPtr& shifter)
 {
