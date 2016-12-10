@@ -150,7 +150,7 @@ UDPSender::UDPSender()
 
 		if(list[i].hasMember("zstd"))
 		{
-			auto value = list[i]["compress"];
+			auto value = list[i]["zstd"];
 
 			if(value.getType() == XmlRpc::XmlRpcValue::TypeBoolean && ((bool)value))
 				compression = TopicSender::COMPRESSION_ZSTD;
