@@ -245,7 +245,7 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 
 		topic->publishCompressed(compressed);
 	}
-	else if(header->flags & UDP_FLAG_COMPRESSED)
+	else if(compressed)
 		topic->takeForDecompression(boost::make_shared<Message>(*msg));
 	else
 	{
