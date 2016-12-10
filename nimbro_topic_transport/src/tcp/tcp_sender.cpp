@@ -6,6 +6,10 @@
 
 #include <bzlib.h>
 
+#if WITH_ZSTD
+#include <zstd.h>
+#endif
+
 #include <netinet/tcp.h>
 #include <boost/algorithm/string/replace.hpp>
 
@@ -74,11 +78,39 @@ TCPSender::TCPSender()
 		std::string topic = entry["name"];
 		int flags = 0;
 
-		if(entry.hasMember("compress") && ((bool)entry["compress"]) == true)
-			flags |= TCP_FLAG_COMPRESSED;
+		CompressionType compression = COMPRESSION_NONE;
+		int compressionLevel = -1;
+
+		if(entry.hasMember("compress"))
+		{
+			auto value = entry["compress"];
+			if(value.getType() == XmlRpc::XmlRpcValue::TypeBoolean && ((bool)value))
+			{
+				compression = COMPRESSION_BZ2;
+			}
+			else if(value.getType() == XmlRpc::XmlRpcValue::TypeInt)
+			{
+				compression = COMPRESSION_BZ2;
+				compressionLevel = value;
+			}
+		}
+
+		if(entry.hasMember("zstd"))
+		{
+			auto value = entry["zstd"];
+			if(value.getType() == XmlRpc::XmlRpcValue::TypeBoolean && ((bool)value))
+			{
+				compression = COMPRESSION_ZSTD;
+			}
+			else if(value.getType() == XmlRpc::XmlRpcValue::TypeInt)
+			{
+				compression = COMPRESSION_ZSTD;
+				compressionLevel = value;
+			}
+		}
 
 		boost::function<void(const topic_tools::ShapeShifter::ConstPtr&)> func;
-		func = boost::bind(&TCPSender::send, this, topic, flags, _1);
+		func = boost::bind(&TCPSender::send, this, topic, flags, compression, compressionLevel, _1);
 
 		ros::SubscribeOptions options;
 		options.initByFullCallbackType<topic_tools::ShapeShifter::ConstPtr>(topic, 20, func);
@@ -234,7 +266,7 @@ private:
 	uint8_t* m_ptr;
 };
 
-void TCPSender::send(const std::string& topic, int flags, const topic_tools::ShapeShifter::ConstPtr& shifter)
+void TCPSender::send(const std::string& topic, int flags, CompressionType compression, int compressionLevel, const topic_tools::ShapeShifter::ConstPtr& shifter)
 {
 #if WITH_CONFIG_SERVER
 	if (! (*m_enableTopic[topic])() )
@@ -247,8 +279,20 @@ void TCPSender::send(const std::string& topic, int flags, const topic_tools::Sha
 
 	uint32_t maxDataSize = size;
 
-	if(flags & TCP_FLAG_COMPRESSED)
-		maxDataSize = size + size / 100 + 1200; // taken from bzip2 docs
+	switch(compression)
+	{
+		case COMPRESSION_BZ2:
+			maxDataSize = size + size / 100 + 1200; // taken from bzip2 docs
+			break;
+#if WITH_ZSTD
+		case COMPRESSION_ZSTD:
+			maxDataSize = ZSTD_compressBound(size);
+			break;
+#endif
+		default:
+			maxDataSize = size;
+			break;
+	}
 
 	m_packet.resize(
 		sizeof(TCPHeader) + topic.length() + type.length() + maxDataSize
@@ -265,7 +309,7 @@ void TCPSender::send(const std::string& topic, int flags, const topic_tools::Sha
 	memcpy(wptr, type.c_str(), type.length());
 	wptr += type.length();
 
-	if(flags & TCP_FLAG_COMPRESSED)
+	if(compression == COMPRESSION_BZ2)
 	{
 		unsigned int len = m_packet.size() - (wptr - m_packet.data());
 
@@ -273,16 +317,54 @@ void TCPSender::send(const std::string& topic, int flags, const topic_tools::Sha
 		PtrStream stream(m_compressionBuf.data());
 		shifter->write(stream);
 
-		if(BZ2_bzBuffToBuffCompress((char*)wptr, &len, (char*)m_compressionBuf.data(), m_compressionBuf.size(), 7, 0, 30) == BZ_OK)
+		if(compressionLevel < 0)
+			compressionLevel = 30;
+
+		if(BZ2_bzBuffToBuffCompress((char*)wptr, &len, (char*)m_compressionBuf.data(), m_compressionBuf.size(), 7, 0, compressionLevel) == BZ_OK)
 		{
 			header->data_len = len;
 			wptr += len;
 			size = len;
+			flags |= TCP_FLAG_COMPRESSED;
 		}
 		else
 		{
 			ROS_ERROR("Could not compress with bzip2 library, sending uncompressed");
-			flags &= ~TCP_FLAG_COMPRESSED;
+			memcpy(wptr, m_compressionBuf.data(), m_compressionBuf.size());
+			header->data_len = m_compressionBuf.size();
+			wptr += m_compressionBuf.size();
+		}
+	}
+	else if(compression == COMPRESSION_ZSTD)
+	{
+#if WITH_ZSTD
+		unsigned int len = m_packet.size() - (wptr - m_packet.data());
+
+		m_compressionBuf.resize(shifter->size());
+		PtrStream stream(m_compressionBuf.data());
+		shifter->write(stream);
+
+		if(compressionLevel < 0)
+			compressionLevel = 1; // default level
+
+		auto ret = ZSTD_compress(wptr, len, m_compressionBuf.data(), m_compressionBuf.size(), compressionLevel);
+		if(!ZSTD_isError(ret))
+		{
+			ROS_DEBUG("Compressed topic '%s' from %lu to %lu (%.2f%%)",
+				topic.c_str(),
+				m_compressionBuf.size(), ret,
+				100.0f * ((float)ret) / ((float)m_compressionBuf.size())
+			);
+
+			header->data_len = ret;
+			wptr += ret;
+			size = ret;
+			flags |= TCP_FLAG_ZSTD;
+		}
+		else
+#endif
+		{
+			ROS_ERROR("Could not compress with zstd library, sending uncompressed");
 			memcpy(wptr, m_compressionBuf.data(), m_compressionBuf.size());
 			header->data_len = m_compressionBuf.size();
 			wptr += m_compressionBuf.size();

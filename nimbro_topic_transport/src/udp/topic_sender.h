@@ -57,6 +57,15 @@ namespace nimbro_topic_transport
 		bool isDirectTransmissionEnabled() const
 		{ return m_directTransmission; }
 
+		enum CompressionType
+		{
+			COMPRESSION_NONE,
+			COMPRESSION_BZ2,
+			COMPRESSION_ZSTD,
+		};
+
+		void setCompression(CompressionType type, int level);
+
 		/**
 		 * Send latest message.
 		 *
@@ -101,6 +110,7 @@ namespace nimbro_topic_transport
 		std::string m_topicType;
 		int m_flags;
 		VectorBuffer m_buf;
+		int m_bufFlags;
 		uint32_t m_md5[4];
 
 		std::vector<uint8_t> m_compressionBuf;
@@ -119,6 +129,9 @@ namespace nimbro_topic_transport
 #if WITH_CONFIG_SERVER
 		config_server::Parameter<bool> m_enable;
 #endif
+
+		CompressionType m_compression;
+		int m_compressionLevel;
 	};
 
 }

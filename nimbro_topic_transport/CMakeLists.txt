@@ -59,6 +59,16 @@ endif()
 
 find_library(BZ2_LIBRARY bz2 REQUIRED)
 
+# Check if zstd is available
+find_library(ZSTD_LIBRARY zstd)
+if(ZSTD_LIBRARY)
+	add_definitions(-DWITH_ZSTD=1)
+	set(ZSTD_LIBRARIES ${ZSTD_LIBRARY})
+else()
+	message(WARNING "Consider installing zstd for fast compression")
+	set(ZSTD_LIBRARIES "")
+endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
 add_executable(udp_sender
 	src/udp/topic_sender.cpp
@@ -73,6 +83,7 @@ target_link_libraries(udp_sender
 	${catkin_LIBRARIES}
 	${BZ2_LIBRARY}
 	${OPENFEC_LIBRARY}
+	${ZSTD_LIBRARIES}
 	${config_server_LIBRARIES}
 )
 
@@ -89,6 +100,7 @@ target_link_libraries(udp_receiver
 	${catkin_LIBRARIES}
 	${BZ2_LIBRARY}
 	${OPENFEC_LIBRARY}
+	${ZSTD_LIBRARIES}
 )
 
 add_executable(tcp_sender
@@ -101,6 +113,7 @@ add_dependencies(tcp_sender
 target_link_libraries(tcp_sender
 	${catkin_LIBRARIES}
 	${BZ2_LIBRARY}
+	${ZSTD_LIBRARIES}
 	${config_server_LIBRARIES}
 )
 
@@ -114,6 +127,7 @@ add_dependencies(tcp_receiver
 target_link_libraries(tcp_receiver
 	${catkin_LIBRARIES}
 	${BZ2_LIBRARY}
+	${ZSTD_LIBRARIES}
 )
 
 # Tools

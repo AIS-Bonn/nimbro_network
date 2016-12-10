@@ -178,7 +178,7 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 		return;
 	}
 
-	bool compressed = header->flags & UDP_FLAG_COMPRESSED;
+	bool compressed = (header->flags & UDP_FLAG_COMPRESSED) || (header->flags & UDP_FLAG_ZSTD);
 
 	// Compare md5
 	if(topic->last_message_counter == -1 || memcmp(topic->md5, header->topic_md5, sizeof(topic->md5)) != 0 || (m_keepCompressed && topic->compressed != compressed))

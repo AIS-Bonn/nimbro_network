@@ -13,6 +13,10 @@
 
 #include <bzlib.h>
 
+#if WITH_ZSTD
+#include <zstd.h>
+#endif
+
 #include <nimbro_topic_transport/CompressedMsg.h>
 
 namespace nimbro_topic_transport
@@ -264,10 +268,13 @@ void TCPReceiver::ClientHandler::run()
 
 		ROS_DEBUG("Got msg with flags: %d", header.flags());
 
-		if(m_keepCompressed && (header.flags() & TCP_FLAG_COMPRESSED))
+		bool compressed = (header.flags & TCP_FLAG_COMPRESSED) || (header.flags & TCP_FLAG_ZSTD);
+
+		if(m_keepCompressed && compressed)
 		{
 			CompressedMsg compressed;
 			compressed.type = type;
+			compressed.flags = header.flags;
 			memcpy(compressed.md5.data(), header.topic_md5sum, sizeof(header.topic_md5sum));
 			compressed.data.swap(data);
 
@@ -318,6 +325,35 @@ void TCPReceiver::ClientHandler::run()
 
 				VectorStream stream(&m_uncompressBuf);
 				shifter.read(stream);
+			}
+			else if(header.flags & TCP_FLAG_ZSTD)
+			{
+#if WITH_ZSTD
+				unsigned long long guess = ZSTD_getDecompressedSize(data.data(), data.size());
+				if(guess == 0 || guess >= 256ULL * 1024ULL * 1024ULL)
+				{
+					ROS_WARN_THROTTLE(1.0, "Could not determine ZSTD uncompressed size, guessing...");
+					guess = 8ULL * 1024ULL * 1024ULL; // 8 MiB
+				}
+
+				m_uncompressBuf.resize(guess);
+
+				auto ret = ZSTD_decompress(m_uncompressBuf.data(), guess, data.data(), data.size());
+				if(ZSTD_isError(ret))
+				{
+					ROS_ERROR("Could not decompress ZSTD message, dropping");
+					continue;
+				}
+
+				ROS_DEBUG("decompress %d KiB (%d) to %d KiB (%d)", (int)data.size() / 1024, (int)data.size(), (int)ret / 1024, (int)ret);
+				m_uncompressBuf.resize(ret);
+
+				VectorStream stream(&m_uncompressBuf);
+				shifter.read(stream);
+#else
+				ROS_ERROR("Received zstd compressed message, but no ZSTD support...");
+				continue;
+#endif
 			}
 			else
 			{

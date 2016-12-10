@@ -8,6 +8,10 @@
 
 #include <bzlib.h>
 
+#if WITH_ZSTD
+#include <zstd.h>
+#endif
+
 #include <nimbro_topic_transport/CompressedMsg.h>
 
 #include <boost/algorithm/string/replace.hpp>
@@ -79,7 +83,7 @@ void TopicSender::send()
 			return;
 
 		// If the data was sent over our CompressedMsg format, do not recompress it
-		if((m_flags & UDP_FLAG_COMPRESSED) && m_lastData->getDataType() == "nimbro_topic_transport/CompressedMsg")
+		if((m_compression != COMPRESSION_NONE) && m_lastData->getDataType() == "nimbro_topic_transport/CompressedMsg")
 		{
 			CompressedMsg::Ptr compressed = m_lastData->instantiate<CompressedMsg>();
 			if(!compressed)
@@ -91,6 +95,7 @@ void TopicSender::send()
 			m_buf.swap(compressed->data);
 			memcpy(m_md5, compressed->md5.data(), sizeof(m_md5));
 			m_topicType = compressed->type;
+			m_bufFlags = compressed->flags;
 		}
 		else
 		{
@@ -98,7 +103,11 @@ void TopicSender::send()
 			m_buf.beginWrite();
 			m_lastData->write(m_buf);
 
-			if(m_flags & UDP_FLAG_COMPRESSED)
+			m_bufFlags = m_flags;
+
+			std::size_t originalSize = m_buf.size();
+
+			if(m_compression == COMPRESSION_BZ2)
 			{
 				unsigned int len = m_buf.size() + m_buf.size() / 100 + 1200;
 				m_compressionBuf.resize(len);
@@ -107,12 +116,42 @@ void TopicSender::send()
 				{
 					m_buf.swap(m_compressionBuf);
 					m_buf.resize(len);
+
+					m_bufFlags |= UDP_FLAG_COMPRESSED;
 				}
 				else
 				{
 					ROS_ERROR("Could not compress data, sending uncompressed");
 				}
 			}
+			else if(m_compression == COMPRESSION_ZSTD)
+			{
+#if WITH_ZSTD
+				unsigned int len = ZSTD_compressBound(m_buf.size());
+				m_compressionBuf.resize(len);
+
+				size_t ret = ZSTD_compress(m_compressionBuf.data(), len, m_buf.data(), m_buf.size(), m_compressionLevel);
+				if(!ZSTD_isError(ret))
+				{
+					m_buf.swap(m_compressionBuf);
+					m_buf.resize(ret);
+
+					m_bufFlags |= UDP_FLAG_ZSTD;
+				}
+				else
+				{
+					ROS_ERROR("Could not compress data with ZSTD, sending uncompressed");
+				}
+#else
+				ROS_ERROR("ZSTD compression requested, but I have no ZSTD support. Sending uncompressed...");
+#endif
+			}
+
+			ROS_DEBUG("Compressed message on topic '%s' from %lu to %lu (%.2f%%)",
+				m_topicName.c_str(),
+				originalSize, m_buf.size(),
+				100.0f * ((float)m_buf.size()) / ((float)originalSize)
+			);
 
 			std::string md5 = m_lastData->getMD5Sum();
 			for(int i = 0; i < 4; ++i)
@@ -260,7 +299,7 @@ void TopicSender::sendWithFEC()
 			FECHeader* msgHeader = reinterpret_cast<FECHeader*>(dataPtr);
 
 			// Fill in header fields
-			msgHeader->flags = m_flags;
+			msgHeader->flags = m_bufFlags;
 			msgHeader->topic_msg_counter = m_inputMsgCounter;
 
 			strncpy(msgHeader->topic_name, m_topicName.c_str(), sizeof(msgHeader->topic_name));
@@ -354,7 +393,7 @@ void TopicSender::sendWithoutFEC()
 
 	first->header.frag_id = 0;
 	first->header.msg_id = msg_id;
-	first->header.flags = m_flags;
+	first->header.flags = m_bufFlags;
 	first->header.topic_msg_counter = m_inputMsgCounter;
 
 	// Calculate number of packets
@@ -464,6 +503,28 @@ void TopicSender::setDirectTransmissionEnabled(bool value)
 		m_resendTimer.start();
 	else
 		m_resendTimer.stop();
+}
+
+void TopicSender::setCompression(CompressionType compression, int compressionLevel)
+{
+	m_compression = compression;
+
+	if(compressionLevel == -1)
+	{
+		switch(compression)
+		{
+			case COMPRESSION_BZ2:
+				compressionLevel = 30;
+				break;
+			case COMPRESSION_ZSTD:
+				compressionLevel = 1;
+				break;
+			default:
+				break;
+		}
+	}
+
+	m_compressionLevel = compressionLevel;
 }
 
 

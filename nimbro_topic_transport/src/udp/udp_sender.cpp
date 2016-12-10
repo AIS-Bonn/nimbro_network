@@ -132,8 +132,34 @@ UDPSender::UDPSender()
 		if(list[i].hasMember("rate"))
 			rate = list[i]["rate"];
 
-		if(list[i].hasMember("compress") && ((bool)list[i]["compress"]))
-			flags |= UDP_FLAG_COMPRESSED;
+		TopicSender::CompressionType compression = TopicSender::COMPRESSION_NONE;
+		int compressionLevel = -1;
+
+		if(list[i].hasMember("compress"))
+		{
+			auto value = list[i]["compress"];
+
+			if(value.getType() == XmlRpc::XmlRpcValue::TypeBoolean && ((bool)value))
+				compression = TopicSender::COMPRESSION_BZ2;
+			else if(value.getType() == XmlRpc::XmlRpcValue::TypeInt)
+			{
+				compression = TopicSender::COMPRESSION_BZ2;
+				compressionLevel = value;
+			}
+		}
+
+		if(list[i].hasMember("zstd"))
+		{
+			auto value = list[i]["compress"];
+
+			if(value.getType() == XmlRpc::XmlRpcValue::TypeBoolean && ((bool)value))
+				compression = TopicSender::COMPRESSION_ZSTD;
+			else if(value.getType() == XmlRpc::XmlRpcValue::TypeInt)
+			{
+				compression = TopicSender::COMPRESSION_ZSTD;
+				compressionLevel = value;
+			}
+		}
 
 		if(list[i].hasMember("resend") && ((bool)list[i]["resend"]))
 			resend = true;
@@ -151,6 +177,8 @@ UDPSender::UDPSender()
 			list[i]["name"], rate, resend,
 			flags, enabled, type
 		);
+
+		sender->setCompression(compression, compressionLevel);
 
 		// In relay mode, we trigger the sending once the queue is empty.
 		// see relay() for details.

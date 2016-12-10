@@ -11,7 +11,8 @@ namespace nimbro_topic_transport
 
 enum TCPFlag
 {
-	TCP_FLAG_COMPRESSED = (1 << 0)
+	TCP_FLAG_COMPRESSED = (1 << 0),
+	TCP_FLAG_ZSTD       = (1 << 0),
 };
 
 struct TCPHeader
