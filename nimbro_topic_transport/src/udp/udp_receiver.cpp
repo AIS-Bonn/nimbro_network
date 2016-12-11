@@ -510,6 +510,7 @@ void UDPReceiver::handleMessagePacket(MessageBuffer::iterator it, std::vector<ui
 
 			if(packet->header.source_symbols() >= MIN_PACKETS_LDPC)
 			{
+				ROS_DEBUG("LDPC");
 				if(of_create_codec_instance(&ses, OF_CODEC_LDPC_STAIRCASE_STABLE, OF_DECODER, 1) != OF_STATUS_OK)
 				{
 					ROS_ERROR("Could not create LDPC decoder");
@@ -529,6 +530,7 @@ void UDPReceiver::handleMessagePacket(MessageBuffer::iterator it, std::vector<ui
 			}
 			else
 			{
+				ROS_DEBUG("REED");
 				if(of_create_codec_instance(&ses, OF_CODEC_REED_SOLOMON_GF_2_M_STABLE, OF_DECODER, 1) != OF_STATUS_OK)
 				{
 					ROS_ERROR("Could not create REED_SOLOMON decoder");
@@ -540,6 +542,8 @@ void UDPReceiver::handleMessagePacket(MessageBuffer::iterator it, std::vector<ui
 				rs_params->nb_repair_symbols = packet->header.repair_symbols();
 				rs_params->encoding_symbol_length = packet->header.symbol_length();
 				rs_params->m = 8;
+
+				ROS_DEBUG("REED params: %d, %d, %d", rs_params->nb_source_symbols, rs_params->nb_repair_symbols, rs_params->encoding_symbol_length);
 
 				params = (of_parameters_t*)rs_params;
 			}
@@ -559,7 +563,7 @@ void UDPReceiver::handleMessagePacket(MessageBuffer::iterator it, std::vector<ui
 
 		msg->received_symbols++;
 
-// 		ROS_DEBUG("msg: %10d, symbol: %10d/%10d", msg->id, packet->header.symbol_id(), packet->header.source_symbols());
+		ROS_DEBUG("msg: %10d, symbol: %10d/%10d", msg->id, packet->header.symbol_id(), packet->header.source_symbols());
 
 		uint8_t* symbol_begin = packet->data;
 
@@ -575,7 +579,7 @@ void UDPReceiver::handleMessagePacket(MessageBuffer::iterator it, std::vector<ui
 		// FEC iterative decoding
 		if(of_decode_with_new_symbol(msg->decoder.get(), symbol_begin, packet->header.symbol_id()) != OF_STATUS_OK)
 		{
-			ROS_ERROR("Could not decode symbol");
+			ROS_ERROR_THROTTLE(5.0, "Could not decode symbol");
 			return;
 		}
 
