@@ -78,6 +78,7 @@ struct FECHeader
 	LEValue<4> topic_md5[4];
 	LEValue<2> flags;
 	LEValue<2> topic_msg_counter;
+	LEValue<2> padding;
 
 	uint8_t data[];
 } __attribute__((packed));

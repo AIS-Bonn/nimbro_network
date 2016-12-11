@@ -194,6 +194,7 @@ void TopicSender::sendWithFEC()
 	// If the message fits in a single packet, use that as the buffer size
 	uint64_t symbolSize;
 	uint64_t sourceSymbols;
+	uint64_t padding = 0;
 
 	if(dataSize <= FECPacket::MaxDataSize)
 	{
@@ -204,6 +205,7 @@ void TopicSender::sendWithFEC()
 	{
 		// We need to pad the data to a multiple of our packet payload size.
 		sourceSymbols = div_round_up(dataSize, FECPacket::MaxDataSize);
+		padding = sourceSymbols * FECPacket::MaxDataSize - dataSize;
 		symbolSize = FECPacket::MaxDataSize;
 	}
 
@@ -318,6 +320,13 @@ void TopicSender::sendWithFEC()
 
 			for(int i = 0; i < 4; ++i)
 				msgHeader->topic_md5[i] = m_md5[i];
+
+			if(padding > 0xFFFF)
+			{
+				ROS_ERROR("Padding size is too large: %lu", padding);
+				std::abort();
+			}
+			msgHeader->padding = padding;
 
 			dataPtr += sizeof(FECHeader);
 			remainingSpace -= sizeof(FECHeader);

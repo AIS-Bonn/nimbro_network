@@ -16,6 +16,7 @@ bool Message::decompress(Message* dest)
 {
 	unsigned long long destLen = 1024;
 
+	ROS_DEBUG("decompressing message with flags %d", (int)header.flags);
 	if(header.flags & UDP_FLAG_COMPRESSED)
 	{
 		dest->payload.resize(destLen);
@@ -54,12 +55,16 @@ bool Message::decompress(Message* dest)
 		}
 
 		dest->payload.resize(destLen);
+
+
+		ROS_DEBUG("Decompressing with ZSTD from %lu bytes", payload.size());
 		size_t size = ZSTD_decompress(dest->payload.data(), destLen, payload.data(), payload.size());
 		if(ZSTD_isError(size))
 		{
-			ROS_ERROR("Could not decompress message using ZSTD");
+			ROS_ERROR("Could not decompress message using ZSTD: %s", ZSTD_getErrorName(size));
 			return false;
 		}
+		ROS_DEBUG("ZSTD: decompressed %lu to %lu", payload.size(), size);
 
 		destLen = size;
 #else
@@ -91,6 +96,7 @@ TopicReceiver::~TopicReceiver()
 
 void TopicReceiver::takeForDecompression(const boost::shared_ptr<Message>& msg)
 {
+	ROS_DEBUG("takeForDecompression: %d", (int)msg->header.flags);
 	if(!m_decompressionThreadRunning)
 	{
 		m_decompressionThreadShouldExit = false;

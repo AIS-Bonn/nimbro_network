@@ -237,6 +237,7 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 
 	if(compressed && m_keepCompressed)
 	{
+		ROS_DEBUG("publishing compressed message as-is");
 		CompressedMsgPtr compressed(new CompressedMsg);
 		compressed->type = header->topic_type;
 		memcpy(compressed->md5.data(), topic->md5, sizeof(topic->md5));
@@ -246,9 +247,15 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 		topic->publishCompressed(compressed);
 	}
 	else if(compressed)
-		topic->takeForDecompression(boost::make_shared<Message>(*msg));
+	{
+		ROS_DEBUG("decompressing, flags: %d, msg->header.flags: %d", (int)header->flags, (int)msg->header.flags);
+		auto msgPtr = boost::make_shared<Message>(*msg);
+		ROS_DEBUG("msgPtr->header.flags: %d", (int)msgPtr->header.flags);
+		topic->takeForDecompression(msgPtr);
+	}
 	else
 	{
+		ROS_DEBUG("publishing non-compressed message directly");
 		boost::shared_ptr<topic_tools::ShapeShifter> shapeShifter(new topic_tools::ShapeShifter);
 		shapeShifter->morph(topic->md5_str, header->topic_type, topic->msg_def, "");
 
@@ -339,7 +346,7 @@ void UDPReceiver::run()
 			m_remoteAddrLen = addrlen;
 		}
 
-		ROS_DEBUG("packet of size %lu", size);
+// 		ROS_DEBUG("packet of size %lu", size);
 		m_receivedBytesInStatsInterval += size;
 
 		uint16_t msg_id;
@@ -552,7 +559,7 @@ void UDPReceiver::handleMessagePacket(MessageBuffer::iterator it, std::vector<ui
 
 		msg->received_symbols++;
 
-		ROS_DEBUG("msg: %10d, symbol: %10d/%10d", msg->id, packet->header.symbol_id(), packet->header.source_symbols());
+// 		ROS_DEBUG("msg: %10d, symbol: %10d/%10d", msg->id, packet->header.symbol_id(), packet->header.source_symbols());
 
 		uint8_t* symbol_begin = packet->data;
 
@@ -638,7 +645,17 @@ void UDPReceiver::handleMessagePacket(MessageBuffer::iterator it, std::vector<ui
 				writePtr += msg->params->encoding_symbol_length;
 			}
 
+			ROS_DEBUG("Received a message with padding %d", (int)msgHeader.padding);
+			payloadLength -= msgHeader.padding;
+
+			msg->payload.resize(payloadLength);
 			msg->size = payloadLength;
+
+			// Fill in the header fields for the non-FEC message as good as we can
+			strncpy(msg->header.topic_name, msgHeader.topic_name, sizeof(msg->header.topic_name));
+			strncpy(msg->header.topic_type, msgHeader.topic_type, sizeof(msg->header.topic_type));
+			msg->header.flags = msgHeader.flags;
+			msg->header.topic_msg_counter = msgHeader.topic_msg_counter;
 
 			handleFinishedMessage(msg, &msgHeader);
 
