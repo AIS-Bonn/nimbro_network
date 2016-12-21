@@ -38,24 +38,29 @@ endif()
 
 find_package(catch_ros)
 
-# If OpenFEC is available, we can enable FEC for the UDP sender
-set(DEFAULT_OPENFEC_PATH /opt/openfec_v1.4.2)
-set(OPENFEC_PATH "" CACHE PATH "Path to OpenFEC (optional)")
-if(NOT OPENFEC_PATH AND IS_DIRECTORY ${DEFAULT_OPENFEC_PATH})
-	set(OPENFEC_PATH ${DEFAULT_OPENFEC_PATH})
+include(ExternalProject)
+ExternalProject_Add(
+	openfec
+	URL http://openfec.org/files/openfec_v1_4_2.tgz
+	BUILD_COMMAND make
+	INSTALL_COMMAND "" # openfec does not provide an install target :-(
+)
+
+ExternalProject_Get_Property(openfec SOURCE_DIR)
+set(OPENFEC_PATH "${SOURCE_DIR}")
+
+add_definitions(-DWITH_OPENFEC=1)
+include_directories(${OPENFEC_PATH}/src/lib_common)
+set(OPENFEC_LIB_PATH ${OPENFEC_PATH}/bin/Release)
+set(OPENFEC_LIBRARY ${OPENFEC_LIB_PATH}/libopenfec.so)
+install(FILES
+	${OPENFEC_PATH}/bin/Release/libopenfec.so.1
+	DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+if(NOT ";${CMAKE_INSTALL_RPATH};" MATCHES ";${OPENFEC_LIB_PATH};")
+	list(APPEND CMAKE_INSTALL_RPATH ${OPENFEC_LIB_PATH})
 endif()
-if(OPENFEC_PATH)
-	add_definitions(-DWITH_OPENFEC=1)
-	include_directories(${OPENFEC_PATH}/src/lib_common)
-	set(OPENFEC_LIB_PATH ${OPENFEC_PATH}/bin/Release)
-	set(OPENFEC_LIBRARY ${OPENFEC_LIB_PATH}/libopenfec.so)
-	if(NOT ";${CMAKE_INSTALL_RPATH};" MATCHES ";${OPENFEC_LIB_PATH};")
-		list(APPEND CMAKE_INSTALL_RPATH ${OPENFEC_LIB_PATH})
-	endif()
-	message(STATUS "Found and using OpenFEC at: ${OPENFEC_PATH}")
-else()
-	set(OPENFEC_LIBRARY "")
-endif()
+message(STATUS "Found and using OpenFEC at: ${OPENFEC_PATH}")
 
 find_library(BZ2_LIBRARY bz2 REQUIRED)
 
@@ -76,6 +81,7 @@ add_executable(udp_sender
 	src/topic_info.cpp
 )
 add_dependencies(udp_sender
+	openfec
 	${PROJECT_NAME}_generate_messages_cpp
 )
 
@@ -93,6 +99,7 @@ add_executable(udp_receiver
 	src/topic_info.cpp
 )
 add_dependencies(udp_receiver
+	openfec
 	${PROJECT_NAME}_generate_messages_cpp
 )
 
