@@ -38,6 +38,8 @@ private:
 	ros::Timer m_resendTimer;
 	Message::ConstPtr m_lastMsg;
 	//@}
+
+	uint32_t m_counter = 0;
 };
 
 }

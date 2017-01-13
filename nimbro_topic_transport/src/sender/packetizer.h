@@ -8,18 +8,13 @@
 #include <mutex>
 
 #include "topic.h"
-#include "message.h"
+#include "../message.h"
+#include "../udp_packet.h"
 
 namespace nimbro_topic_transport
 {
 
 class TopicPacketizer;
-
-struct Packet
-{
-	std::vector<uint8_t> data;
-	std::size_t length;
-};
 
 class Packetizer
 {
@@ -42,7 +37,7 @@ public:
 	TopicPacketizer(const Packetizer::Ptr& packetizer, const Topic::ConstPtr& topic);
 	~TopicPacketizer();
 
-	std::vector<Packet> packetize(const Message::ConstPtr& msg);
+	std::vector<Packet::Ptr> packetize(const Message::ConstPtr& msg);
 private:
 	Packetizer::Ptr m_packetizer;
 	float m_fec = 0.0;

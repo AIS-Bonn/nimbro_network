@@ -6,10 +6,10 @@
 
 #include <topic_tools/shape_shifter.h>
 
-#include "topic.h"
-
 namespace nimbro_topic_transport
 {
+
+class Topic;
 
 class Message
 {
@@ -23,11 +23,14 @@ public:
 		FLAG_COMPRESSED_ZSTD     = (1 << 1),
 	};
 
-	Topic::ConstPtr topic;
+	std::shared_ptr<const Topic> topic;
 	std::string type;
 	std::string md5;
 	uint16_t flags = 0;
 	std::vector<uint8_t> payload;
+
+	//! Sequential counter (incremented in Subscriber class)
+	uint32_t counter;
 };
 
 }

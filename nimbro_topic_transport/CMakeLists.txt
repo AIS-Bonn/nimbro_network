@@ -75,67 +75,17 @@ else()
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
-add_executable(udp_sender
-	src/udp/topic_sender.cpp
-	src/udp/udp_sender.cpp
+
+add_library(nimbro_topic_transport
+	src/sender/packetizer.cpp
+	src/receiver/depacketizer.cpp
 	src/topic_info.cpp
 )
-add_dependencies(udp_sender
-	openfec
-	${PROJECT_NAME}_generate_messages_cpp
-)
-
-target_link_libraries(udp_sender
+target_link_libraries(nimbro_topic_transport
 	${catkin_LIBRARIES}
-	${BZ2_LIBRARY}
 	${OPENFEC_LIBRARY}
-	${ZSTD_LIBRARIES}
-	${config_server_LIBRARIES}
 )
 
-add_executable(udp_receiver
-	src/udp/udp_receiver.cpp
-	src/udp/topic_receiver.cpp
-	src/topic_info.cpp
-)
-add_dependencies(udp_receiver
-	openfec
-	${PROJECT_NAME}_generate_messages_cpp
-)
-
-target_link_libraries(udp_receiver
-	${catkin_LIBRARIES}
-	${BZ2_LIBRARY}
-	${OPENFEC_LIBRARY}
-	${ZSTD_LIBRARIES}
-)
-
-add_executable(tcp_sender
-	src/tcp/tcp_sender.cpp
-	src/topic_info.cpp
-)
-add_dependencies(tcp_sender
-	${PROJECT_NAME}_generate_messages_cpp
-)
-target_link_libraries(tcp_sender
-	${catkin_LIBRARIES}
-	${BZ2_LIBRARY}
-	${ZSTD_LIBRARIES}
-	${config_server_LIBRARIES}
-)
-
-add_executable(tcp_receiver
-	src/tcp/tcp_receiver.cpp
-	src/topic_info.cpp
-)
-add_dependencies(tcp_receiver
-	${PROJECT_NAME}_generate_messages_cpp
-)
-target_link_libraries(tcp_receiver
-	${catkin_LIBRARIES}
-	${BZ2_LIBRARY}
-	${ZSTD_LIBRARIES}
-)
 
 # Tools
 add_executable(action_proxy
@@ -194,23 +144,16 @@ target_link_libraries(bandwidth_gui
 if(catch_ros_FOUND)
 	include_directories(${catch_ros_INCLUDE_DIRS})
 
-	catch_add_rostest_node(test_comm
-		test/test_comm.cpp
+	catch_add_test(unit_tests
+		test/unit/test_packetizer.cpp
 	)
-	target_link_libraries(test_comm
-		${catkin_LIBRARIES}
+	target_link_libraries(unit_tests
+		nimbro_topic_transport
 	)
-
-	add_rostest(test/topic_transport.test ARGS protocol:=udp)
-	add_rostest(test/topic_transport.test ARGS protocol:=tcp)
-
-	if(OPENFEC_PATH)
-		add_rostest(test/topic_transport.test ARGS protocol:=udp fec:=true)
-	endif()
 endif()
 
 #install
-install(TARGETS udp_receiver tcp_receiver udp_sender tcp_sender
-        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+# install(TARGETS udp_receiver tcp_receiver udp_sender tcp_sender
+#         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})

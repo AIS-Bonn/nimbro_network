@@ -84,6 +84,7 @@ void Subscriber::handleData(const topic_tools::ShapeShifter::ConstPtr& data)
 	msg->topic = m_topic;
 	msg->type = data->getDataType();
 	msg->md5 = data->getMD5Sum();
+	msg->counter = m_counter++;
 
 	m_lastMsg = msg;
 
@@ -106,8 +107,14 @@ void Subscriber::resend()
 	if(now - m_lastTime < m_durationBetweenMsgs)
 		return;
 
+	// TODO: Can we avoid the copy here? We do need to increment the counter, though...
+	Message::Ptr msg(new Message(*m_lastMsg));
+	msg->counter = m_counter++;
+
+	m_lastMsg = msg;
+
 	for(auto& cb : m_callbacks)
-		cb(m_lastMsg);
+		cb(msg);
 }
 
 }

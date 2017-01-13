@@ -6,12 +6,19 @@
 
 #include "le_value.h"
 
+#include <array>
+#include <memory>
+
 namespace nimbro_topic_transport
 {
 
 // Since we sometimes tunnel nimbro_network packets through QuickTun,
 // leave space for one additional UDP/IP envelope.
 const int PACKET_SIZE = 1500 - 20 - 8 - 20 - 8;
+
+//! Minimum number of packets for choosing LDPC FEC algorithm
+//! Below this limit, Reed-Solomon is used.
+const int MIN_PACKETS_LDPC = 255;
 
 struct UDPPacket
 {
@@ -23,6 +30,7 @@ struct UDPPacket
 		// FEC parameters
 		LEValue<2> source_symbols;
 		LEValue<2> repair_symbols; //!< if zero, no FEC.
+		LEValue<2> prng_seed;
 	} __attribute__((packed));
 
 	enum { MaxDataSize = PACKET_SIZE - sizeof(Header) };
@@ -42,13 +50,30 @@ struct UDPData
 		LEValue<2> flags;
 		LEValue<2> topic_msg_counter;
 		LEValue<4> size;
-	};
+	} __attribute__((packed));
 
 	enum { MaxDataSize = UDPPacket::MaxDataSize - sizeof(Header) };
 
 	Header header;
 	uint8_t data[];
 } __attribute__((packed));
+
+//! High-level packet buffer
+class Packet
+{
+public:
+	typedef std::shared_ptr<Packet> Ptr;
+	typedef std::shared_ptr<const Packet> ConstPtr;
+
+	inline UDPPacket* packet()
+	{ return reinterpret_cast<UDPPacket*>(data.data()); }
+
+	inline const UDPPacket* packet() const
+	{ return reinterpret_cast<const UDPPacket*>(data.data()); }
+
+	std::array<uint8_t, PACKET_SIZE> data;
+	std::size_t length;
+};
 
 }
 
