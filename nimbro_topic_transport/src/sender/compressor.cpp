@@ -53,7 +53,7 @@ Compressor::~Compressor()
 {
 }
 
-void Compressor::handleInput(const Message::ConstPtr& msg)
+Message::ConstPtr Compressor::compress(const Message::ConstPtr& msg)
 {
 #if WITH_ZSTD
 	size_t len = ZSTD_compressBound(msg->payload.size());
@@ -72,10 +72,7 @@ void Compressor::handleInput(const Message::ConstPtr& msg)
 			ZSTD_getErrorName(ret)
 		);
 
-		for(auto& cb : m_callbacks)
-			cb(msg);
-
-		return;
+		return msg;
 	}
 	g_compressionBuf.resize(ret);
 
@@ -87,8 +84,7 @@ void Compressor::handleInput(const Message::ConstPtr& msg)
 	output->md5 = msg->md5;
 	output->flags = msg->flags | Message::FLAG_COMPRESSED_ZSTD;
 
-	for(auto& cb : m_callbacks)
-		cb(output);
+	return output;
 #else
 	ROS_WARN_ONCE("Consider compiling with ZSTD support for more efficient compression");
 	unsigned int len = m_buf.size() + m_buf.size() / 100 + 1200;
@@ -103,11 +99,7 @@ void Compressor::handleInput(const Message::ConstPtr& msg)
 	if(ret != BZ_OK)
 	{
 		ROS_ERROR("Could not compress data with BZ2: '%s', sending uncompressed");
-
-		for(auto& cb : m_callbacks)
-			cb(msg);
-
-		return;
+		return msg;
 	}
 	g_compressionBuf.resize(len);
 
@@ -118,8 +110,8 @@ void Compressor::handleInput(const Message::ConstPtr& msg)
 	output->type = msg->type;
 	output->md5 = msg->md5;
 	output->flags = msg->flags | Message::FLAG_COMPRESSED_BZ2;
-	for(auto& cb : m_callbacks)
-		cb(output);
+
+	return output;
 #endif
 }
 

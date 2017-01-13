@@ -19,8 +19,23 @@ public:
 	UDPSender();
 	~UDPSender();
 
-	void send(const Message::ConstPtr& msg);
+	typedef std::function<void (const Message::ConstPtr& msg)> Callback;
+
+	Callback createCallback(const Topic::ConstPtr& topic);
 private:
+	struct TopicInfo
+	{
+		float fec = 0.0;
+	};
+
+	struct Packet
+	{
+		std::vector<uint8_t> data;
+		std::size_t length;
+	};
+
+	void send(const TopicInfo& info, const Message::ConstPtr& msg);
+
 	std::mutex m_mutex;
 
 	uint16_t m_msgID = 0; //!< current message ID

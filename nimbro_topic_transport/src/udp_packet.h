@@ -41,6 +41,7 @@ struct UDPData
 		LEValue<4> topic_md5[4];
 		LEValue<2> flags;
 		LEValue<2> topic_msg_counter;
+		LEValue<4> size;
 	};
 
 	enum { MaxDataSize = UDPPacket::MaxDataSize - sizeof(Header) };
