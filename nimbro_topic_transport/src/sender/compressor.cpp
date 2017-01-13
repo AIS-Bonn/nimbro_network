@@ -87,12 +87,12 @@ Message::ConstPtr Compressor::compress(const Message::ConstPtr& msg)
 	return output;
 #else
 	ROS_WARN_ONCE("Consider compiling with ZSTD support for more efficient compression");
-	unsigned int len = m_buf.size() + m_buf.size() / 100 + 1200;
+	unsigned int len = msg->payload.size() + msg->payload.size() / 100 + 1200;
 	g_compressionBuf.resize(len);
 
 	int ret = BZ2_bzBuffToBuffCompress(
-		(char*)m_compressionBuf.data(), &len,
-		(char*)m_buf.data(), m_buf.size(),
+		(char*)g_compressionBuf.data(), &len,
+		(char*)msg->payload.data(), msg->payload.size(),
 		3, 0, 30
 	);
 
@@ -113,11 +113,6 @@ Message::ConstPtr Compressor::compress(const Message::ConstPtr& msg)
 
 	return output;
 #endif
-}
-
-void Compressor::registerCallback(const Callback& cb)
-{
-	m_callbacks.push_back(cb);
 }
 
 }

@@ -4,7 +4,8 @@
 #ifndef TT_COMPRESSOR_H
 #define TT_COMPRESSOR_H
 
-#include "message.h"
+#include "topic.h"
+#include "../message.h"
 
 #include <thread>
 #include <mutex>
