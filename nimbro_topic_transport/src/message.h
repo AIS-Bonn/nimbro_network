@@ -23,6 +23,15 @@ public:
 		FLAG_COMPRESSED_ZSTD     = (1 << 1),
 	};
 
+	void copyMetaInfoFrom(const Message& other)
+	{
+		topic = other.topic;
+		type = other.type;
+		md5 = other.md5;
+		flags = other.flags;
+		counter = other.counter;
+	}
+
 	std::shared_ptr<const Topic> topic;
 	std::string type;
 	std::string md5;

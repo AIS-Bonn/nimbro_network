@@ -77,14 +77,19 @@ endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
 
 add_library(nimbro_topic_transport
+	src/sender/compressor.cpp
 	src/sender/packetizer.cpp
+	src/receiver/decompressor.cpp
 	src/receiver/depacketizer.cpp
 	src/topic_info.cpp
 )
 target_link_libraries(nimbro_topic_transport
 	${catkin_LIBRARIES}
 	${OPENFEC_LIBRARY}
+	${ZSTD_LIBRARIES}
+	${BZ2_LIBRARY}
 )
+add_dependencies(nimbro_topic_transport openfec)
 
 
 # Tools
@@ -146,6 +151,7 @@ if(catch_ros_FOUND)
 
 	catch_add_test(unit_tests
 		test/unit/test_packetizer.cpp
+		test/unit/test_compression.cpp
 	)
 	target_link_libraries(unit_tests
 		nimbro_topic_transport

@@ -17,7 +17,17 @@ namespace nimbro_topic_transport
 class Compressor
 {
 public:
-	explicit Compressor(const Topic::ConstPtr& topic, unsigned int compressionLevel);
+	enum class Algorithm
+	{
+		ZSTD,
+		BZ2
+	};
+
+	explicit Compressor(
+		const Topic::ConstPtr& topic,
+		unsigned int compressionLevel = 1,
+		Algorithm algorithm = Algorithm::ZSTD
+	);
 	~Compressor();
 
 	Message::ConstPtr compress(const Message::ConstPtr& msg);
@@ -25,6 +35,7 @@ public:
 	static unsigned int getCompressionLevel(const Topic& topic);
 private:
 	unsigned int m_compressionLevel = 1;
+	Algorithm m_algorithm = Algorithm::ZSTD;
 };
 
 }
