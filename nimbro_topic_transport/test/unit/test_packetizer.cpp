@@ -5,8 +5,6 @@
 
 #include <algorithm>
 
-#include <signal.h>
-
 #include "../../src/sender/packetizer.h"
 #include "../../src/receiver/depacketizer.h"
 
@@ -104,8 +102,6 @@ TEST_CASE("small", "[packetizer]")
 
 TEST_CASE("huge", "[packetizer]")
 {
-	signal(SIGSEGV, SIG_DFL);
-
 	auto msg = std::make_shared<Message>();
 	msg->counter = 10;
 	msg->flags = Message::FLAG_COMPRESSED_ZSTD;
