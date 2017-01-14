@@ -30,7 +30,14 @@ struct UDPPacket
 		// FEC parameters
 		LEValue<2> source_symbols;
 		LEValue<2> repair_symbols; //!< if zero, no FEC.
-		LEValue<2> prng_seed;
+		LEValue<4> prng_seed;
+
+		// Padding to reach 16 bytes alignment for the payload.
+		// This makes FEC computations much more efficient at a small
+		// bandwidth cost.
+		// In particular, OpenFEC silently assumes 8-bit alignment of the
+		// symbols - see unprotected casts in of_symbol.c.
+		uint16_t _padding;
 	} __attribute__((packed));
 
 	enum { MaxDataSize = PACKET_SIZE - sizeof(Header) };

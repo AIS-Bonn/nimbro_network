@@ -52,7 +52,7 @@ std::vector<Packet::Ptr> TopicPacketizer::packetize(const Message::ConstPtr& msg
 	uint64_t sourceSymbols = div_round_up(dataSize, UDPPacket::MaxDataSize);
 	uint64_t repairSymbols = std::ceil(m_fec * sourceSymbols);
 	uint64_t symbolSize = std::min<uint64_t>(UDPPacket::MaxDataSize, dataSize);
-	uint16_t seed = rand() & 0xFFFF;
+	uint32_t seed = rand();
 
 	std::vector<Packet::Ptr> packets;
 
