@@ -678,10 +678,9 @@ void UDPReceiver::handleMessagePacket(MessageBuffer::iterator it, std::vector<ui
 			msg->header = first->header;
 
 			// We can calculate an approximate size now
-			uint32_t required_size = (msg->header.remaining_packets()+1) * PACKET_SIZE;
 			uint32_t my_size = size - sizeof(UDPFirstPacket);
-			if(msg->payload.size() < required_size)
-				msg->payload.resize(required_size);
+			if(msg->payload.size() < my_size)
+				msg->payload.resize(my_size);
 			memcpy(msg->payload.data(), first->data, my_size);
 
 			if(msg->size < my_size)
