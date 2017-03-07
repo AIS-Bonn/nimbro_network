@@ -124,6 +124,7 @@ void BandwidthGui::initPlugin(qt_gui_cpp::PluginContext& ctx)
 void BandwidthGui::shutdownPlugin()
 {
 	m_sub_senderStats.shutdown();
+	m_plotTimer.stop();
 }
 
 void BandwidthGui::clearPlot()
