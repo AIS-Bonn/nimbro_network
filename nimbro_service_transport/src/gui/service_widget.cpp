@@ -49,6 +49,7 @@ void ServiceWidget::initPlugin(qt_gui_cpp::PluginContext& ctx)
 	vbl->addWidget(m_view);
 	vbl->addWidget(m_connectionBox);
 	wrapper->setLayout(vbl);
+	wrapper->setWindowTitle("Service Calls");
 	ctx.addWidget(wrapper);
 
 	m_sub_serviceStatus = getPrivateNodeHandle().subscribe(
