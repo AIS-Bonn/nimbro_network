@@ -175,7 +175,13 @@ void TCPReceiver::run()
 			}
 			else
 			{
-				ROS_ERROR("Could not resolve remote address to name");
+				char host[NI_MAXHOST];
+				if(getnameinfo((sockaddr*)&remoteAddr, remoteAddrLen, host, sizeof(host), NULL, 0, NI_NUMERICHOST) == 0)
+				{
+					ROS_ERROR("Could not resolve remote address '%s' to name", host);
+				}
+				else
+					ROS_ERROR("Could not resolve remote address to name");
 				m_stats.remote = "unknown";
 				m_stats.remote_port = -1;
 			}
