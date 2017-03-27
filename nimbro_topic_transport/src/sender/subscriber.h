@@ -5,7 +5,7 @@
 #define TT_SUBSCRIBER_H
 
 #include "topic.h"
-#include "message.h"
+#include "../message.h"
 
 #include <ros/subscriber.h>
 #include <topic_tools/shape_shifter.h>

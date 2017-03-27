@@ -2,6 +2,7 @@
 // Author: Max Schwarz <max.schwarz@uni-bonn.de>
 
 #include "tcp_sender.h"
+#include "topic.h"
 #include "../topic_info.h"
 #include "../tcp_packet.h"
 

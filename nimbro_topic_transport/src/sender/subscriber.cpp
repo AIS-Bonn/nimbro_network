@@ -47,12 +47,6 @@ Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh)
 		= boost::bind(&Subscriber::handleData, this, _1);
 	ops.initByFullCallbackType(topic->name, queue_length, func);
 
-	if(!topic->type.empty())
-	{
-		ops.datatype = topic->type;
-		ops.md5sum = topic_info::getMd5Sum(topic->type);
-	}
-
 	m_subscriber = nh.subscribe(ops);
 
 	// Initialize rate control

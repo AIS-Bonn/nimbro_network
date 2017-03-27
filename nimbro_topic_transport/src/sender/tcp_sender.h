@@ -4,7 +4,7 @@
 #ifndef TT_TCP_SENDER_H
 #define TT_TCP_SENDER_H
 
-#include "message.h"
+#include "../message.h"
 
 #include <mutex>
 

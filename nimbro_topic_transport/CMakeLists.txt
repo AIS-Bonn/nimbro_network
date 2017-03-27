@@ -79,6 +79,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
 add_library(nimbro_topic_transport
 	src/sender/compressor.cpp
 	src/sender/packetizer.cpp
+	src/sender/thread_pool.cpp
+	src/sender/subscriber.cpp
+	src/sender/udp_sender.cpp
+	src/sender/tcp_sender.cpp
 	src/receiver/decompressor.cpp
 	src/receiver/depacketizer.cpp
 	src/topic_info.cpp
@@ -91,6 +95,14 @@ target_link_libraries(nimbro_topic_transport
 )
 add_dependencies(nimbro_topic_transport openfec)
 
+
+add_executable(sender
+	src/sender/sender.cpp
+)
+target_link_libraries(sender
+	${catkin_LIBRARIES}
+	nimbro_topic_transport
+)
 
 # Tools
 add_executable(action_proxy
