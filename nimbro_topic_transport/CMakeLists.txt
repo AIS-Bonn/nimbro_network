@@ -39,6 +39,8 @@ endif()
 find_package(catch_ros)
 
 include(ExternalProject)
+
+### BEGIN OPENFEC
 ExternalProject_Add(
 	openfec
 	URL http://openfec.org/files/openfec_v1_4_2.tgz
@@ -54,25 +56,44 @@ include_directories(${OPENFEC_PATH}/src/lib_common)
 set(OPENFEC_LIB_PATH ${OPENFEC_PATH}/bin/Release)
 set(OPENFEC_LIBRARY ${OPENFEC_LIB_PATH}/libopenfec.so)
 install(FILES
-	${OPENFEC_PATH}/bin/Release/libopenfec.so.1
-	DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	${OPENFEC_PATH}/bin/Release/libopenfec.so.1.4.2
+	DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
-if(NOT ";${CMAKE_INSTALL_RPATH};" MATCHES ";${OPENFEC_LIB_PATH};")
-	list(APPEND CMAKE_INSTALL_RPATH ${OPENFEC_LIB_PATH})
+
+set(OPENFEC_LINK_DEST ${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION}/libopenfec.so.1)
+install(CODE "execute_process(COMMAND ln -s libopenfec.so.1.4.2 ${OPENFEC_LINK_DEST})")
+
+if(NOT ";${CMAKE_INSTALL_RPATH};" MATCHES ";${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION};")
+	list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION}")
 endif()
 message(STATUS "Found and using OpenFEC at: ${OPENFEC_PATH}")
 
-find_library(BZ2_LIBRARY bz2 REQUIRED)
+### END OPENFEC
 
-# Check if zstd is available
-find_library(ZSTD_LIBRARY zstd)
-if(ZSTD_LIBRARY)
-	add_definitions(-DWITH_ZSTD=1)
-	set(ZSTD_LIBRARIES ${ZSTD_LIBRARY})
-else()
-	message(WARNING "Consider installing zstd for fast compression")
-	set(ZSTD_LIBRARIES "")
-endif()
+### BEGIN ZSTD
+ExternalProject_Add(
+	zstd
+	URL "https://github.com/facebook/zstd/archive/v1.1.4.tar.gz"
+	CONFIGURE_COMMAND ""
+	BUILD_IN_SOURCE 1
+	BUILD_COMMAND make
+	INSTALL_COMMAND ""
+)
+
+ExternalProject_Get_Property(zstd SOURCE_DIR)
+set(ZSTD_LIBRARY ${SOURCE_DIR}/lib/libzstd.so)
+include_directories(${SOURCE_DIR}/lib)
+
+install(FILES
+	${SOURCE_DIR}/lib/libzstd.so.1.1.4
+	DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+set(ZSTD_LINK_DEST ${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION}/libzstd.so.1)
+install(CODE "execute_process(COMMAND ln -s libzstd.so.1.1.4 ${ZSTD_LINK_DEST})")
+add_definitions(-DWITH_ZSTD=1)
+### END ZSTD
+
+find_library(BZ2_LIBRARY bz2 REQUIRED)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
 
@@ -93,7 +114,7 @@ add_library(nimbro_topic_transport
 target_link_libraries(nimbro_topic_transport
 	${catkin_LIBRARIES}
 	${OPENFEC_LIBRARY}
-	${ZSTD_LIBRARIES}
+	${ZSTD_LIBRARY}
 	${BZ2_LIBRARY}
 )
 add_dependencies(nimbro_topic_transport openfec)
@@ -192,7 +213,8 @@ if(catch_ros_FOUND)
 endif()
 
 #install
-# install(TARGETS udp_receiver tcp_receiver udp_sender tcp_sender
-#         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(TARGETS nimbro_topic_transport sender receiver action_proxy
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
