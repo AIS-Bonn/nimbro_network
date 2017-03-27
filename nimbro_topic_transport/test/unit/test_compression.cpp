@@ -47,14 +47,7 @@ void testCompression(Compressor::Algorithm algo)
 	}
 }
 
-#if WITH_ZSTD
 TEST_CASE("zstd", "[compression]")
 {
 	testCompression(Compressor::Algorithm::ZSTD);
-}
-#endif
-
-TEST_CASE("bz2", "[compression]")
-{
-	testCompression(Compressor::Algorithm::BZ2);
 }

@@ -3,11 +3,7 @@
 
 #include "compressor.h"
 
-#include <bzlib.h>
-
-#if WITH_ZSTD
 #include <zstd.h>
-#endif
 
 namespace nimbro_topic_transport
 {
@@ -48,16 +44,13 @@ Compressor::Compressor(const Topic::ConstPtr&, unsigned int compressionLevel, Al
  : m_compressionLevel(compressionLevel)
  , m_algorithm(algorithm)
 {
-#if not WITH_ZSTD
-	if(m_algorithm == Algorithm::ZSTD)
+	if(m_algorithm == Algorithm::BZ2)
 	{
 		ROS_WARN(
-			"Consider compiling with ZSTD support for more "
-			"efficient compression, falling back to BZ2"
+			"BZ2 compression is obsolete, defaulting to ZSTD"
 		);
 	}
-	m_algorithm = Algorithm::BZ2;
-#endif
+	m_algorithm = Algorithm::ZSTD;
 }
 
 Compressor::~Compressor()
@@ -66,57 +59,25 @@ Compressor::~Compressor()
 
 Message::ConstPtr Compressor::compress(const Message::ConstPtr& msg)
 {
-#if WITH_ZSTD
-	if(m_algorithm == Algorithm::ZSTD)
-	{
-		size_t len = ZSTD_compressBound(msg->payload.size());
-		g_compressionBuf.resize(len);
-
-		int ret = ZSTD_compress(
-			g_compressionBuf.data(), len,              // dest
-			msg->payload.data(), msg->payload.size(),  // source
-			m_compressionLevel
-		);
-
-		if(ZSTD_isError(ret))
-		{
-			ROS_ERROR(
-				"Could not compress data with ZSTD: '%s', sending uncompressed",
-				ZSTD_getErrorName(ret)
-			);
-
-			return msg;
-		}
-		g_compressionBuf.resize(ret);
-
-		// Create compressed message
-		auto output = std::make_shared<Message>();
-		output->payload.swap(g_compressionBuf);
-		output->topic = msg->topic;
-		output->type = msg->type;
-		output->md5 = msg->md5;
-		output->flags = msg->flags | Message::FLAG_COMPRESSED_ZSTD;
-
-		return output;
-	}
-#endif
-
-	// Fall back to BZ2
-	unsigned int len = msg->payload.size() + msg->payload.size() / 100 + 1200;
+	size_t len = ZSTD_compressBound(msg->payload.size());
 	g_compressionBuf.resize(len);
 
-	int ret = BZ2_bzBuffToBuffCompress(
-		(char*)g_compressionBuf.data(), &len,
-		(char*)msg->payload.data(), msg->payload.size(),
-		3, 0, 30
+	int ret = ZSTD_compress(
+		g_compressionBuf.data(), len,              // dest
+		msg->payload.data(), msg->payload.size(),  // source
+		m_compressionLevel
 	);
 
-	if(ret != BZ_OK)
+	if(ZSTD_isError(ret))
 	{
-		ROS_ERROR("Could not compress data with BZ2, sending uncompressed");
+		ROS_ERROR(
+			"Could not compress data with ZSTD: '%s', sending uncompressed",
+			ZSTD_getErrorName(ret)
+		);
+
 		return msg;
 	}
-	g_compressionBuf.resize(len);
+	g_compressionBuf.resize(ret);
 
 	// Create compressed message
 	auto output = std::make_shared<Message>();
@@ -124,7 +85,7 @@ Message::ConstPtr Compressor::compress(const Message::ConstPtr& msg)
 	output->topic = msg->topic;
 	output->type = msg->type;
 	output->md5 = msg->md5;
-	output->flags = msg->flags | Message::FLAG_COMPRESSED_BZ2;
+	output->flags = msg->flags | Message::FLAG_COMPRESSED_ZSTD;
 
 	return output;
 }

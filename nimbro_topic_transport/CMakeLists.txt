@@ -93,8 +93,6 @@ install(CODE "execute_process(COMMAND ln -s libzstd.so.1.1.4 ${ZSTD_LINK_DEST})"
 add_definitions(-DWITH_ZSTD=1)
 ### END ZSTD
 
-find_library(BZ2_LIBRARY bz2 REQUIRED)
-
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
 
 add_library(nimbro_topic_transport
@@ -115,7 +113,6 @@ target_link_libraries(nimbro_topic_transport
 	${catkin_LIBRARIES}
 	${OPENFEC_LIBRARY}
 	${ZSTD_LIBRARY}
-	${BZ2_LIBRARY}
 )
 add_dependencies(nimbro_topic_transport openfec)
 
