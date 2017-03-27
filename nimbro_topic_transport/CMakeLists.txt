@@ -187,7 +187,8 @@ if(catch_ros_FOUND)
 		${catkin_LIBRARIES}
 	)
 
-	add_rostest(test/topic_transport.test)
+	add_rostest(test/topic_transport.test ARGS fec:=false)
+	add_rostest(test/topic_transport.test ARGS fec:=true)
 endif()
 
 #install
