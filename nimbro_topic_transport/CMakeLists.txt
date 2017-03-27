@@ -23,19 +23,6 @@ generate_messages(DEPENDENCIES
 catkin_package()
 include_directories(${catkin_INCLUDE_DIRS})
 
-# Some optional components of the NimbRo software framework
-find_package(plot_msgs)
-if(plot_msgs_FOUND)
-	include_directories(${plot_msgs_INCLUDE_DIRS})
-	add_definitions(-DWITH_PLOTTING=1)
-endif()
-
-find_package(config_server)
-if(config_server_FOUND)
-	include_directories(${config_server_INCLUDE_DIRS})
-	add_definitions(-DWITH_CONFIG_SERVER=1)
-endif()
-
 find_package(catch_ros)
 
 include(ExternalProject)
