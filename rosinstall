@@ -1,0 +1,2 @@
+- git: {local-name: catch_ros, uri: 'https://github.com/AIS-Bonn/catch_ros.git'}
+
