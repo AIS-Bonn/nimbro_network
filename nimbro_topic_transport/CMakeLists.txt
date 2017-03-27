@@ -114,7 +114,7 @@ target_link_libraries(nimbro_topic_transport
 	${OPENFEC_LIBRARY}
 	${ZSTD_LIBRARY}
 )
-add_dependencies(nimbro_topic_transport openfec)
+add_dependencies(nimbro_topic_transport openfec zstd)
 
 
 add_executable(sender
