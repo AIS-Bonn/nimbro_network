@@ -50,8 +50,8 @@ TEST_CASE("simple", "[topic]")
 
 	ros::NodeHandle nh("~");
 
-	ros::Publisher pub = nh.advertise<std_msgs::Int64>("/test_topic", 2);
-	ros::Subscriber sub = nh.subscribe("/receive/test_topic", 2, &handle_simple);
+	ros::Publisher pub = nh.advertise<std_msgs::Int64>("test_topic", 2);
+	ros::Subscriber sub = nh.subscribe("receive/test_topic", 2, &handle_simple);
 
 	int timeout = 50;
 	while(pub.getNumSubscribers() == 0)
@@ -90,7 +90,8 @@ TEST_CASE("simple", "[topic]")
 			return;
 	}
 
-	FAIL();
+	CAPTURE(g_counter);
+	FAIL("Not enough messages received");
 }
 
 TEST_CASE("array", "[topic]")
@@ -101,18 +102,18 @@ TEST_CASE("array", "[topic]")
 
 	ros::NodeHandle nh("~");
 
-	ros::Publisher pub = nh.advertise<std_msgs::UInt64MultiArray>("/array_topic", 2);
+	ros::Publisher pub = nh.advertise<std_msgs::UInt64MultiArray>("array_topic", 2);
 	ros::Subscriber sub;
 
 	SECTION("small")
 	{
-		sub = nh.subscribe("/receive/array_topic", 2, &handle_array);
+		sub = nh.subscribe("receive/array_topic", 2, &handle_array);
 		for(int i = 0; i < 512; ++i)
 			msg.data.push_back(i);
 	}
 	SECTION("huge")
 	{
-		sub = nh.subscribe("/receive/array_topic", 2, &handle_huge);
+		sub = nh.subscribe("receive/array_topic", 2, &handle_huge);
 		for(int i = 0; i < HUGE_SIZE; ++i)
 			msg.data.push_back(i);
 	}
@@ -152,5 +153,5 @@ TEST_CASE("array", "[topic]")
 	}
 
 	CAPTURE(g_arrayCounter);
-	FAIL();
+	FAIL("No message received");
 }

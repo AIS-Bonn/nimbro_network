@@ -8,6 +8,7 @@
 #include <list>
 #include <cstdint>
 #include <functional>
+#include <mutex>
 
 #include "../udp_packet.h"
 #include "../message.h"
@@ -26,7 +27,7 @@ class Depacketizer
 public:
 	Depacketizer();
 
-	typedef std::function<void(const std::string& topic, const Message::ConstPtr&)> Callback;
+	typedef std::function<void(const Message::ConstPtr&)> Callback;
 
 	void setCallback(const Callback& cb);
 	void addPacket(const Packet::Ptr& packet);
@@ -50,6 +51,8 @@ private:
 	void handleMessagePacket(std::list<PartialMessage>::iterator it, const Packet::Ptr& packet);
 
 	Callback m_cb;
+
+	std::mutex m_mutex;
 	std::list<PartialMessage> m_messageBuffer;
 };
 

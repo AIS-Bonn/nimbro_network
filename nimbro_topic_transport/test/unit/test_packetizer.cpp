@@ -44,8 +44,8 @@ void testMessage(const Message::Ptr& msg, float fec)
 
 	Message::ConstPtr receivedMsg;
 
-	depacketizer->setCallback([&](const std::string& topic, const Message::ConstPtr& newMsg){
-		REQUIRE(topic == msg->topic->name);
+	depacketizer->setCallback([&](const Message::ConstPtr& newMsg){
+		REQUIRE(newMsg->topic->name == msg->topic->name);
 		REQUIRE(!receivedMsg);
 		receivedMsg = newMsg;
 	});

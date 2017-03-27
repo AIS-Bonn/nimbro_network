@@ -6,10 +6,10 @@
 
 #include <topic_tools/shape_shifter.h>
 
+#include "topic.h"
+
 namespace nimbro_topic_transport
 {
-
-class Topic;
 
 class Message
 {

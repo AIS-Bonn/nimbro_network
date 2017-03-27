@@ -2,7 +2,6 @@
 // Author: Max Schwarz <max.schwarz@uni-bonn.de>
 
 #include "tcp_sender.h"
-#include "topic.h"
 #include "../topic_info.h"
 #include "../tcp_packet.h"
 
@@ -25,7 +24,7 @@ TCPSender::TCPSender()
 	}
 
 	int port;
-	if(!m_nh.getParam("destination_port", port) && !m_nh.getParam("port", port))
+	if(!m_nh.getParam("tcp/port", port) && !m_nh.getParam("port", port))
 	{
 		ROS_FATAL("tcp_sender needs a 'destination_port' parameter!");
 		throw std::runtime_error("tcp_sender needs a 'destination_port' parameter!");
@@ -33,9 +32,9 @@ TCPSender::TCPSender()
 
 	std::string portStr = boost::lexical_cast<std::string>(port);
 
-	if(m_nh.hasParam("source_port"))
+	if(m_nh.hasParam("tcp/source_port") || m_nh.hasParam("source_port"))
 	{
-		if(!m_nh.getParam("source_port", m_sourcePort))
+		if(!m_nh.getParam("tcp/source_port", m_sourcePort) && !m_nh.getParam("source_port", m_sourcePort))
 		{
 			ROS_FATAL("Invalid source_port");
 			throw std::runtime_error("Invalid source port");
@@ -128,6 +127,7 @@ bool TCPSender::connect()
 		ROS_ERROR("Could not connect: %s", strerror(errno));
 		return false;
 	}
+	ROS_INFO("Connected to destination at %s", m_stats.destination.c_str());
 
 	if(m_sourcePort == -1)
 	{
@@ -151,7 +151,7 @@ bool TCPSender::connect()
 	}
 
 #ifdef TCP_USER_TIMEOUT
-	int timeout = 8000;
+	int timeout = 5000;
 	if(setsockopt(m_fd, SOL_TCP, TCP_USER_TIMEOUT, &timeout, sizeof(timeout)) != 0)
 	{
 		ROS_ERROR("Could not set TCP_USER_TIMEOUT: %s", strerror(errno));

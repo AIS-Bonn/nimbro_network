@@ -8,7 +8,7 @@
 #include "udp_sender.h"
 #include "packetizer.h"
 #include "compressor.h"
-#include "thread_pool.h"
+#include "../thread_pool.h"
 
 namespace nimbro_topic_transport
 {
@@ -19,6 +19,23 @@ public:
 	Sender()
 	 : m_nh("~")
 	{
+		if(m_nh.hasParam("tcp_topics"))
+		{
+			XmlRpc::XmlRpcValue topicList;
+			m_nh.getParam("tcp_topics", topicList);
+
+			initTCP(topicList);
+		}
+
+		if(m_nh.hasParam("udp_topics"))
+		{
+			XmlRpc::XmlRpcValue topicList;
+			m_nh.getParam("udp_topics", topicList);
+
+			initUDP(topicList);
+		}
+
+		ROS_INFO("Sender initialized, listening on %lu topics.", m_subs.size());
 	}
 
 private:
@@ -102,7 +119,7 @@ private:
 			else
 			{
 				// Packetize and send
-				sink = [&](const Message::ConstPtr& msg) {
+				sink = [packetizer,this](const Message::ConstPtr& msg) {
 					m_udp_sender->send(packetizer->packetize(msg));
 				};
 			}

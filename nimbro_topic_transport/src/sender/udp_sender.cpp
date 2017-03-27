@@ -17,7 +17,8 @@ UDPSender::UDPSender()
 	nh.param("destination_addr", dest_host, std::string("localhost"));
 
 	int dest_port;
-	nh.param("destination_port", dest_port, 5050);
+	if(!nh.getParam("udp/port", dest_port))
+		nh.param("port", dest_port, 5050);
 
 	std::string dest_port_str = boost::lexical_cast<std::string>(dest_port);
 
@@ -52,9 +53,9 @@ UDPSender::UDPSender()
 	int source_port = dest_port;
 
 	// If we have a specified source port, bind to it.
-	if(nh.hasParam("source_port"))
+	if(nh.hasParam("udp/source_port") || nh.hasParam("source_port"))
 	{
-		if(!nh.getParam("source_port", source_port))
+		if(!nh.getParam("udp/source_port", source_port) && !nh.getParam("source_port", source_port))
 		{
 			ROS_FATAL("Invalid source_port");
 			throw std::runtime_error("Invalid source port");

@@ -7,7 +7,6 @@
 #include <vector>
 #include <mutex>
 
-#include "topic.h"
 #include "../message.h"
 #include "../udp_packet.h"
 

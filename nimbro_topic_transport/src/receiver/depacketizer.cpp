@@ -28,6 +28,8 @@ void Depacketizer::setCallback(const Callback& cb)
 
 void Depacketizer::addPacket(const Packet::Ptr& packet)
 {
+	std::unique_lock<std::mutex> lock(m_mutex);
+
 	uint32_t msg_id = packet->packet()->header.msg_id;
 
 	auto it = std::find_if(m_messageBuffer.begin(), m_messageBuffer.end(),
@@ -222,11 +224,14 @@ void Depacketizer::handleMessagePacket(std::list<PartialMessage>::iterator it, c
 		}
 
 		// Make sure the string fields are terminated
-		      msgHeader.topic_name[sizeof(msgHeader.topic_name)-1] = 0;
-		      msgHeader.topic_type[sizeof(msgHeader.topic_type)-1] = 0;
+		msgHeader.topic_name[sizeof(msgHeader.topic_name)-1] = 0;
+		msgHeader.topic_type[sizeof(msgHeader.topic_type)-1] = 0;
 
 		auto output = std::make_shared<Message>();
 
+		auto topicPtr = std::make_shared<Topic>(); // FIXME: Slightly awkward...
+		topicPtr->name = msgHeader.topic_name;
+		output->topic = topicPtr;
 		output->type = msgHeader.topic_type;
 		topic_info::unpackMD5(msgHeader.topic_md5, &output->md5);
 
@@ -258,7 +263,7 @@ void Depacketizer::handleMessagePacket(std::list<PartialMessage>::iterator it, c
 		output->payload.resize(msgHeader.size());
 
 		// and off we go...
-		m_cb(msgHeader.topic_name, output);
+		m_cb(output);
 	}
 }
 

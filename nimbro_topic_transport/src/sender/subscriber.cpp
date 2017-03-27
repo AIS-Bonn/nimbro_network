@@ -63,8 +63,14 @@ Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh)
 	}
 }
 
+void Subscriber::registerCallback(const Callback& cb)
+{
+	m_callbacks.push_back(cb);
+}
+
 void Subscriber::handleData(const topic_tools::ShapeShifter::ConstPtr& data)
 {
+	ROS_DEBUG("sender: message on topic '%s'", m_topic->name.c_str());
 	auto msg = std::make_shared<Message>();
 
 	// Serialize the shape shifter

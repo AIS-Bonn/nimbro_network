@@ -79,13 +79,16 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
 add_library(nimbro_topic_transport
 	src/sender/compressor.cpp
 	src/sender/packetizer.cpp
-	src/sender/thread_pool.cpp
 	src/sender/subscriber.cpp
 	src/sender/udp_sender.cpp
 	src/sender/tcp_sender.cpp
 	src/receiver/decompressor.cpp
 	src/receiver/depacketizer.cpp
+	src/receiver/publisher.cpp
+	src/receiver/udp_receiver.cpp
+	src/receiver/tcp_receiver.cpp
 	src/topic_info.cpp
+	src/thread_pool.cpp
 )
 target_link_libraries(nimbro_topic_transport
 	${catkin_LIBRARIES}
@@ -100,6 +103,14 @@ add_executable(sender
 	src/sender/sender.cpp
 )
 target_link_libraries(sender
+	${catkin_LIBRARIES}
+	nimbro_topic_transport
+)
+
+add_executable(receiver
+	src/receiver/receiver.cpp
+)
+target_link_libraries(receiver
 	${catkin_LIBRARIES}
 	nimbro_topic_transport
 )
@@ -168,6 +179,15 @@ if(catch_ros_FOUND)
 	target_link_libraries(unit_tests
 		nimbro_topic_transport
 	)
+
+	catch_add_rostest_node(test_comm
+		test/test_comm.cpp
+	)
+	target_link_libraries(test_comm
+		${catkin_LIBRARIES}
+	)
+
+	add_rostest(test/topic_transport.test)
 endif()
 
 #install

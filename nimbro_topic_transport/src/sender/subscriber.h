@@ -4,7 +4,6 @@
 #ifndef TT_SUBSCRIBER_H
 #define TT_SUBSCRIBER_H
 
-#include "topic.h"
 #include "../message.h"
 
 #include <ros/subscriber.h>

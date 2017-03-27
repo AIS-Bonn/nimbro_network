@@ -8,7 +8,6 @@
 
 #include <arpa/inet.h>
 
-#include "topic.h"
 #include "../message.h"
 #include "../udp_packet.h"
 

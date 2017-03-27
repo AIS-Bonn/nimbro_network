@@ -4,7 +4,7 @@
 #ifndef TT_THREAD_POOL_H
 #define TT_THREAD_POOL_H
 
-#include "../message.h"
+#include "message.h"
 
 #include <thread>
 #include <mutex>
