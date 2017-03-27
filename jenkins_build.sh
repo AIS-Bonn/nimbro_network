@@ -1,5 +1,12 @@
 #!/bin/bash -e
 
+# Init source repositories
+cd src
+rm -f .rosinstall
+wstool init . nimbro_network/rosinstall
+wstool update
+cd ..
+
 # Build!
 . /opt/ros/indigo/setup.bash
 stdbuf -oL catkin build --no-status --cmake-args -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-Wall"
