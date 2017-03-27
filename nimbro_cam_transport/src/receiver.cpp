@@ -90,7 +90,7 @@ int main(int argc, char** argv)
 
 	g_pub = nh.advertise<sensor_msgs::Image>("image", 1);
 	
-	ros::Subscriber sub = nh.subscribe("encoded", 5, &handleImage);
+	ros::Subscriber sub = nh.subscribe("encoded", 25, &handleImage);
 	
 	ros::spin();
 	
