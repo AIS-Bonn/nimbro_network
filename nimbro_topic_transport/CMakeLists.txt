@@ -31,6 +31,7 @@ include(ExternalProject)
 ExternalProject_Add(
 	openfec
 	URL http://openfec.org/files/openfec_v1_4_2.tgz
+	URL_HASH SHA256=ccf1252b548505d198de768609c08c722a35e580c53b843e4372b7c52674ce12
 	CMAKE_ARGS "-DCMAKE_C_FLAGS_RELEASE=-O3 -DNDEBUG -w" # openfec produces a lot of warnings :-(
 	BUILD_COMMAND $(MAKE)
 	INSTALL_COMMAND "" # openfec does not provide an install target :-(
@@ -62,6 +63,7 @@ message(STATUS "Found and using OpenFEC at: ${OPENFEC_PATH}")
 ExternalProject_Add(
 	zstd
 	URL "https://github.com/facebook/zstd/archive/v1.1.4.tar.gz"
+	URL_HASH SHA256=6aae2b586e359344cb8ecfe6917a407dc7e01b5d7d7388559714de37900fb9fb
 	CONFIGURE_COMMAND ""
 	BUILD_COMMAND $(MAKE)
 	BUILD_IN_SOURCE 1
