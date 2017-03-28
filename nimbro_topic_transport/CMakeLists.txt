@@ -191,8 +191,8 @@ if(catch_ros_FOUND)
 		${catkin_LIBRARIES}
 	)
 
-	add_rostest(test/topic_transport.test ARGS fec:=false)
-	add_rostest(test/topic_transport.test ARGS fec:=true)
+	add_rostest(test/topic_transport.test ARGS port:=5778 fec:=false)
+	add_rostest(test/topic_transport.test ARGS port:=5779 fec:=true)
 endif()
 
 #install

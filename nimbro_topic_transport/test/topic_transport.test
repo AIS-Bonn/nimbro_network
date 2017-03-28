@@ -1,11 +1,12 @@
 <?xml version="1" ?>
 <launch>
 	<arg name="fec" default="false" />
+	<arg name="port" default="5777" />
 
 	<node name="sender" pkg="nimbro_topic_transport" type="sender" output="screen">
 		<!-- Destination: localhost -->
 		<param name="destination_addr" value="127.0.0.1" />
-		<param name="port" value="5777" />
+		<param name="port" value="$(arg port)" />
 
 		<param if="$(arg fec)" name="fec" value="0.5" />
 
@@ -14,7 +15,7 @@
 	</node>
 
 	<node name="receiver" pkg="nimbro_topic_transport" type="receiver" output="screen">
-		<param name="port" value="5777" />
+		<param name="port" value="$(arg port)" />
 		<remap from="/udp/test_topic" to="/udp/receive/test_topic" />
 		<remap from="/udp/array_topic" to="/udp/receive/array_topic" />
 
