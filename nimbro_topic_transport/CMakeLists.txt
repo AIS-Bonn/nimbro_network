@@ -201,11 +201,11 @@ if(catch_ros_FOUND)
 		${catkin_LIBRARIES}
 	)
 
-	add_rostest(test/topic_transport.test ARGS protocol:=udp)
-	add_rostest(test/topic_transport.test ARGS protocol:=tcp)
+	add_rostest(test/topic_transport.test ARGS port:=5778 protocol:=udp)
+	add_rostest(test/topic_transport.test ARGS port:=5779 protocol:=tcp)
 
 	if(OPENFEC_PATH)
-		add_rostest(test/topic_transport.test ARGS protocol:=udp fec:=true)
+		add_rostest(test/topic_transport.test ARGS port:=5780 protocol:=udp fec:=true)
 	endif()
 endif()
 

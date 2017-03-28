@@ -1,6 +1,7 @@
 <launch>
 	<arg name="protocol" />
 	<arg name="fec" default="false" />
+	<arg name="port" default="5777" />
 
 	<!-- Skip long wait on config server, not needed here -->
 	<param name="config_server/enabled" value="false" />
@@ -8,8 +9,7 @@
 	<node name="sender" pkg="nimbro_topic_transport" type="$(arg protocol)_sender">
 		<!-- Destination: localhost -->
 		<param name="destination_addr" value="127.0.0.1" />
-		<param name="destination_port" value="5777" />
-		<param name="source_port" value="5776" />
+		<param name="destination_port" value="$(arg port)" />
 
 		<param if="$(arg fec)" name="fec" value="0.5" />
 
@@ -18,7 +18,7 @@
 	</node>
 
 	<node name="receiver" pkg="nimbro_topic_transport" type="$(arg protocol)_receiver">
-		<param name="port" value="5777" />
+		<param name="port" value="$(arg port)" />
 		<remap from="/test_topic" to="/receive/test_topic" />
 		<remap from="/array_topic" to="/receive/array_topic" />
 
