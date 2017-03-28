@@ -131,48 +131,7 @@ target_link_libraries(action_proxy
 )
 
 # GUI
-find_package(Qt4 REQUIRED)
-include(${QT_USE_FILE})
-
-qt4_wrap_cpp(MOC_SRCS
-	src/gui/topic_gui.h
-	src/gui/dot_widget.h
-)
-
-qt4_wrap_cpp(BAND_MOC_SRCS
-	src/gui/bandwidth_gui.h
-	src/gui/contrib/qcustomplot/qcustomplot.h
-)
-
-add_library(topic_gui
-	${MOC_SRCS}
-	src/gui/topic_gui.cpp
-	src/gui/dot_widget.cpp
-)
-
-add_library(bandwidth_gui
-	${BAND_MOC_SRCS}
-	src/gui/bandwidth_gui.cpp
-	src/gui/contrib/qcustomplot/qcustomplot.cpp
-)
-
-
-add_dependencies(topic_gui
-	${PROJECT_NAME}_generate_messages_cpp
-)
-
-target_link_libraries(topic_gui
-	${QT_LIBRARIES}
-)
-
-add_dependencies(bandwidth_gui
-	${PROJECT_NAME}_generate_messages_cpp
-)
-
-target_link_libraries(bandwidth_gui
-	${QT_LIBRARIES}
-	yaml-cpp
-)
+add_subdirectory(src/gui)
 
 # Tests
 if(catch_ros_FOUND)
