@@ -14,7 +14,7 @@
 	<build_depend>message_generation</build_depend>
 
 	<!-- This is not a hard dependency, the package compiles without catch_ros -->
-	<depend>catch_ros</depend>
+	<build_depend>catch_ros</build_depend>
 
 	<depend>rqt_gui</depend>
 
