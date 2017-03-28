@@ -32,6 +32,7 @@ ExternalProject_Add(
 	openfec
 	URL http://openfec.org/files/openfec_v1_4_2.tgz
 	CMAKE_ARGS "-DCMAKE_C_FLAGS_RELEASE=-O3 -DNDEBUG -w" # openfec produces a lot of warnings :-(
+	BUILD_COMMAND $(MAKE)
 	INSTALL_COMMAND "" # openfec does not provide an install target :-(
 )
 
@@ -62,6 +63,7 @@ ExternalProject_Add(
 	zstd
 	URL "https://github.com/facebook/zstd/archive/v1.1.4.tar.gz"
 	CONFIGURE_COMMAND ""
+	BUILD_COMMAND $(MAKE)
 	BUILD_IN_SOURCE 1
 	INSTALL_COMMAND ""
 )
