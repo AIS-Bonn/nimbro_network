@@ -97,6 +97,7 @@ void UDPSender::send(const std::vector<Packet::Ptr>& packets)
 {
 	for(auto& packet : packets)
 	{
+		ROS_DEBUG_NAMED("udp", "Sending UDP packet of size %lu", packet->data.size());
 		if(sendto(m_fd, packet->data.data(), packet->data.size(), 0, (sockaddr*)&m_addr, m_addrLen) != (ssize_t)packet->data.size())
 		{
 			ROS_ERROR("Could not send data of size %d: %s", (int)packet->data.size(), strerror(errno));

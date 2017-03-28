@@ -126,6 +126,7 @@ void UDPReceiver::thread()
 			m_remoteAddrLen = addrlen;
 		}
 
+		ROS_DEBUG_NAMED("udp", "Received UDP packet of size %ld", size);
 		packet->length = size;
 		m_callback(packet);
 	}
