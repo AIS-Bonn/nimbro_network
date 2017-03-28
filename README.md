@@ -20,27 +20,40 @@ which our team NimbRo Rescue achieved the fourth place.
 Why?
 ----
 
-ROS has a network transparency layer. But it has issues, namely:
+The built-in network transparency of ROS creates a strong dependency on
+a good connection to the ROS master. Multi-master solutions strive to
+solve this issue by synchronizing individual ROS masters on the networked
+hosts.
 
-* For subscription, a lengthy TCP handshake is required, even if you want to
-  use the UDP transport. If you lose the connection, you have to re-do the
-  handshake, possibly taking a long time
-* No compression
-* ROS service calls need several handshakes for each call
-* Messages are transmitted at the rate at which they are published
+Here is a high-level comparison of `nimbro_network` with the ROS network
+transparency and the [multimaster_fkie][multimaster_fkie] stack:
 
-Our network stack offers the same functions as the ROS network transparency,
-but addresses each of the above issues.
+| Feature                                 | ROS 1 | `multimaster_fkie` | `nimbro_network` |
+| --------------------------------------- | ----- | ------------------ | ---------------- |
+| Reliable topic/service transport        | ✔     | ✔                  | ✔                |
+| Unreliable topic/service transport      | (✔)   | (✔)                | ✔                |
+| Multi-master operation                  | ✘     | ✔                  | ✔                |
+| Works without ROS master handshake      | ✘     | ✘                  | ✔                |
+| Automatic remote host/topic discovery   | ✘     | ✔                  | ✘                |
+| Transparent compression                 | ✘     | ✘                  | ✔                |
+| Forward Error Correction (FEC)          | ✘     | ✘                  | ✔                |
+| Built-in rate limiting                  | ✘     | ✘                  | ✔                |
+| Rate-limiting for tf messages           | ✘     | ✘                  | ✔                |
+| Low-latency H.264 video transport       | ✘     | ✘                  | ✔                |
 
-Alternatives
-------------
+`nimbro_network` especially targets robust operations with autonomous or
+semi-autonomous robots. Everything is statically configured, there is no
+auto-discovery which might fail at critical points during a mission.
 
-`nimbro_network` offers robust transport of ROS topics and services over
-unreliable networks. For high-level features like auto-discovery, job scheduling
-etc. take a look at alternatives like [rocon][rocon] or
-[multimaster_fkie][multimaster_fkie].
+`nimbro_network` excels in the presence of communication restrictions
+(artificial or natural) like unidirectional communication, latency or
+packet drops.
 
-[rocon]: http://www.robotconcert.org
+Forward error correction (FEC) is realized using the [OpenFEC][OpenFEC]
+software framework. This is a powerful tool to increase the robustness
+of the unreliable transport --- without using bidirectional communication.
+
+[OpenFEC]: http://www.openfec.org/
 [multimaster_fkie]: https://fkie.github.io/multimaster_fkie/
 
 Features
@@ -51,7 +64,7 @@ Features
       (still with communication timeouts!)
     * UDP protocol for streaming data (data which has no meaning if it
       arrives late)
-    * Optional transparent BZip2 compression using libbz2
+    * Optional transparent [zstd][zstd] compression
     * Automatic topic discovery on the receiver side. The transmitter defines
       which topics get transferred
     * Optional rate-limiting for each topic
@@ -66,6 +79,8 @@ Features
       defined intervals.
     * Special nimbro_cam_transport package for encoding/decoding camera images
       to/from H.264
+
+[zstd]: https://github.com/facebook/zstd
 
 Getting started
 ---------------

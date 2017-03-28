@@ -51,21 +51,3 @@ The nimbro_topic_transport package provides GUI plugins for the `rqt` GUI:
 Note that it may be necessary to transmit the topics `/network/sender_stats` and
 `/network/receiver_stats` over the network to get the full amount of
 information.
-
-Relay mode
-----------
-
-The UDP transport supports a special "relay" mode that was used in the DARPA
-Robotics Challenge. Basically, it saturates a given target bitrate, repeating
-messages if necessary. In the DRC, the high bandwidth link was switched on for
-very short times (1 second). By saturating the available bandwidth, we made
-sure that we got the maximum amount of data across in that window.
-
-Forward error correction (FEC)
-------------------------------
-
-The UDP transport can do forward error correction if [OpenFEC][1] is available.
-A short guide on how to install and configure the system is available
-in `doc/FEC.md`.
-
-[1]: http://openfec.org/
