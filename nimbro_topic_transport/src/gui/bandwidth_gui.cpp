@@ -117,13 +117,13 @@ void BandwidthGui::initPlugin(qt_gui_cpp::PluginContext& ctx)
 		&m_plotTimer, SIGNAL(timeout()),
 		this, SLOT(updatePlot())
 	);
-	m_plotTimer.start(0);
-
+	m_plotTimer.start(50);
 }
 
 void BandwidthGui::shutdownPlugin()
 {
 	m_sub_senderStats.shutdown();
+	m_plotTimer.stop();
 }
 
 void BandwidthGui::clearPlot()
