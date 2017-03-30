@@ -8,13 +8,14 @@
 	<license>BSD</license>
 
 	<buildtool_depend>catkin</buildtool_depend>
-	<run_depend>nimbro_cam_transport</run_depend>
-	<run_depend>nimbro_log_transport</run_depend>
-	<run_depend>nimbro_service_transport</run_depend>
-	<run_depend>nimbro_tf_throttle</run_depend>
-	<run_depend>nimbro_topic_transport</run_depend>
+	<exec_depend>nimbro_cam_transport</exec_depend>
+	<exec_depend>nimbro_log_transport</exec_depend>
+	<exec_depend>nimbro_service_transport</exec_depend>
+	<exec_depend>nimbro_tf_throttle</exec_depend>
+	<exec_depend>nimbro_topic_transport</exec_depend>
 
 	<export>
-		<metapackage/>
+		<metapackage />
+		<architecture_independent />
 	</export>
 </package>
