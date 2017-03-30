@@ -84,6 +84,8 @@ int main(int argc, char** argv)
 
 #ifdef CODEC_FLAG2_SHOW_ALL
 	g_codec->flags2 |= CODEC_FLAG2_SHOW_ALL;
+#else
+#warning This version of FFMPEG does not offer CODEC_FLAG2_SHOW_ALL. Consider upgrading your FFMPEG.
 #endif
 
 	g_codec->thread_type = 0;
