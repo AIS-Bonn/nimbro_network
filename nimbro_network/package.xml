@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="2">
+	<name>nimbro_network</name>
+	<version>2.0.0</version>
+	<description>nimbro_network metapackage</description>
+
+	<maintainer email="max.schwarz@uni-bonn.de">Max Schwarz</maintainer>
+	<license>BSD</license>
+
+	<buildtool_depend>catkin</buildtool_depend>
+	<depend>nimbro_cam_transport</depend>
+	<depend>nimbro_log_transport</depend>
+	<depend>nimbro_service_transport</depend>
+	<depend>nimbro_tf_throttle</depend>
+	<depend>nimbro_topic_transport</depend>
+
+	<export>
+		<metapackage/>
+	</export>
+</package>
