@@ -1,5 +1,5 @@
 <package>
-	<name>tf_throttle</name>
+	<name>nimbro_tf_throttle</name>
 	<version>1.0.0</version>
 	<description>Throttles TF output down to bandwidth suitable for wifi</description>
 

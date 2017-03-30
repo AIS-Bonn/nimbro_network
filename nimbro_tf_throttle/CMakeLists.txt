@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-project(tf_throttle)
+project(nimbro_tf_throttle)
 
 find_package(catkin REQUIRED COMPONENTS
 	roscpp
