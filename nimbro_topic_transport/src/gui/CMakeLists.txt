@@ -62,3 +62,9 @@ target_link_libraries(bandwidth_gui
 	${QT_LIBRARIES}
 	yaml-cpp
 )
+
+install(TARGETS topic_gui bandwidth_gui
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
