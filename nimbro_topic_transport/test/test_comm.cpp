@@ -141,6 +141,7 @@ TEST_CASE("array", "[topic]")
 		usleep(1000);
 	}
 
+	INFO("Received after first message was sent: " << g_arrayCounter);
 	pub.publish(msg);
 
 	for(int i = 0; i < 1000; ++i)
@@ -153,5 +154,5 @@ TEST_CASE("array", "[topic]")
 	}
 
 	CAPTURE(g_arrayCounter);
-	FAIL("No message received");
+	FAIL("Not enough messages received");
 }
