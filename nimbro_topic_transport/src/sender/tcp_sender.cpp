@@ -14,7 +14,6 @@ namespace nimbro_topic_transport
 TCPSender::TCPSender()
  : m_nh("~")
  , m_fd(-1)
- , m_sentBytesInStatsInterval(0)
 {
 	std::string addr;
 	if(!m_nh.getParam("destination_addr", addr) && !m_nh.getParam("address", addr))
@@ -55,31 +54,6 @@ TCPSender::TCPSender()
 	m_addrLen = info->ai_addrlen;
 
 	freeaddrinfo(info);
-
-	char hostnameBuf[256];
-	gethostname(hostnameBuf, sizeof(hostnameBuf));
-	hostnameBuf[sizeof(hostnameBuf)-1] = 0;
-
-	m_stats.node = ros::this_node::getName();
-	m_stats.protocol = "TCP";
-	m_stats.host = hostnameBuf;
-	m_stats.destination = addr;
-	m_stats.destination_port = port;
-	m_stats.source_port = m_sourcePort;
-	m_stats.fec = false;
-
-	m_nh.param("label", m_stats.label, std::string());
-
-	m_pub_stats = m_nh.advertise<SenderStats>("/network/sender_stats", 1);
-
-	for(auto& pair : m_topicSendBytesInStatsInteral)
-		pair.second = 0;
-
-	m_statsInterval = ros::WallDuration(2.0);
-	m_statsTimer = m_nh.createWallTimer(m_statsInterval,
-		boost::bind(&TCPSender::updateStats, this)
-	);
-	m_statsTimer.start();
 }
 
 TCPSender::~TCPSender()
@@ -127,7 +101,7 @@ bool TCPSender::connect()
 		ROS_ERROR("Could not connect: %s", strerror(errno));
 		return false;
 	}
-	ROS_INFO("Connected to destination at %s", m_stats.destination.c_str());
+	ROS_INFO("Connected to destination");
 
 	if(m_sourcePort == -1)
 	{
@@ -146,8 +120,6 @@ bool TCPSender::connect()
 		{
 			ROS_ERROR("Could not resolve remote address to name");
 		}
-
-		m_stats.source_port = atoi(serviceBuf);
 	}
 
 #ifdef TCP_USER_TIMEOUT
@@ -222,8 +194,6 @@ void TCPSender::send(const Message::ConstPtr& msg)
 			m_fd = -1;
 			continue;
 		}
-		m_sentBytesInStatsInterval += totalSize;
-		m_topicSendBytesInStatsInteral[msg->topic->name] += totalSize;
 
 		// Read ACK
 		uint8_t ack;
@@ -242,26 +212,6 @@ void TCPSender::send(const Message::ConstPtr& msg)
 		"Could not send TCP packet. Dropping message from topic %s!",
 		msg->topic->name.c_str()
 	);
-}
-
-void TCPSender::updateStats()
-{
-	std::unique_lock<std::mutex> lock(m_mutex);
-
-	m_stats.header.stamp = ros::Time::now();
-	m_stats.bandwidth = 8 * m_sentBytesInStatsInterval / m_statsInterval.toSec();
-	m_stats.topics.clear();
-	for(auto& pair : m_topicSendBytesInStatsInteral)
-	{
-		nimbro_topic_transport::TopicBandwidth tp;
-		tp.name = pair.first;
-		tp.bandwidth = pair.second / m_statsInterval.toSec();
-		pair.second = 0;
-		m_stats.topics.push_back(tp);
-	}
-
-	m_pub_stats.publish(m_stats);
-	m_sentBytesInStatsInterval = 0;
 }
 
 }

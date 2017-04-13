@@ -10,8 +10,6 @@
 
 #include <arpa/inet.h>
 
-#include <nimbro_topic_transport/SenderStats.h>
-
 namespace nimbro_topic_transport
 {
 
@@ -37,13 +35,6 @@ private:
 	socklen_t m_addrLen;
 
 	int m_sourcePort;
-
-	nimbro_topic_transport::SenderStats m_stats;
-	ros::Publisher m_pub_stats;
-	ros::WallDuration m_statsInterval;
-	ros::WallTimer m_statsTimer;
-	uint64_t m_sentBytesInStatsInterval;
-	std::map<std::string, uint64_t> m_topicSendBytesInStatsInteral;
 };
 
 }
