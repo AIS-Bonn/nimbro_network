@@ -95,8 +95,20 @@ UDPSender::~UDPSender()
 
 void UDPSender::send(const std::vector<Packet::Ptr>& packets)
 {
+	// Reserve range of packet IDs. As long as our messages do not
+	// approach 2^24 bytes (~25GB), this is fine.
+	uint32_t packetID;
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		packetID = m_packetID;
+		m_packetID += packets.size();
+	}
+
 	for(auto& packet : packets)
 	{
+		// Patch the packet ID
+		packet->packet()->header.packet_id = packetID++;
+
 		ROS_DEBUG_NAMED("udp", "Sending UDP packet of size %lu", packet->data.size());
 		if(sendto(m_fd, packet->data.data(), packet->data.size(), 0, (sockaddr*)&m_addr, m_addrLen) != (ssize_t)packet->data.size())
 		{

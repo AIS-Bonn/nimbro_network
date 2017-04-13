@@ -24,8 +24,9 @@ struct UDPPacket
 {
 	struct Header
 	{
+		LEValue<3> packet_id;
 		LEValue<2> msg_id;
-		LEValue<4> symbol_id;
+		LEValue<3> symbol_id;
 
 		// FEC parameters
 		LEValue<2> source_symbols;
@@ -37,14 +38,19 @@ struct UDPPacket
 		// bandwidth cost.
 		// In particular, OpenFEC silently assumes 8-bit alignment of the
 		// symbols - see unprotected casts in of_symbol.c.
-		uint16_t _padding;
+		// NOTE: If you change the header, make sure its size is a multiple of 16!
+		// current size: 16 bytes.
 	} __attribute__((packed));
+
+	static_assert(sizeof(Header) % 16 == 0, "UDP Header size must be a multiple of 16");
 
 	enum { MaxDataSize = PACKET_SIZE - sizeof(Header) };
 
 	Header header;
 	uint8_t data[];
 } __attribute__((packed));
+
+
 
 //! Header of the data (either after FEC decoding or in first packet)
 struct UDPData

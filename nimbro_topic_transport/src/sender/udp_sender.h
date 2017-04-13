@@ -28,6 +28,9 @@ private:
 	sockaddr_storage m_addr;
 	socklen_t m_addrLen;
 	//@}
+
+	std::mutex m_mutex;
+	uint32_t m_packetID = 0;
 };
 
 }
