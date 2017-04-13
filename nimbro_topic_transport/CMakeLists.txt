@@ -91,6 +91,7 @@ add_library(nimbro_topic_transport
 	src/sender/subscriber.cpp
 	src/sender/udp_sender.cpp
 	src/sender/tcp_sender.cpp
+	src/sender/get_route.cpp
 	src/receiver/decompressor.cpp
 	src/receiver/depacketizer.cpp
 	src/receiver/publisher.cpp
