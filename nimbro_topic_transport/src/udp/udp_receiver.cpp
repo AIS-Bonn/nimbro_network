@@ -196,7 +196,7 @@ void UDPReceiver::handleFinishedMessage(Message* msg, HeaderType* header)
 		for(int i = 0; i < 4; ++i)
 		{
 			std::string md5_part = topic->md5_str.substr(8*i, 8);
-			uint32_t md5_num = strtol(md5_part.c_str(), 0, 16);
+			uint32_t md5_num = strtoll(md5_part.c_str(), 0, 16);
 			topic->md5[i] = md5_num;
 		}
 

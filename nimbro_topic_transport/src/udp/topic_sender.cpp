@@ -117,7 +117,7 @@ void TopicSender::send()
 			for(int i = 0; i < 4; ++i)
 			{
 				std::string md5_part = md5.substr(8*i, 8);
-				uint32_t md5_num = strtol(md5_part.c_str(), 0, 16);
+				uint32_t md5_num = strtoll(md5_part.c_str(), 0, 16);
 				m_md5[i] = md5_num;
 			}
 
