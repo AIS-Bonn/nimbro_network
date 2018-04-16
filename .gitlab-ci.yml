@@ -12,12 +12,12 @@ catkin_build:
   stage: build
   script:
     - catkin build --summarize --no-status --force-color
-    - find build -name test_results -type d -exec cp -R '{}' . ';'
 
 catkin_tools_tests:
   stage: test
   script:
     - ROS_TEST_RESULTS_DIR=$(pwd)/test_results catkin run_tests --no-status --force-color
+    - find build -name test_results -type d -exec cp -R '{}' . ';'
   artifacts:
     paths:
       - test_results/
