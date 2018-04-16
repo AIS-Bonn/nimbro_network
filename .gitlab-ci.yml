@@ -13,7 +13,10 @@ catkin_build:
   script:
     - catkin build --summarize --no-status --force-color
 
-catkin tools_tests:
+catkin_tools_tests:
   stage: test
   script:
-    - catkin run_tests --no-status --force-color
+    - ROS_TEST_RESULTS_DIR=$(pwd)/test_results catkin run_tests --no-status --force-color
+  artifacts:
+    paths:
+      - test_results/
