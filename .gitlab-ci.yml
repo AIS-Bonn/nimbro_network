@@ -18,7 +18,7 @@ catkin_tools_tests:
   script:
     - ROS_TEST_RESULTS_DIR=$(pwd)/test_results catkin run_tests --no-status --force-color
     - ls -la
-    - find build -name test_results -type d -exec cp -R '{}' . ';' -print
+    - find build -name test_results -type d -exec cp -R '{}' $CI_PROJECT_DIR/ ';' -print
   artifacts:
     paths:
       - test_results/
