@@ -1,4 +1,4 @@
-image: ros:kinetic-ros-core
+image: ros:kinetic-ros-robot
 
 variables:
   ROS_PACKAGES_TO_INSTALL: ""
