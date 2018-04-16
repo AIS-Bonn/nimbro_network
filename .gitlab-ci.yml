@@ -1,0 +1,19 @@
+image: ros:kinetic-ros-core
+
+variables:
+  ROS_PACKAGES_TO_INSTALL: ""
+  USE_ROSDEP: "true"
+
+before_script:
+ - git clone https://gitlab.com/VictorLamoine/ros_gitlab_ci.git
+ - source ros_gitlab_ci/gitlab-ci.bash
+
+catkin_build:
+  stage: build
+  script:
+    - catkin build --summarize --no-status --force-color
+
+catkin tools_tests:
+  stage: test
+  script:
+    - catkin run_tests --no-status --force-color
