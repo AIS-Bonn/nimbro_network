@@ -17,7 +17,6 @@ catkin_tools_tests:
   stage: test
   script:
     - ROS_TEST_RESULTS_DIR=$(pwd)/test_results catkin run_tests --no-status --force-color
-    - ls -la
     - find build -name test_results -type d -exec cp -R '{}' $CI_PROJECT_DIR/ ';' -print
     - cd $CI_PROJECT_DIR
     - python ros_gitlab_ci/summarize_results.py test_results/*/*.xml test_results/summary.xml
