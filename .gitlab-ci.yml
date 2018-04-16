@@ -5,7 +5,7 @@ variables:
   USE_ROSDEP: "true"
 
 before_script:
- - git clone git@git.ais.uni-bonn.de:nimbroshared/ros_gitlab_ci.git
+ - git clone https://git.ais.uni-bonn.de/nimbroshared/ros_gitlab_ci.git
  - source ros_gitlab_ci/gitlab-ci.bash
 
 catkin_build:
