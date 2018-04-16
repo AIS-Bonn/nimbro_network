@@ -68,10 +68,9 @@ add_dependencies(udp_client
 )
 
 # GUI
-find_package(Qt4 REQUIRED)
-include(${QT_USE_FILE})
+find_package(Qt5Widgets REQUIRED)
 
-qt4_wrap_cpp(MOC_SRCS
+qt5_wrap_cpp(MOC_SRCS
 	src/gui/service_widget.h
 )
 
@@ -85,7 +84,7 @@ add_dependencies(service_widget
 )
 
 target_link_libraries(service_widget
-	${QT_LIBRARIES}
+	Qt5::Widgets
 )
 
 # Tests

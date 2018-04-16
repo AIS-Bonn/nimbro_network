@@ -8,6 +8,7 @@
 	<license>GPLv2</license>
 
 	<buildtool_depend>catkin</buildtool_depend>
+	<depend>rqt_gui_cpp</depend>
 	<depend>roscpp</depend>
 	<depend>topic_tools</depend>
 
