@@ -1,0 +1,30 @@
+<launch>
+
+    <arg name="target" default="localhost" />
+    <arg name="allow_bidirectional" default="true" />
+
+    <!-- The TCP sender node -->
+    <node name="tcp_sender_machine1" pkg="nimbro_topic_transport" type="tcp_sender" output="screen">
+
+        <!-- The destination host name or IP address -->
+        <param name="destination_addr" value="$(arg target)" />
+        <param name="destination_port" value="17001" />
+
+        <!-- Load the list of topics from a YAML file -->
+        <rosparam command="load" file="$(find nimbro_topic_transport)/launch/topics_machine1.yaml" />
+
+        <!-- If bidirectional traffic over a topic is expected, fill this parameter.
+             See details in bidirectional_topics.launch -->
+        <rosparam param="ignored_publishers" if="$(arg allow_bidirectional)">["/tcp_receiver_machine1"]</rosparam>
+        <rosparam param="ignored_publishers" unless="$(arg allow_bidirectional)">[]</rosparam>
+    </node>
+
+    <node name="tcp_receiver_machine1" pkg="nimbro_topic_transport" type="tcp_receiver" output="screen">
+        <param name="port" value="17002" />
+
+        <!-- Remap topics so that sender & receiver do not clash if run on the
+          same machine. This is not necessary in a typical setup :-)
+         -->
+        <remap from="/recv/my_first_topic" to="/my_first_topic" />
+    </node>
+</launch>
