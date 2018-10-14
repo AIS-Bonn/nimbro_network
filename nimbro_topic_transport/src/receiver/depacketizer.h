@@ -15,8 +15,7 @@
 
 extern "C"
 {
-struct of_session;
-struct of_parameters;
+struct WirehairCodec_t;
 }
 
 namespace nimbro_topic_transport
@@ -43,8 +42,7 @@ private:
 		std::size_t received_symbols = 0;
 		std::vector<Packet::Ptr> packets;
 
-		std::shared_ptr<of_session> decoder;
-		std::shared_ptr<of_parameters> params;
+		std::shared_ptr<WirehairCodec_t> decoder;
 	};
 
 	void pruneMessages();

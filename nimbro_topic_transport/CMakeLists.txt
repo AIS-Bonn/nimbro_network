@@ -25,49 +25,20 @@ include_directories(${catkin_INCLUDE_DIRS})
 
 find_package(catch_ros)
 
-include(ExternalProject)
-
-### BEGIN OPENFEC
-ExternalProject_Add(
-	openfec
-	URL http://openfec.org/files/openfec_v1_4_2.tgz
-	URL_HASH SHA256=ccf1252b548505d198de768609c08c722a35e580c53b843e4372b7c52674ce12
-	CMAKE_ARGS "-DCMAKE_C_FLAGS_RELEASE=-O3 -DNDEBUG -w" # openfec produces a lot of warnings :-(
-	BUILD_COMMAND $(MAKE)
-	INSTALL_COMMAND "" # openfec does not provide an install target :-(
-)
-
-ExternalProject_Get_Property(openfec SOURCE_DIR)
-set(OPENFEC_PATH "${SOURCE_DIR}")
-
-add_definitions(-DWITH_OPENFEC=1)
-include_directories(${OPENFEC_PATH}/src/lib_common)
-set(OPENFEC_LIB_PATH ${OPENFEC_PATH}/bin/Release)
-set(OPENFEC_LIBRARY ${OPENFEC_LIB_PATH}/libopenfec.so)
-install(FILES
-	${OPENFEC_PATH}/bin/Release/libopenfec.so.1.4.2
-	DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
-set(OPENFEC_LINK_DEST ${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION}/libopenfec.so.1)
-install(CODE "execute_process(COMMAND ln -s libopenfec.so.1.4.2 ${OPENFEC_LINK_DEST})")
-
-if(NOT ";${CMAKE_INSTALL_RPATH};" MATCHES ";${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION};")
-	list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION}")
-endif()
-message(STATUS "Found and using OpenFEC at: ${OPENFEC_PATH}")
-
-### END OPENFEC
-
 # Find zstd
 find_package(PkgConfig)
 pkg_check_modules(ZSTD REQUIRED libzstd>=1.1.4)
 
 include_directories(${ZSTD_INCLUDE_DIRS})
+include_directories(contrib)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11 -march=native")
 
 add_library(nimbro_topic_transport
+	contrib/wirehair/wirehair.cpp
+	contrib/wirehair/gf256.cpp
+	contrib/wirehair/WirehairCodec.cpp
+	contrib/wirehair/WirehairTools.cpp
 	src/sender/compressor.cpp
 	src/sender/packetizer.cpp
 	src/sender/subscriber.cpp
@@ -84,11 +55,8 @@ add_library(nimbro_topic_transport
 )
 target_link_libraries(nimbro_topic_transport
 	${catkin_LIBRARIES}
-	${OPENFEC_LIBRARY}
 	${ZSTD_LIBRARIES}
 )
-add_dependencies(nimbro_topic_transport openfec)
-
 
 add_executable(sender
 	src/sender/sender.cpp
