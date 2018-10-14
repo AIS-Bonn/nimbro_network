@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.1)
 
 project(nimbro_topic_transport)
 
@@ -59,29 +59,11 @@ message(STATUS "Found and using OpenFEC at: ${OPENFEC_PATH}")
 
 ### END OPENFEC
 
-### BEGIN ZSTD
-ExternalProject_Add(
-	zstd
-	URL "https://github.com/facebook/zstd/archive/v1.1.4.tar.gz"
-	URL_HASH SHA256=6aae2b586e359344cb8ecfe6917a407dc7e01b5d7d7388559714de37900fb9fb
-	CONFIGURE_COMMAND ""
-	BUILD_COMMAND $(MAKE)
-	BUILD_IN_SOURCE 1
-	INSTALL_COMMAND ""
-)
+# Find zstd
+find_package(PkgConfig)
+pkg_check_modules(ZSTD REQUIRED libzstd>=1.1.4)
 
-ExternalProject_Get_Property(zstd SOURCE_DIR)
-set(ZSTD_LIBRARY ${SOURCE_DIR}/lib/libzstd.so)
-include_directories(${SOURCE_DIR}/lib)
-
-install(FILES
-	${SOURCE_DIR}/lib/libzstd.so.1.1.4
-	DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-set(ZSTD_LINK_DEST ${CMAKE_INSTALL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION}/libzstd.so.1)
-install(CODE "execute_process(COMMAND ln -s libzstd.so.1.1.4 ${ZSTD_LINK_DEST})")
-add_definitions(-DWITH_ZSTD=1)
-### END ZSTD
+include_directories(${ZSTD_INCLUDE_DIRS})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
 
@@ -103,9 +85,9 @@ add_library(nimbro_topic_transport
 target_link_libraries(nimbro_topic_transport
 	${catkin_LIBRARIES}
 	${OPENFEC_LIBRARY}
-	${ZSTD_LIBRARY}
+	${ZSTD_LIBRARIES}
 )
-add_dependencies(nimbro_topic_transport openfec zstd)
+add_dependencies(nimbro_topic_transport openfec)
 
 
 add_executable(sender
