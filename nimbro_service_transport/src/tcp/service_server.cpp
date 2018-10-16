@@ -38,11 +38,11 @@ ServiceServer::ServiceServer()
 	int port;
 	nh.param("port", port, 6050);
 
-	sockaddr_in addr;
+	sockaddr_in6 addr;
 	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = INADDR_ANY;
-	addr.sin_port = htons(port);
+	addr.sin6_family = AF_INET6;
+	addr.sin6_addr = in6addr_any;
+	addr.sin6_port = htons(port);
 
 	int on = 1;
 	if(setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0)
