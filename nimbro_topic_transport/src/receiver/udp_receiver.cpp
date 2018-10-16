@@ -17,7 +17,7 @@ UDPReceiver::UDPReceiver()
 {
 	ros::NodeHandle nh("~");
 
-	m_fd = socket(AF_INET, SOCK_DGRAM, 0);
+	m_fd = socket(AF_INET6, SOCK_DGRAM, 0);
 	if(m_fd < 0)
 	{
 		ROS_FATAL("Could not create socket: %s", strerror(errno));
@@ -27,10 +27,10 @@ UDPReceiver::UDPReceiver()
 	int port;
 	nh.param("port", port, 5050);
 
-	sockaddr_in addr;
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = INADDR_ANY;
-	addr.sin_port = htons(port);
+	sockaddr_in6 addr;
+	addr.sin6_family = AF_INET6;
+	addr.sin6_addr = in6addr_any;
+	addr.sin6_port = htons(port);
 
 	ROS_INFO("UDP: Binding to :%d", port);
 
