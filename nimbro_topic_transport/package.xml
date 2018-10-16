@@ -12,6 +12,7 @@
 	<depend>roscpp</depend>
 	<depend>topic_tools</depend>
 	<depend>yaml-cpp</depend>
+	<depend>libzstd-dev</depend>
 
 	<build_depend>message_generation</build_depend>
 
