@@ -29,6 +29,7 @@ private:
 
 	int m_fd;
 
+	int m_addrFamily;
 	sockaddr_storage m_addr;
 	socklen_t m_addrLen;
 
