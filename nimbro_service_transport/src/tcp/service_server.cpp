@@ -28,7 +28,7 @@ ServiceServer::ServiceServer()
 {
 	ros::NodeHandle nh("~");
 
-	m_fd = socket(AF_INET, SOCK_STREAM, 0);
+	m_fd = socket(AF_INET6, SOCK_STREAM, 0);
 	if(m_fd < 0)
 	{
 		perror("Could not create socket");
