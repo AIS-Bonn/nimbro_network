@@ -5,8 +5,12 @@
 #include <ros/master.h>
 #include <ros/network.h>
 
+#include <stdexcept>
+
 #include "ros/xmlrpc_manager.h"
 #include "xmlrpcpp/XmlRpc.h"
+
+#include <nimbro_net_monitor/NetworkStats.h>
 
 using XMLRPCManager = ros::XMLRPCManager;
 
@@ -36,7 +40,6 @@ struct ConnectionInfo
 	Direction direction = Direction::Both;
 	std::string transport;
 	std::string topic;
-	bool connected = false;
 
 	static ConnectionInfo fromXmlRpc(XmlRpc::XmlRpcValue& in)
 	{
@@ -56,97 +59,140 @@ struct ConnectionInfo
 
 		ret.transport = static_cast<std::string>(in[3]);
 		ret.topic = static_cast<std::string>(in[4]);
-		ret.connected = static_cast<int>(in[5]);
 
 		return ret;
 	}
-
-	bool isLocal() const
-	{
-		return destination == ros::network::getHost(); // FIXME: destination is node *name*
-	}
 };
 
-int main(int argc, char** argv)
+struct NodeInfo
 {
-	ros::init(argc, argv, "net_monitor");
+	std::string name;
+	std::string uri;
+	std::string host;
+	uint32_t port;
 
-	XmlRpc::XmlRpcValue response;
-	XmlRpc::XmlRpcValue payload;
-	if(!ros::master::execute("getSystemState", "net_monitor", response, payload, false))
+	class LookupException : std::runtime_error
 	{
-		ROS_ERROR("Could not query system state from master");
-		return 1;
-	}
+	public:
+		LookupException(const char* what) : std::runtime_error(what) {}
+	};
 
-	std::set<std::string> nodes;
-
-	for(int i = 0; i < payload.size(); ++i)
+	static NodeInfo fromName(const std::string& name)
 	{
-		auto advertisement = payload[i];
+		NodeInfo ret;
 
-		for(int j = 0; j < advertisement.size(); ++j)
-		{
-			auto item = advertisement[j];
-
-			auto pubs = item[1];
-
-			for(int k = 0; k < pubs.size(); ++k)
-				nodes.insert(pubs[k]);
-		}
-	}
-
-	for(auto& node : nodes)
-	{
 		XmlRpc::XmlRpcValue n_response;
 		XmlRpc::XmlRpcValue n_payload;
 
 		XmlRpc::XmlRpcValue args;
 		args[0] = "net_monitor";
-		args[1] = node;
+		args[1] = name;
 
 		if(!ros::master::execute("lookupNode", args, n_response, n_payload, false))
 		{
-			ROS_WARN("Could not lookup node '%s'", node.c_str());
-			continue;
+			ROS_WARN("Could not lookup node '%s'", name.c_str());
+			throw LookupException("Could not find the node");
 		}
 
-		std::string uri = n_payload;
-		std::string host;
-		uint32_t port;
-		if(!ros::network::splitURI(uri, host, port))
+		ret.name = name;
+		ret.uri = static_cast<std::string>(n_payload);
+
+		if(!ros::network::splitURI(ret.uri, ret.host, ret.port))
 		{
-			ROS_WARN("Could not split URI: %s", uri.c_str());
-			continue;
+			ROS_WARN("Could not parse node URI: '%s'", ret.uri.c_str());
+			throw LookupException("Could not parse node URI");
 		}
 
-		if(host != ros::network::getHost())
-			continue;
+		return ret;
+	}
+};
 
-		ROS_INFO(" - %s at %s", node.c_str(), uri.c_str());
+struct PeerStats
+{
+	std::map<std::string, nimbro_net_monitor::NodeStats> nodeStats;
+};
+
+class SystemMonitor
+{
+public:
+	typedef std::map<std::string, PeerStats> PeerStatsMap;
+
+	void updateNodes()
+	{
+		XmlRpc::XmlRpcValue response;
+		XmlRpc::XmlRpcValue payload;
+		if(!ros::master::execute("getSystemState", "net_monitor", response, payload, false))
+		{
+			ROS_ERROR("Could not query system state from master");
+			return;
+		}
+
+		std::set<std::string> nodeNames;
+
+		for(int i = 0; i < payload.size(); ++i)
+		{
+			auto advertisement = payload[i];
+
+			for(int j = 0; j < advertisement.size(); ++j)
+			{
+				auto item = advertisement[j];
+
+				auto pubs = item[1];
+
+				for(int k = 0; k < pubs.size(); ++k)
+					nodeNames.insert(pubs[k]);
+			}
+		}
+
+		for(auto& name : nodeNames)
+		{
+			try
+			{
+				m_nodes[name] = NodeInfo::fromName(name);
+			}
+			catch(NodeInfo::LookupException)
+			{
+				continue;
+			}
+		}
+	}
+
+	void updateNodeStats(const NodeInfo& nodeInfo, PeerStatsMap* stats)
+	{
+		std::string name = nodeInfo.name;
 
 		// Let's call the node for information!
-
 		XmlRpc::XmlRpcValue stats_response;
 
-		if(!slaveCall(host, port, "getBusStats", "net_monitor", stats_response))
+		if(!slaveCall(nodeInfo.host, nodeInfo.port, "getBusStats", "net_monitor", stats_response))
 		{
-			ROS_WARN("Could not call node '%s'", node.c_str());
-			continue;
+			ROS_WARN("Could not call node '%s'", name.c_str());
+			return;
 		}
 
-		auto publish_stats = stats_response[0];
-		auto subscribe_stats = stats_response[1];
+		// python nodes report (success code, status, response)
+		// C++ nodes report response directly. go figure.
+		XmlRpc::XmlRpcValue publish_stats;
+		XmlRpc::XmlRpcValue subscribe_stats;
+		if(stats_response[0].getType() == XmlRpc::XmlRpcValue::TypeInt)
+		{
+			publish_stats = stats_response[2][0];
+			subscribe_stats = subscribe_stats[2][1];
+		}
+		else
+		{
+			publish_stats = stats_response[0];
+			subscribe_stats = stats_response[1];
+		}
 
 		XmlRpc::XmlRpcValue info_response;
-		if(!slaveCall(host, port, "getBusInfo", "net_monitor", info_response))
+		if(!slaveCall(nodeInfo.host, nodeInfo.port, "getBusInfo", "net_monitor", info_response))
 		{
-			ROS_WARN("Could not call node '%s'", node.c_str());
-			continue;
+			ROS_WARN("Could not call node '%s'", name.c_str());
+			return;
 		}
 
 		auto info_array = info_response[2];
-		ROS_INFO_STREAM("info: " << info_response);
 
 		std::map<int, ConnectionInfo> connections;
 		for(int i = 0; i < info_array.size(); ++i)
@@ -155,14 +201,13 @@ int main(int argc, char** argv)
 			connections[c.id] = c;
 		}
 
-		ROS_INFO("%lu connections", connections.size());
-
 		for(int i = 0; i < publish_stats.size(); ++i)
 		{
 			auto publication = publish_stats[i];
-			ROS_INFO("  - Topic '%s':", static_cast<std::string>(publication[0]).c_str());
 
-			auto links = publication[1];
+			// NOTE: Again, python nodes have (topic, msg num, links),
+			// C++ nodes have (topic, links)...
+			auto links = publication[publication.size()-1];
 
 			for(int j = 0; j < links.size(); ++j)
 			{
@@ -178,14 +223,90 @@ int main(int argc, char** argv)
 
 				auto& connection = it->second;
 
-				ROS_INFO("    - connection to '%s' (%s): %d bytes",
-					connection.destination.c_str(),
-					connection.isLocal() ? "local" : "remote",
-					static_cast<int>(link[1])
-				);
+				bool local = false;
+				auto nodeIt = m_nodes.find(connection.destination);
+				if(nodeIt != m_nodes.end())
+				{
+					local = (nodeIt->second.host == ros::network::getHost());
+				}
+
+				if(local)
+					continue;
+
+				PeerStats& peerStats = (*stats)[nodeIt->second.host];
+
+				auto& nodeStats = peerStats.nodeStats[nodeIt->second.name];
+
+				nimbro_net_monitor::ConnectionStats conStats;
+				conStats.topic = connection.topic;
+				conStats.destination = name;
+				conStats.direction = Direction::DIR_IN;
 			}
 		}
 	}
+
+	void updateStats()
+	{
+		for(auto& node : nodes)
+		{
+			const auto& name = node.first;
+			const auto& nodeInfo = node.second;
+
+			if(nodeInfo.host != ros::network::getHost())
+				continue;
+
+			ROS_INFO(" - %s at %s", name.c_str(), nodeInfo.uri.c_str());
+
+
+		}
+	}
+private:
+	std::map<std::string, NodeInfo> m_nodes;
+};
+
+int main(int argc, char** argv)
+{
+	ros::init(argc, argv, "net_monitor");
+
+	XmlRpc::XmlRpcValue response;
+	XmlRpc::XmlRpcValue payload;
+	if(!ros::master::execute("getSystemState", "net_monitor", response, payload, false))
+	{
+		ROS_ERROR("Could not query system state from master");
+		return 1;
+	}
+
+	std::set<std::string> nodeNames;
+
+	for(int i = 0; i < payload.size(); ++i)
+	{
+		auto advertisement = payload[i];
+
+		for(int j = 0; j < advertisement.size(); ++j)
+		{
+			auto item = advertisement[j];
+
+			auto pubs = item[1];
+
+			for(int k = 0; k < pubs.size(); ++k)
+				nodeNames.insert(pubs[k]);
+		}
+	}
+
+	std::map<std::string, NodeInfo> nodes;
+	for(auto& name : nodeNames)
+	{
+		try
+		{
+			nodes[name] = NodeInfo::fromName(name);
+		}
+		catch(NodeInfo::LookupException)
+		{
+			continue;
+		}
+	}
+
+
 
 	return 0;
 }
