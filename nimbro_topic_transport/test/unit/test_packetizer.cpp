@@ -4,6 +4,7 @@
 #include <catch_ros/catch.hpp>
 
 #include <algorithm>
+#include <random>
 
 #include "../../src/sender/packetizer.h"
 #include "../../src/receiver/depacketizer.h"

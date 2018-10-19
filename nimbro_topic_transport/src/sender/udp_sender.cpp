@@ -4,6 +4,7 @@
 #include "udp_sender.h"
 
 #include <netdb.h>
+#include <sys/uio.h>
 
 namespace nimbro_topic_transport
 {

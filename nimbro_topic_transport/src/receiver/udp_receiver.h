@@ -7,6 +7,7 @@
 #include "../udp_packet.h"
 
 #include <thread>
+#include <functional>
 
 #include <netinet/in.h>
 

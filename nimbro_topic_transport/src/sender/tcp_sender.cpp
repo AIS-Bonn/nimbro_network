@@ -7,6 +7,7 @@
 
 #include <netinet/tcp.h>
 #include <netdb.h>
+#include <sys/uio.h>
 
 namespace nimbro_topic_transport
 {
