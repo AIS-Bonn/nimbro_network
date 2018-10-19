@@ -80,12 +80,12 @@ int main(int argc, char** argv)
 
 	g_codec = avcodec_alloc_context3(decoder);
 
-	g_codec->flags |= CODEC_FLAG_LOW_DELAY;
+	g_codec->flags |= AV_CODEC_FLAG_LOW_DELAY;
 
-#ifdef CODEC_FLAG2_SHOW_ALL
-	g_codec->flags2 |= CODEC_FLAG2_SHOW_ALL;
+#ifdef AV_CODEC_FLAG2_SHOW_ALL
+	g_codec->flags2 |= AV_CODEC_FLAG2_SHOW_ALL;
 #else
-#warning This version of FFMPEG does not offer CODEC_FLAG2_SHOW_ALL. Consider upgrading your FFMPEG.
+#warning This version of FFMPEG does not offer AV_CODEC_FLAG2_SHOW_ALL. Consider upgrading your FFMPEG.
 #endif
 
 	g_codec->thread_type = 0;
