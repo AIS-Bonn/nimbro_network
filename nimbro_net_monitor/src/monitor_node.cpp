@@ -41,6 +41,12 @@ struct ConnectionInfo
 	std::string transport;
 	std::string topic;
 
+	bool bytesValid = false;
+	int32_t bytes = 0;
+	uint64_t bitsPerSecond = 0;
+
+	bool active = true;
+
 	static ConnectionInfo fromXmlRpc(XmlRpc::XmlRpcValue& in)
 	{
 		ConnectionInfo ret;
@@ -62,6 +68,18 @@ struct ConnectionInfo
 
 		return ret;
 	}
+
+	void updateBytes(int32_t newBytes, const ros::WallDuration& dt)
+	{
+		if(bytesValid)
+		{
+			int32_t diff = newBytes - bytes;
+			bitsPerSecond = static_cast<uint64_t>(diff) * 8 / dt.toSec();
+		}
+
+		bytes = newBytes;
+		bytesValid = true;
+	}
 };
 
 struct NodeInfo
@@ -70,6 +88,9 @@ struct NodeInfo
 	std::string uri;
 	std::string host;
 	uint32_t port;
+
+	std::map<int, ConnectionInfo> connections;
+	bool active = false;
 
 	class LookupException : std::runtime_error
 	{
@@ -107,17 +128,18 @@ struct NodeInfo
 	}
 };
 
-struct PeerStats
+struct Peer
 {
-	std::map<std::string, nimbro_net_monitor::NodeStats> nodeStats;
+	std::map<std::string, NodeInfo> nodes;
+	bool active = true;
 };
 
 class SystemMonitor
 {
 public:
-	typedef std::map<std::string, PeerStats> PeerStatsMap;
+	typedef std::map<std::string, Peer> PeerMap;
 
-	void updateNodes()
+	void updateNodes(const ros::WallDuration& dt)
 	{
 		XmlRpc::XmlRpcValue response;
 		XmlRpc::XmlRpcValue payload;
@@ -157,7 +179,7 @@ public:
 		}
 	}
 
-	void updateNodeStats(const NodeInfo& nodeInfo, PeerStatsMap* stats)
+	void updateNodeStats(const NodeInfo& nodeInfo, const ros::WallDuration& dt)
 	{
 		std::string name = nodeInfo.name;
 
@@ -233,21 +255,59 @@ public:
 				if(local)
 					continue;
 
-				PeerStats& peerStats = (*stats)[nodeIt->second.host];
+				Peer& peer = m_peers[nodeIt->second.host];
+				peer.active = true;
 
-				auto& nodeStats = peerStats.nodeStats[nodeIt->second.name];
+				auto& nodeStats = peer.nodes[nodeIt->second.name];
+				nodeStats.active = true;
 
-				nimbro_net_monitor::ConnectionStats conStats;
-				conStats.topic = connection.topic;
-				conStats.destination = name;
-				conStats.direction = Direction::DIR_IN;
+				auto conIt = nodeStats.connections.find(connection.id);
+				if(conIt != nodeStats.connections.end())
+				{
+					auto& cacheCon = conIt->second;
+					if(cacheCon.destination != connection.destination
+						|| cacheCon.topic != connection.topic
+						|| cacheCon.transport != connection.transport)
+					{
+						ROS_WARN("connection does not match cached connection, strange.");
+						nodeStats.connections.erase(conIt);
+						conIt = nodeStats.connections.end();
+					}
+				}
+
+				if(conIt == nodeStats.connections.end())
+				{
+					conIt = nodeStats.connections.insert(
+						std::make_pair(connection.id, connection)
+					).first;
+				}
+
+				auto& cacheCon = conIt->second;
+
+				if(cacheCon.active)
+				{
+					ROS_WARN("I got two stat responses for one connection, ignoring...");
+					continue;
+				}
+
+				cacheCon.updateBytes(static_cast<int>(link[1]), dt);
+				cacheCon.active = true;
 			}
 		}
 	}
 
-	void updateStats()
+	void updateStats(const ros::WallDuration& dt)
 	{
-		for(auto& node : nodes)
+		for(auto& peer : m_peers)
+		{
+			peer.second.active = false;
+			for(auto& node : peer.second.nodes)
+			{
+				node.second.active = false;
+			}
+		}
+
+		for(auto& node : m_nodes)
 		{
 			const auto& name = node.first;
 			const auto& nodeInfo = node.second;
@@ -257,11 +317,12 @@ public:
 
 			ROS_INFO(" - %s at %s", name.c_str(), nodeInfo.uri.c_str());
 
-
+			updateNodeStats(nodeInfo, dt);
 		}
 	}
 private:
 	std::map<std::string, NodeInfo> m_nodes;
+	std::map<std::string, Peer> m_peers;
 };
 
 int main(int argc, char** argv)
