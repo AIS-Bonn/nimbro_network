@@ -5,4 +5,4 @@ Header header
 string host
 
 # Statistics for each peer host
-PeerStats[] nodes
+PeerStats[] peers

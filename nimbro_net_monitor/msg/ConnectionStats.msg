@@ -17,6 +17,3 @@ string transport
 
 # Current bandwidth
 uint64 bits_per_second
-
-# Is this a local connection?
-bool is_local

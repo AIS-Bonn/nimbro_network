@@ -134,12 +134,19 @@ struct Peer
 	bool active = true;
 };
 
-class SystemMonitor
+class NetMonitor
 {
 public:
 	typedef std::map<std::string, Peer> PeerMap;
 
-	void updateNodes(const ros::WallDuration& dt)
+	NetMonitor()
+	{
+		ros::NodeHandle nh("~");
+
+		m_pub = nh.advertise<nimbro_net_monitor::NetworkStats>("/network_stats", 1, true);
+	}
+
+	void updateNodes()
 	{
 		XmlRpc::XmlRpcValue response;
 		XmlRpc::XmlRpcValue payload;
@@ -199,7 +206,7 @@ public:
 		if(stats_response[0].getType() == XmlRpc::XmlRpcValue::TypeInt)
 		{
 			publish_stats = stats_response[2][0];
-			subscribe_stats = subscribe_stats[2][1];
+			subscribe_stats = stats_response[2][1];
 		}
 		else
 		{
@@ -296,14 +303,22 @@ public:
 		}
 	}
 
-	void updateStats(const ros::WallDuration& dt)
+	void updateStats()
 	{
+		ros::SteadyTime now = ros::SteadyTime::now();
+
+		ros::WallDuration dt = now - m_lastTime;
+
 		for(auto& peer : m_peers)
 		{
 			peer.second.active = false;
 			for(auto& node : peer.second.nodes)
 			{
 				node.second.active = false;
+				for(auto& con : node.second.connections)
+				{
+					con.second.active = false;
+				}
 			}
 		}
 
@@ -319,55 +334,129 @@ public:
 
 			updateNodeStats(nodeInfo, dt);
 		}
+
+		// Prune old information
+		for(auto it = m_peers.begin(); it != m_peers.end();)
+		{
+			if(it->second.active)
+			{
+				auto& peer = it->second;
+
+				for(auto nodeIt = peer.nodes.begin(); nodeIt != peer.nodes.end();)
+				{
+					if(nodeIt->second.active)
+					{
+						auto& node = nodeIt->second;
+
+						for(auto conIt = node.connections.begin(); conIt != node.connections.end();)
+						{
+							if(conIt->second.active)
+								++conIt;
+							else
+								conIt = node.connections.erase(conIt);
+						}
+
+						++nodeIt;
+					}
+					else
+						nodeIt = peer.nodes.erase(nodeIt);
+				}
+
+				++it;
+			}
+			else
+				it = m_peers.erase(it);
+		}
+
+		// Generate message
+		nimbro_net_monitor::NetworkStats stats;
+		stats.header.stamp = ros::Time::now();
+
+		{
+			char buf[256];
+			gethostname(buf, sizeof(buf));
+			buf[sizeof(buf)-1] = 0;
+			stats.host = buf;
+		}
+
+		for(auto& peerIt : m_peers)
+		{
+			const auto& peer = peerIt.second;
+
+			nimbro_net_monitor::PeerStats peerStats;
+
+			peerStats.host = peerIt.first;
+
+			for(auto& nodeIt : peer.nodes)
+			{
+				nimbro_net_monitor::NodeStats nodeStats;
+
+				nodeStats.name = nodeIt.first;
+
+				for(auto& conIt : nodeIt.second.connections)
+				{
+					const auto& con = conIt.second;
+
+					nimbro_net_monitor::ConnectionStats conStats;
+
+					conStats.topic = con.topic;
+					conStats.destination = con.destination;
+
+					switch(con.direction)
+					{
+						case ConnectionInfo::Direction::In:
+							conStats.direction = conStats.DIR_IN;
+							break;
+						case ConnectionInfo::Direction::Out:
+							conStats.direction = conStats.DIR_OUT;
+							break;
+						default:
+							break;
+					}
+
+					conStats.transport = con.transport;
+					conStats.bits_per_second = con.bitsPerSecond;
+
+					nodeStats.connections.push_back(std::move(conStats));
+				}
+
+				peerStats.nodes.push_back(std::move(nodeStats));
+			}
+
+			stats.peers.push_back(std::move(peerStats));
+		}
+
+		m_pub.publish(stats);
+
+		m_lastTime = now;
 	}
 private:
 	std::map<std::string, NodeInfo> m_nodes;
 	std::map<std::string, Peer> m_peers;
+
+	ros::SteadyTime m_lastTime;
+
+	ros::Publisher m_pub;
 };
 
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "net_monitor");
 
-	XmlRpc::XmlRpcValue response;
-	XmlRpc::XmlRpcValue payload;
-	if(!ros::master::execute("getSystemState", "net_monitor", response, payload, false))
-	{
-		ROS_ERROR("Could not query system state from master");
-		return 1;
-	}
+	NetMonitor monitor;
 
-	std::set<std::string> nodeNames;
+	ros::NodeHandle nh("~");
+	ros::SteadyTimer nodeTimer = nh.createSteadyTimer(
+		ros::WallDuration(8.0),
+		std::bind(&NetMonitor::updateNodes, &monitor)
+	);
 
-	for(int i = 0; i < payload.size(); ++i)
-	{
-		auto advertisement = payload[i];
+	ros::SteadyTimer statsTimer = nh.createSteadyTimer(
+		ros::WallDuration(3.0),
+		std::bind(&NetMonitor::updateStats, &monitor)
+	);
 
-		for(int j = 0; j < advertisement.size(); ++j)
-		{
-			auto item = advertisement[j];
-
-			auto pubs = item[1];
-
-			for(int k = 0; k < pubs.size(); ++k)
-				nodeNames.insert(pubs[k]);
-		}
-	}
-
-	std::map<std::string, NodeInfo> nodes;
-	for(auto& name : nodeNames)
-	{
-		try
-		{
-			nodes[name] = NodeInfo::fromName(name);
-		}
-		catch(NodeInfo::LookupException)
-		{
-			continue;
-		}
-	}
-
-
+	ros::spin();
 
 	return 0;
 }
