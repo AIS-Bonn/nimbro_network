@@ -71,7 +71,10 @@ int main(int argc, char** argv)
 	
 	ros::NodeHandle nh("~");
 
-	avcodec_register_all();
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
+    avcodec_register_all();
+#endif
+
 	av_log_set_level(AV_LOG_QUIET);
 
 	AVCodec* decoder = avcodec_find_decoder(AV_CODEC_ID_H264);
