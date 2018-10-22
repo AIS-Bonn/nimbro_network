@@ -46,7 +46,7 @@ struct ConnectionInfo
 	uint64_t bitsPerSecond = 0;
 
 	std::string localNode;
-	bool active = true;
+	bool active = false;
 
 	std::string hashForDestNode(const std::string& sourceNode) const
 	{
@@ -139,7 +139,7 @@ struct NodeInfo
 struct Peer
 {
 	std::map<std::string, NodeInfo> nodes;
-	bool active = true;
+	bool active = false;
 };
 
 class NetMonitor
@@ -151,7 +151,26 @@ public:
 	{
 		ros::NodeHandle nh("~");
 
+		double nodePeriod;
+		nh.param("node_period", nodePeriod, 4.0);
+
+		double statsPeriod;
+		nh.param("stats_period", statsPeriod, 2.0);
+
+		m_nodeTimer = nh.createSteadyTimer(
+			ros::WallDuration(nodePeriod),
+			std::bind(&NetMonitor::updateNodes, this)
+		);
+
+		m_statsTimer = nh.createSteadyTimer(
+			ros::WallDuration(statsPeriod),
+			std::bind(&NetMonitor::updateStats, this)
+		);
+
 		m_pub = nh.advertise<nimbro_net_monitor::NetworkStats>("/network_stats", 1, true);
+
+		updateNodes();
+		updateStats();
 	}
 
 	void updateNodes()
@@ -496,6 +515,8 @@ private:
 	std::map<std::string, Peer> m_peers;
 
 	ros::SteadyTime m_lastTime;
+	ros::SteadyTimer m_nodeTimer;
+	ros::SteadyTimer m_statsTimer;
 
 	ros::Publisher m_pub;
 };
@@ -507,15 +528,7 @@ int main(int argc, char** argv)
 	NetMonitor monitor;
 
 	ros::NodeHandle nh("~");
-	ros::SteadyTimer nodeTimer = nh.createSteadyTimer(
-		ros::WallDuration(8.0),
-		std::bind(&NetMonitor::updateNodes, &monitor)
-	);
 
-	ros::SteadyTimer statsTimer = nh.createSteadyTimer(
-		ros::WallDuration(3.0),
-		std::bind(&NetMonitor::updateStats, &monitor)
-	);
 
 	ros::spin();
 
