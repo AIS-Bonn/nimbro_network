@@ -45,7 +45,15 @@ struct ConnectionInfo
 	int32_t bytes = 0;
 	uint64_t bitsPerSecond = 0;
 
+	std::string localNode;
 	bool active = true;
+
+	std::string hashForDestNode(const std::string& sourceNode) const
+	{
+		std::stringstream ss;
+		ss << topic << "%" << sourceNode << "%" << id;
+		return ss.str();
+	}
 
 	static ConnectionInfo fromXmlRpc(XmlRpc::XmlRpcValue& in)
 	{
@@ -89,7 +97,7 @@ struct NodeInfo
 	std::string host;
 	uint32_t port;
 
-	std::map<int, ConnectionInfo> connections;
+	std::map<std::string, ConnectionInfo> connections;
 	bool active = false;
 
 	class LookupException : std::runtime_error
@@ -173,17 +181,83 @@ public:
 			}
 		}
 
+		m_nodesByURI.clear();
+		m_nodesByName.clear();
+
 		for(auto& name : nodeNames)
 		{
 			try
 			{
-				m_nodes[name] = NodeInfo::fromName(name);
+				auto n = std::make_shared<NodeInfo>(NodeInfo::fromName(name));
+				m_nodesByURI[n->uri] = n;
+				m_nodesByName[n->name] = n;
 			}
 			catch(NodeInfo::LookupException)
 			{
 				continue;
 			}
 		}
+	}
+
+	void updateConnectionStats(const ConnectionInfo& connection, int32_t bytes, const ros::WallDuration& dt)
+	{
+		// For publications, we get a node *name*, for subscriptions, we get a
+		// XMLRPC URI. *sigh*
+		auto nodeIt = m_nodesByURI.find(connection.destination);
+		if(nodeIt == m_nodesByURI.end())
+		{
+			nodeIt = m_nodesByName.find(connection.destination);
+			if(nodeIt == m_nodesByName.end())
+			{
+				ROS_WARN("Could not find node '%s' in local cache", connection.destination.c_str());
+				return;
+			}
+		}
+
+		bool local = (nodeIt->second->host == ros::network::getHost());
+
+		if(local)
+			return;
+
+		Peer& peer = m_peers[nodeIt->second->host];
+		peer.active = true;
+
+		auto& nodeStats = peer.nodes[nodeIt->second->name];
+		nodeStats.active = true;
+
+		auto hash = connection.hashForDestNode(nodeIt->second->name);
+		ROS_INFO("hash: %s", hash.c_str());
+		auto conIt = nodeStats.connections.find(hash);
+		if(conIt != nodeStats.connections.end())
+		{
+			auto& cacheCon = conIt->second;
+			if(cacheCon.destination != connection.destination
+				|| cacheCon.topic != connection.topic
+				|| cacheCon.transport != connection.transport)
+			{
+				ROS_WARN("connection does not match cached connection, strange.");
+				nodeStats.connections.erase(conIt);
+				conIt = nodeStats.connections.end();
+			}
+		}
+
+		if(conIt == nodeStats.connections.end())
+		{
+			conIt = nodeStats.connections.insert(
+				std::make_pair(hash, connection)
+			).first;
+		}
+
+		auto& cacheCon = conIt->second;
+
+		if(cacheCon.active)
+		{
+			ROS_WARN("I got two stat responses for one connection, ignoring...");
+			return;
+		}
+
+		cacheCon.updateBytes(bytes, dt);
+		cacheCon.active = true;
 	}
 
 	void updateNodeStats(const NodeInfo& nodeInfo, const ros::WallDuration& dt)
@@ -227,6 +301,11 @@ public:
 		for(int i = 0; i < info_array.size(); ++i)
 		{
 			auto c = ConnectionInfo::fromXmlRpc(info_array[i]);
+			ROS_INFO("Node '%s' at '%s': connection to '%s' on topic '%s'",
+				nodeInfo.name.c_str(), nodeInfo.uri.c_str(),
+				c.destination.c_str(), c.topic.c_str()
+			);
+			c.localNode = nodeInfo.name;
 			connections[c.id] = c;
 		}
 
@@ -252,53 +331,33 @@ public:
 
 				auto& connection = it->second;
 
-				bool local = false;
-				auto nodeIt = m_nodes.find(connection.destination);
-				if(nodeIt != m_nodes.end())
+				updateConnectionStats(connection, static_cast<int>(link[1]), dt);
+			}
+		}
+
+		for(int i = 0; i < subscribe_stats.size(); ++i)
+		{
+			auto publication = subscribe_stats[i];
+
+			// NOTE: Again, python nodes have (topic, msg num, links),
+			// C++ nodes have (topic, links)...
+			auto links = publication[publication.size()-1];
+
+			for(int j = 0; j < links.size(); ++j)
+			{
+				auto link = links[j];
+				int conId = link[0];
+
+				auto it = connections.find(conId);
+				if(it == connections.end())
 				{
-					local = (nodeIt->second.host == ros::network::getHost());
-				}
-
-				if(local)
-					continue;
-
-				Peer& peer = m_peers[nodeIt->second.host];
-				peer.active = true;
-
-				auto& nodeStats = peer.nodes[nodeIt->second.name];
-				nodeStats.active = true;
-
-				auto conIt = nodeStats.connections.find(connection.id);
-				if(conIt != nodeStats.connections.end())
-				{
-					auto& cacheCon = conIt->second;
-					if(cacheCon.destination != connection.destination
-						|| cacheCon.topic != connection.topic
-						|| cacheCon.transport != connection.transport)
-					{
-						ROS_WARN("connection does not match cached connection, strange.");
-						nodeStats.connections.erase(conIt);
-						conIt = nodeStats.connections.end();
-					}
-				}
-
-				if(conIt == nodeStats.connections.end())
-				{
-					conIt = nodeStats.connections.insert(
-						std::make_pair(connection.id, connection)
-					).first;
-				}
-
-				auto& cacheCon = conIt->second;
-
-				if(cacheCon.active)
-				{
-					ROS_WARN("I got two stat responses for one connection, ignoring...");
+					ROS_WARN("Could not find connection");
 					continue;
 				}
 
-				cacheCon.updateBytes(static_cast<int>(link[1]), dt);
-				cacheCon.active = true;
+				auto& connection = it->second;
+
+				updateConnectionStats(connection, static_cast<int>(link[1]), dt);
 			}
 		}
 	}
@@ -322,17 +381,16 @@ public:
 			}
 		}
 
-		for(auto& node : m_nodes)
+		for(auto& pair : m_nodesByURI)
 		{
-			const auto& name = node.first;
-			const auto& nodeInfo = node.second;
+			auto& node = pair.second;
 
-			if(nodeInfo.host != ros::network::getHost())
+			if(node->host != ros::network::getHost())
 				continue;
 
-			ROS_INFO(" - %s at %s", name.c_str(), nodeInfo.uri.c_str());
+			ROS_INFO(" - %s at %s", node->name.c_str(), node->uri.c_str());
 
-			updateNodeStats(nodeInfo, dt);
+			updateNodeStats(*node, dt);
 		}
 
 		// Prune old information
@@ -416,6 +474,7 @@ public:
 
 					conStats.transport = con.transport;
 					conStats.bits_per_second = con.bitsPerSecond;
+					conStats.local_node = con.localNode;
 
 					nodeStats.connections.push_back(std::move(conStats));
 				}
@@ -431,7 +490,9 @@ public:
 		m_lastTime = now;
 	}
 private:
-	std::map<std::string, NodeInfo> m_nodes;
+	std::map<std::string, std::shared_ptr<NodeInfo>> m_nodesByURI;
+	std::map<std::string, std::shared_ptr<NodeInfo>> m_nodesByName;
+
 	std::map<std::string, Peer> m_peers;
 
 	ros::SteadyTime m_lastTime;
