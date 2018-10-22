@@ -48,10 +48,10 @@ struct ConnectionInfo
 	std::string localNode;
 	bool active = false;
 
-	std::string hashForDestNode(const std::string& sourceNode) const
+	std::string hash() const
 	{
 		std::stringstream ss;
-		ss << topic << "%" << sourceNode << "%" << id;
+		ss << topic << "%" << localNode << "%" << id;
 		return ss.str();
 	}
 
@@ -244,8 +244,8 @@ public:
 		auto& nodeStats = peer.nodes[nodeIt->second->name];
 		nodeStats.active = true;
 
-		auto hash = connection.hashForDestNode(nodeIt->second->name);
-		ROS_INFO("hash: %s", hash.c_str());
+		auto hash = connection.hash();
+		ROS_INFO("hash: %s, lookup in %s", hash.c_str(), nodeIt->second->name);
 		auto conIt = nodeStats.connections.find(hash);
 		if(conIt != nodeStats.connections.end())
 		{
