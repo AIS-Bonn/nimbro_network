@@ -245,7 +245,7 @@ public:
 		nodeStats.active = true;
 
 		auto hash = connection.hash();
-		ROS_INFO("hash: %s, lookup in %s", hash.c_str(), nodeIt->second->name);
+		ROS_INFO("hash: %s, lookup in %s", hash.c_str(), nodeIt->second->name.c_str());
 		auto conIt = nodeStats.connections.find(hash);
 		if(conIt != nodeStats.connections.end())
 		{
