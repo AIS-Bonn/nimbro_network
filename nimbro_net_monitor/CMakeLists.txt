@@ -2,6 +2,16 @@
 cmake_minimum_required(VERSION 3.0)
 project(nimbro_net_monitor)
 
+find_package(PkgConfig)
+pkg_check_modules(MNL libmnl>=1.0.0)
+
+if(MNL_FOUND)
+	include_directories(${MNL_INCLUDE_DIRS})
+	add_definitions(-DWITH_LIBMNL=1)
+else()
+	message(WARNING "Install libmnl-dev for network statistics by interface")
+endif()
+
 find_package(catkin REQUIRED COMPONENTS
 	roscpp
 	std_msgs
@@ -32,16 +42,15 @@ add_dependencies(net_monitor
 	${PROJECT_NAME}_generate_messages_cpp
 )
 
-find_package(PkgConfig)
-pkg_check_modules(MNL REQUIRED libmnl>=1.0.0)
+if(MNL_FOUND)
+	include_directories(${MNL_INCLUDE_DIRS})
 
-include_directories(${MNL_INCLUDE_DIRS})
-
-add_executable(route_test
-	src/route_test.cpp
-	src/route.cpp
-)
-target_link_libraries(route_test
-	${catkin_LIBRARIES}
-	${MNL_LIBRARIES}
-)
+	add_executable(route_test
+		src/route_test.cpp
+		src/route.cpp
+	)
+	target_link_libraries(route_test
+		${catkin_LIBRARIES}
+		${MNL_LIBRARIES}
+	)
+endif()
