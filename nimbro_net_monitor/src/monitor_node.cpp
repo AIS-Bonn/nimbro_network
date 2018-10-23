@@ -7,10 +7,12 @@
 
 #include <stdexcept>
 
-#include "ros/xmlrpc_manager.h"
-#include "xmlrpcpp/XmlRpc.h"
+#include <ros/xmlrpc_manager.h>
+#include <xmlrpcpp/XmlRpc.h>
 
 #include <nimbro_net_monitor/NetworkStats.h>
+
+#include "route.h"
 
 using XMLRPCManager = ros::XMLRPCManager;
 
@@ -142,6 +144,30 @@ struct Peer
 	bool active = false;
 };
 
+struct Interface
+{
+	Interface(const std::string& name)
+	 : name(name)
+	{
+		char fname[256];
+		snprintf(fname, sizeof(fname), "/sys/class/net/%s/speed", name.c_str());
+		FILE* f = fopen(fname, "r");
+		if(f)
+		{
+			uint64_t val = 0;
+			if(fscanf(f, "%lu", &val) == 1)
+			{
+				bitsPerSecond = val * 1000ULL * 1000ULL;
+			}
+			fclose(f);
+		}
+	}
+
+	std::string name;
+	uint64_t bitsPerSecond = 0;
+	std::map<std::string, Peer> peers;
+};
+
 class NetMonitor
 {
 public:
@@ -238,14 +264,26 @@ public:
 		if(local)
 			return;
 
-		Peer& peer = m_peers[nodeIt->second->host];
+		std::string interfaceName = m_routeCache.obtainInterfaceForHost(nodeIt->second->host);
+		if(interfaceName.empty())
+			interfaceName = "unknown";
+
+		auto ifaceIt = m_interfaces.find(interfaceName);
+		if(ifaceIt == m_interfaces.end())
+		{
+			Interface interface(interfaceName);
+			ifaceIt = m_interfaces.insert(std::make_pair(interfaceName, interface)).first;
+		}
+
+		Interface& interface = ifaceIt->second;
+
+		Peer& peer = interface.peers[nodeIt->second->host];
 		peer.active = true;
 
 		auto& nodeStats = peer.nodes[nodeIt->second->name];
 		nodeStats.active = true;
 
 		auto hash = connection.hash();
-		ROS_INFO("hash: %s, lookup in %s", hash.c_str(), nodeIt->second->name.c_str());
 		auto conIt = nodeStats.connections.find(hash);
 		if(conIt != nodeStats.connections.end())
 		{
@@ -320,10 +358,10 @@ public:
 		for(int i = 0; i < info_array.size(); ++i)
 		{
 			auto c = ConnectionInfo::fromXmlRpc(info_array[i]);
-			ROS_INFO("Node '%s' at '%s': connection to '%s' on topic '%s'",
-				nodeInfo.name.c_str(), nodeInfo.uri.c_str(),
-				c.destination.c_str(), c.topic.c_str()
-			);
+// 			ROS_INFO("Node '%s' at '%s': connection to '%s' on topic '%s'",
+// 				nodeInfo.name.c_str(), nodeInfo.uri.c_str(),
+// 				c.destination.c_str(), c.topic.c_str()
+// 			);
 			c.localNode = nodeInfo.name;
 			connections[c.id] = c;
 		}
@@ -387,15 +425,18 @@ public:
 
 		ros::WallDuration dt = now - m_lastTime;
 
-		for(auto& peer : m_peers)
+		for(auto& iface : m_interfaces)
 		{
-			peer.second.active = false;
-			for(auto& node : peer.second.nodes)
+			for(auto& peer : iface.second.peers)
 			{
-				node.second.active = false;
-				for(auto& con : node.second.connections)
+				peer.second.active = false;
+				for(auto& node : peer.second.nodes)
 				{
-					con.second.active = false;
+					node.second.active = false;
+					for(auto& con : node.second.connections)
+					{
+						con.second.active = false;
+					}
 				}
 			}
 		}
@@ -407,42 +448,46 @@ public:
 			if(node->host != ros::network::getHost())
 				continue;
 
-			ROS_INFO(" - %s at %s", node->name.c_str(), node->uri.c_str());
+// 			ROS_INFO(" - %s at %s", node->name.c_str(), node->uri.c_str());
 
 			updateNodeStats(*node, dt);
 		}
 
 		// Prune old information
-		for(auto it = m_peers.begin(); it != m_peers.end();)
+		for(auto ifaceIt = m_interfaces.begin(); ifaceIt != m_interfaces.end(); ++ifaceIt)
 		{
-			if(it->second.active)
+			auto& peers = ifaceIt->second.peers;
+			for(auto it = peers.begin(); it != peers.end();)
 			{
-				auto& peer = it->second;
-
-				for(auto nodeIt = peer.nodes.begin(); nodeIt != peer.nodes.end();)
+				if(it->second.active)
 				{
-					if(nodeIt->second.active)
+					auto& peer = it->second;
+
+					for(auto nodeIt = peer.nodes.begin(); nodeIt != peer.nodes.end();)
 					{
-						auto& node = nodeIt->second;
-
-						for(auto conIt = node.connections.begin(); conIt != node.connections.end();)
+						if(nodeIt->second.active)
 						{
-							if(conIt->second.active)
-								++conIt;
-							else
-								conIt = node.connections.erase(conIt);
+							auto& node = nodeIt->second;
+
+							for(auto conIt = node.connections.begin(); conIt != node.connections.end();)
+							{
+								if(conIt->second.active)
+									++conIt;
+								else
+									conIt = node.connections.erase(conIt);
+							}
+
+							++nodeIt;
 						}
-
-						++nodeIt;
+						else
+							nodeIt = peer.nodes.erase(nodeIt);
 					}
-					else
-						nodeIt = peer.nodes.erase(nodeIt);
-				}
 
-				++it;
+					++it;
+				}
+				else
+					it = peers.erase(it);
 			}
-			else
-				it = m_peers.erase(it);
 		}
 
 		// Generate message
@@ -456,52 +501,61 @@ public:
 			stats.host = buf;
 		}
 
-		for(auto& peerIt : m_peers)
+		for(auto& ifacePair : m_interfaces)
 		{
-			const auto& peer = peerIt.second;
+			nimbro_net_monitor::InterfaceStats ifaceStats;
+			ifaceStats.interface_name = ifacePair.first;
+			ifaceStats.max_bits_per_second = ifacePair.second.bitsPerSecond;
 
-			nimbro_net_monitor::PeerStats peerStats;
-
-			peerStats.host = peerIt.first;
-
-			for(auto& nodeIt : peer.nodes)
+			for(auto& peerIt : ifacePair.second.peers)
 			{
-				nimbro_net_monitor::NodeStats nodeStats;
+				const auto& peer = peerIt.second;
 
-				nodeStats.name = nodeIt.first;
+				nimbro_net_monitor::PeerStats peerStats;
 
-				for(auto& conIt : nodeIt.second.connections)
+				peerStats.host = peerIt.first;
+
+				for(auto& nodeIt : peer.nodes)
 				{
-					const auto& con = conIt.second;
+					nimbro_net_monitor::NodeStats nodeStats;
 
-					nimbro_net_monitor::ConnectionStats conStats;
+					nodeStats.name = nodeIt.first;
 
-					conStats.topic = con.topic;
-					conStats.destination = con.destination;
-
-					switch(con.direction)
+					for(auto& conIt : nodeIt.second.connections)
 					{
-						case ConnectionInfo::Direction::In:
-							conStats.direction = conStats.DIR_IN;
-							break;
-						case ConnectionInfo::Direction::Out:
-							conStats.direction = conStats.DIR_OUT;
-							break;
-						default:
-							break;
+						const auto& con = conIt.second;
+
+						nimbro_net_monitor::ConnectionStats conStats;
+
+						conStats.topic = con.topic;
+						conStats.destination = con.destination;
+
+						switch(con.direction)
+						{
+							case ConnectionInfo::Direction::In:
+								conStats.direction = conStats.DIR_IN;
+								break;
+							case ConnectionInfo::Direction::Out:
+								conStats.direction = conStats.DIR_OUT;
+								break;
+							default:
+								break;
+						}
+
+						conStats.transport = con.transport;
+						conStats.bits_per_second = con.bitsPerSecond;
+						conStats.local_node = con.localNode;
+
+						nodeStats.connections.push_back(std::move(conStats));
 					}
 
-					conStats.transport = con.transport;
-					conStats.bits_per_second = con.bitsPerSecond;
-					conStats.local_node = con.localNode;
-
-					nodeStats.connections.push_back(std::move(conStats));
+					peerStats.nodes.push_back(std::move(nodeStats));
 				}
 
-				peerStats.nodes.push_back(std::move(nodeStats));
+				ifaceStats.peers.push_back(std::move(peerStats));
 			}
 
-			stats.peers.push_back(std::move(peerStats));
+			stats.interfaces.push_back(std::move(ifaceStats));
 		}
 
 		m_pub.publish(stats);
@@ -512,13 +566,15 @@ private:
 	std::map<std::string, std::shared_ptr<NodeInfo>> m_nodesByURI;
 	std::map<std::string, std::shared_ptr<NodeInfo>> m_nodesByName;
 
-	std::map<std::string, Peer> m_peers;
+	std::map<std::string, Interface> m_interfaces;
 
 	ros::SteadyTime m_lastTime;
 	ros::SteadyTimer m_nodeTimer;
 	ros::SteadyTimer m_statsTimer;
 
 	ros::Publisher m_pub;
+
+	route::Cache m_routeCache;
 };
 
 int main(int argc, char** argv)

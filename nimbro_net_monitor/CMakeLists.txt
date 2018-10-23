@@ -10,6 +10,7 @@ if(MNL_FOUND)
 	add_definitions(-DWITH_LIBMNL=1)
 else()
 	message(WARNING "Install libmnl-dev for network statistics by interface")
+	set(MNL_LIBRARIES "")
 endif()
 
 find_package(catkin REQUIRED COMPONENTS
@@ -20,6 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_message_files(FILES
 	ConnectionStats.msg
+	InterfaceStats.msg
 	NetworkStats.msg
 	NodeStats.msg
 	PeerStats.msg
@@ -34,9 +36,11 @@ include_directories(${catkin_INCLUDE_DIRS})
 set(CMAKE_CXX_STANDARD 11)
 add_executable(net_monitor
 	src/monitor_node.cpp
+	src/route.cpp
 )
 target_link_libraries(net_monitor
 	${catkin_LIBRARIES}
+	${MNL_LIBRARIES}
 )
 add_dependencies(net_monitor
 	${PROJECT_NAME}_generate_messages_cpp
