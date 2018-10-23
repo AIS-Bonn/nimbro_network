@@ -31,3 +31,17 @@ target_link_libraries(net_monitor
 add_dependencies(net_monitor
 	${PROJECT_NAME}_generate_messages_cpp
 )
+
+find_package(PkgConfig)
+pkg_check_modules(MNL REQUIRED libmnl>=1.0.0)
+
+include_directories(${MNL_INCLUDE_DIRS})
+
+add_executable(route_test
+	src/route_test.cpp
+	src/route.cpp
+)
+target_link_libraries(route_test
+	${catkin_LIBRARIES}
+	${MNL_LIBRARIES}
+)
