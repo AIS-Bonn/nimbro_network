@@ -193,7 +193,7 @@ public:
 			std::bind(&NetMonitor::updateStats, this)
 		);
 
-		m_pub = nh.advertise<nimbro_net_monitor::NetworkStats>("/network_stats", 1, true);
+		m_pub = nh.advertise<nimbro_net_monitor::NetworkStats>("/network/monitor", 1, true);
 
 		updateNodes();
 		updateStats();

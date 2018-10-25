@@ -13,6 +13,7 @@
 	<exec_depend>nimbro_service_transport</exec_depend>
 	<exec_depend>nimbro_tf_throttle</exec_depend>
 	<exec_depend>nimbro_topic_transport</exec_depend>
+	<exec_depend>nimbro_net_monitor</exec_depend>
 
 	<export>
 		<metapackage />

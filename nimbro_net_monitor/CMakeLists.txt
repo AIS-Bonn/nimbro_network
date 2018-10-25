@@ -58,3 +58,6 @@ if(MNL_FOUND)
 		${MNL_LIBRARIES}
 	)
 endif()
+
+# GUI
+add_subdirectory(src/gui)
