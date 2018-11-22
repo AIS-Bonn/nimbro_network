@@ -71,5 +71,7 @@ int main(int argc, char** argv)
 
 	ros::spin();
 
+	g_tf.reset();
+
 	return 0;
 }
