@@ -41,7 +41,7 @@ void MonitorDisplay::initPlugin(qt_gui_cpp::PluginContext& ctx)
 	);
 
 	m_sub_stats = getPrivateNodeHandle().subscribe(
-		"/network/monitor", 1,
+		"/network_stats", 1,
 		&MonitorDisplay::statsReceived, this
 	);
 
@@ -159,7 +159,7 @@ void MonitorDisplay::updatePlot()
 
 	for(auto& peer : m_peers)
 	{
-		plotValue += peer.rx_bandwidth;
+		plotValue += peer.tx_bandwidth;
 
 		if(prevGraph)
 			peer.graph->setChannelFillGraph(prevGraph);
