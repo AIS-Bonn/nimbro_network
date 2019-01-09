@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
 	topic_tools
 	message_generation
 	rostest
+	qt_gui_cpp
 )
 
 find_package(catch_ros)
@@ -67,13 +68,34 @@ add_dependencies(udp_client
 	${PROJECT_NAME}_generate_messages_cpp
 )
 
-# GUI
-find_package(Qt4 REQUIRED)
-include(${QT_USE_FILE})
+# Decide on a Qt version
+if("${qt_gui_cpp_USE_QT_MAJOR_VERSION} " STREQUAL "5 ")
+        set(USE_QT5 true)
+else()
+        set(USE_QT5 false)
+endif()
 
-qt4_wrap_cpp(MOC_SRCS
-	src/gui/service_widget.h
-)
+# Find Qt
+if(USE_QT5)
+	find_package(Qt5Widgets REQUIRED)
+	set(QT_LIBRARIES ${Qt5Widgets_LIBRARIES})
+else()
+	find_package(Qt4 COMPONENTS QtCore QtGui REQUIRED)
+	include(${QT_USE_FILE})
+endif()
+
+
+
+if(USE_QT5)
+	qt5_wrap_cpp(MOC_SRCS
+		src/gui/service_widget.h
+	)
+else()
+	qt4_wrap_cpp(MOC_SRCS
+		src/gui/service_widget.h
+	)
+endif()
+
 
 add_library(service_widget
 	${MOC_SRCS}
