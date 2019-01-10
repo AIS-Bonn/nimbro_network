@@ -1,5 +1,10 @@
-topics:
- - name: "/test_topic"
- - name: "/throttled_topic"
+tcp_topics:
+ - name: "/tcp/test_topic"
+ - name: "/tcp/throttled_topic"
    rate: 1.0
- - name: "/array_topic"
+ - name: "/tcp/array_topic"
+udp_topics:
+ - name: "/udp/test_topic"
+ - name: "/udp/throttled_topic"
+   rate: 1.0
+ - name: "/udp/array_topic"

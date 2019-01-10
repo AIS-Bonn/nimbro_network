@@ -10,45 +10,109 @@
 
 #include "topic_info.h"
 
-ros::Subscriber m_sub_goal;
-ros::Publisher m_pub_goal;
-
-void handleGoal(const topic_tools::ShapeShifter::ConstPtr& goal)
+class ActionProxy
 {
-	m_pub_goal.publish(goal);
-}
+public:
+	ActionProxy(const std::string& type, const std::string& input, const std::string& output)
+	{
+		ros::NodeHandle nh("~");
 
-ros::Subscriber m_sub_cancel;
-ros::Publisher m_pub_cancel;
+		{
+			ros::AdvertiseOptions ops;
+			ops.topic = input + "/goal";
+			ops.datatype = type + "ActionGoal";
+			ops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(ops.datatype);
 
-void handleCancel(const actionlib_msgs::GoalID& id)
-{
-	m_pub_cancel.publish(id);
-}
+			m_pub_goal = nh.advertise(ops);
 
-ros::Subscriber m_sub_result;
-ros::Publisher m_pub_result;
+			ros::SubscribeOptions subops;
+			subops.init<topic_tools::ShapeShifter>(output + "/goal", 10, boost::bind(&ActionProxy::handleGoal, this, _1));
+			subops.datatype = type + "ActionGoal";
+			subops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(subops.datatype);
+			m_sub_goal = nh.subscribe(subops);
+		}
 
-void handleResult(const topic_tools::ShapeShifter::ConstPtr& result)
-{
-	m_pub_result.publish(result);
-}
+		{
+			m_pub_cancel = nh.advertise<actionlib_msgs::GoalID>(input + "/cancel", 1);
+			m_sub_cancel = nh.subscribe(output + "/cancel", 10, &ActionProxy::handleCancel, this);
+		}
 
-ros::Subscriber m_sub_status;
-ros::Publisher m_pub_status;
+		{
+			ros::AdvertiseOptions ops;
+			ops.topic = output + "/result";
+			ops.datatype = type + "ActionResult";
+			ops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(ops.datatype);
 
-void handleStatus(const actionlib_msgs::GoalStatusArray& status)
-{
-	m_pub_status.publish(status);
-}
+			m_pub_result = nh.advertise(ops);
 
-ros::Subscriber m_sub_feedback;
-ros::Publisher m_pub_feedback;
+			ros::SubscribeOptions subops;
+			subops.init<topic_tools::ShapeShifter>(input + "/result", 10, boost::bind(&ActionProxy::handleResult, this, _1));
+			subops.datatype = type + "ActionResult";
+			subops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(subops.datatype);
+			m_sub_result = nh.subscribe(subops);
+		}
 
-void handleFeedback(const topic_tools::ShapeShifter::ConstPtr& fb)
-{
-	m_pub_feedback.publish(fb);
-}
+		{
+			ros::AdvertiseOptions ops;
+			ops.topic = output + "/feedback";
+			ops.datatype = type + "ActionFeedback";
+			ops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(ops.datatype);
+
+			m_pub_feedback = nh.advertise(ops);
+
+			ros::SubscribeOptions subops;
+			subops.init<topic_tools::ShapeShifter>(input + "/feedback", 10, boost::bind(&ActionProxy::handleFeedback, this, _1));
+			subops.datatype = type + "ActionFeedback";
+			subops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(subops.datatype);
+			m_sub_feedback = nh.subscribe(subops);
+		}
+
+		{
+			m_pub_status = nh.advertise<actionlib_msgs::GoalStatusArray>(output + "/status", 10);
+			m_sub_status = nh.subscribe(input + "/status", 10, &ActionProxy::handleStatus, this);
+		}
+	}
+private:
+	ros::Subscriber m_sub_goal;
+	ros::Publisher m_pub_goal;
+
+	void handleGoal(const topic_tools::ShapeShifter::ConstPtr& goal)
+	{
+		m_pub_goal.publish(goal);
+	}
+
+	ros::Subscriber m_sub_cancel;
+	ros::Publisher m_pub_cancel;
+
+	void handleCancel(const actionlib_msgs::GoalID& id)
+	{
+		m_pub_cancel.publish(id);
+	}
+
+	ros::Subscriber m_sub_result;
+	ros::Publisher m_pub_result;
+
+	void handleResult(const topic_tools::ShapeShifter::ConstPtr& result)
+	{
+		m_pub_result.publish(result);
+	}
+
+	ros::Subscriber m_sub_status;
+	ros::Publisher m_pub_status;
+
+	void handleStatus(const actionlib_msgs::GoalStatusArray& status)
+	{
+		m_pub_status.publish(status);
+	}
+
+	ros::Subscriber m_sub_feedback;
+	ros::Publisher m_pub_feedback;
+
+	void handleFeedback(const topic_tools::ShapeShifter::ConstPtr& fb)
+	{
+		m_pub_feedback.publish(fb);
+	}
+};
 
 int main(int argc, char** argv)
 {
@@ -77,60 +141,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	{
-		ros::AdvertiseOptions ops;
-		ops.topic = input + "/goal";
-		ops.datatype = type + "ActionGoal";
-		ops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(ops.datatype);
-
-		m_pub_goal = nh.advertise(ops);
-
-		ros::SubscribeOptions subops;
-		subops.init<topic_tools::ShapeShifter>(output + "/goal", 10, boost::bind(&handleGoal, _1));
-		subops.datatype = type + "ActionGoal";
-		subops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(subops.datatype);
-		m_sub_goal = nh.subscribe(subops);
-	}
-
-	{
-		m_pub_cancel = nh.advertise<actionlib_msgs::GoalID>(input + "/cancel", 1);
-		m_sub_cancel = nh.subscribe(output + "/cancel", 10, &handleCancel);
-	}
-
-	{
-		ros::AdvertiseOptions ops;
-		ops.topic = output + "/result";
-		ops.datatype = type + "ActionResult";
-		ops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(ops.datatype);
-
-		m_pub_result = nh.advertise(ops);
-
-		ros::SubscribeOptions subops;
-		subops.init<topic_tools::ShapeShifter>(input + "/result", 10, boost::bind(&handleResult, _1));
-		subops.datatype = type + "ActionResult";
-		subops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(subops.datatype);
-		m_sub_result = nh.subscribe(subops);
-	}
-
-	{
-		ros::AdvertiseOptions ops;
-		ops.topic = output + "/feedback";
-		ops.datatype = type + "ActionFeedback";
-		ops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(ops.datatype);
-
-		m_pub_feedback = nh.advertise(ops);
-
-		ros::SubscribeOptions subops;
-		subops.init<topic_tools::ShapeShifter>(input + "/feedback", 10, boost::bind(&handleFeedback, _1));
-		subops.datatype = type + "ActionFeedback";
-		subops.md5sum = nimbro_topic_transport::topic_info::getMd5Sum(subops.datatype);
-		m_sub_feedback = nh.subscribe(subops);
-	}
-
-	{
-		m_pub_status = nh.advertise<actionlib_msgs::GoalStatusArray>(output + "/status", 10);
-		m_sub_status = nh.subscribe(input + "/status", 10, &handleStatus);
-	}
+	ActionProxy as(type, input, output);
 
 	ros::spin();
 

@@ -1,15 +1,12 @@
+<?xml version="1" ?>
 <launch>
-	<arg name="protocol" />
 	<arg name="fec" default="false" />
 	<arg name="port" default="5777" />
 
-	<!-- Skip long wait on config server, not needed here -->
-	<param name="config_server/enabled" value="false" />
-
-	<node name="sender" pkg="nimbro_topic_transport" type="$(arg protocol)_sender">
+	<node name="sender" pkg="nimbro_topic_transport" type="sender" output="screen">
 		<!-- Destination: localhost -->
 		<param name="destination_addr" value="127.0.0.1" />
-		<param name="destination_port" value="$(arg port)" />
+		<param name="port" value="$(arg port)" />
 
 		<param if="$(arg fec)" name="fec" value="0.5" />
 
@@ -17,14 +14,20 @@
 		<rosparam command="load" file="$(find nimbro_topic_transport)/test/topics.yaml" />
 	</node>
 
-	<node name="receiver" pkg="nimbro_topic_transport" type="$(arg protocol)_receiver">
+	<node name="receiver" pkg="nimbro_topic_transport" type="receiver" output="screen">
 		<param name="port" value="$(arg port)" />
-		<remap from="/test_topic" to="/receive/test_topic" />
-		<remap from="/array_topic" to="/receive/array_topic" />
+		<remap from="/udp/test_topic" to="/udp/receive/test_topic" />
+		<remap from="/udp/array_topic" to="/udp/receive/array_topic" />
+
+		<remap from="/tcp/test_topic" to="/tcp/receive/test_topic" />
+		<remap from="/tcp/array_topic" to="/tcp/receive/array_topic" />
 
 		<param name="fec" value="$(arg fec)" />
 	</node>
 
-	<test test-name="test_$(arg protocol)_fec_$(arg fec)" pkg="nimbro_topic_transport" type="test_comm">
+	<test test-name="udp" pkg="nimbro_topic_transport" type="test_comm">
+	</test>
+
+	<test test-name="tcp" pkg="nimbro_topic_transport" type="test_comm">
 	</test>
 </launch>

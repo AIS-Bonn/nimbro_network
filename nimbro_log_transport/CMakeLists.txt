@@ -36,3 +36,9 @@ target_link_libraries(log_receiver
 	${catkin_LIBRARIES}
 )
 add_dependencies(log_receiver ${nimbro_log_transport_EXPORTED_TARGETS})
+
+install(TARGETS log_sender log_receiver
+	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)

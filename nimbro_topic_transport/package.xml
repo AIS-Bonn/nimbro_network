@@ -8,19 +8,16 @@
 	<license>GPLv2</license>
 
 	<buildtool_depend>catkin</buildtool_depend>
+	<depend>rqt_gui_cpp</depend>
 	<depend>roscpp</depend>
 	<depend>topic_tools</depend>
+	<depend>yaml-cpp</depend>
+	<depend>libzstd-dev</depend>
 
 	<build_depend>message_generation</build_depend>
 
-	<!-- This is not a hard dependency, the package compiles without plot_msgs. -->
-	<depend>plot_msgs</depend>
-
-	<!-- This is not a hard dependency, the package compiles without config_server. -->
-	<depend>config_server</depend>
-
 	<!-- This is not a hard dependency, the package compiles without catch_ros -->
-	<depend>catch_ros</depend>
+	<build_depend>catch_ros</build_depend>
 
 	<depend>rqt_gui</depend>
 

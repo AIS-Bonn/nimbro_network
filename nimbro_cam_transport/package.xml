@@ -8,4 +8,7 @@
 	<buildtool_depend>catkin</buildtool_depend>
 	<depend>image_transport</depend>
 	<depend>roscpp</depend>
+	<depend>ffmpeg</depend>
+	<depend>libx264-dev</depend>
+	<depend>cv_bridge</depend>
 </package>

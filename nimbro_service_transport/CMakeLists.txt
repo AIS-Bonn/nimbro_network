@@ -68,34 +68,12 @@ add_dependencies(udp_client
 	${PROJECT_NAME}_generate_messages_cpp
 )
 
-# Decide on a Qt version
-if("${qt_gui_cpp_USE_QT_MAJOR_VERSION} " STREQUAL "5 ")
-        set(USE_QT5 true)
-else()
-        set(USE_QT5 false)
-endif()
+# GUI
+find_package(Qt5Widgets REQUIRED)
 
-# Find Qt
-if(USE_QT5)
-	find_package(Qt5Widgets REQUIRED)
-	set(QT_LIBRARIES ${Qt5Widgets_LIBRARIES})
-else()
-	find_package(Qt4 COMPONENTS QtCore QtGui REQUIRED)
-	include(${QT_USE_FILE})
-endif()
-
-
-
-if(USE_QT5)
-	qt5_wrap_cpp(MOC_SRCS
-		src/gui/service_widget.h
-	)
-else()
-	qt4_wrap_cpp(MOC_SRCS
-		src/gui/service_widget.h
-	)
-endif()
-
+qt5_wrap_cpp(MOC_SRCS
+	src/gui/service_widget.h
+)
 
 add_library(service_widget
 	${MOC_SRCS}
@@ -107,7 +85,7 @@ add_dependencies(service_widget
 )
 
 target_link_libraries(service_widget
-	${QT_LIBRARIES}
+	Qt5::Widgets
 )
 
 # Tests
@@ -137,3 +115,9 @@ if(catch_ros_FOUND)
 	add_rostest(test/test_udp.test)
 	add_rostest(test/test_tcp.test)
 endif()
+
+install(TARGETS service_server service_client udp_server udp_client service_widget
+	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)

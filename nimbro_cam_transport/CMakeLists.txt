@@ -22,9 +22,10 @@ find_library(LIBAVUTIL_LIBRARY avutil HINTS /opt/ffmpeg/lib)
 find_library(LIBAVCODEC_LIBRARY avcodec HINTS /opt/ffmpeg/lib)
 find_library(LIBSWSCALE_LIBRARY swscale HINTS /opt/ffmpeg/lib)
 
-set(FFMPEG_INCLUDE_PATH "/opt/ffmpeg/include" CACHE PATH "path to libavcodec/avcodec.h")
+find_path(FFMPEG_INCLUDE_PATH "libavcodec/avcodec.h" HINTS "/opt/ffmpeg/include")
 include_directories(${FFMPEG_INCLUDE_PATH})
 
+message(STATUS "libavcodec: ${LIBAVCODEC_LIBRARY} and ${FFMPEG_INCLUDE_PATH}")
 if(NOT LIBAVCODEC_LIBRARY OR NOT FFMPEG_INCLUDE_PATH)
 	message(WARNING "Could not find ffmpeg libraries, not building receivers...")
 endif()
@@ -38,6 +39,12 @@ if(x264_LIBRARY)
 		${catkin_LIBRARIES}
 		${x264_LIBRARY}
 	)
+
+	install(TARGETS cam_sender
+		ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+	)
 endif()
 
 if(LIBAVCODEC_LIBRARY AND EXISTS ${FFMPEG_INCLUDE_PATH})
@@ -49,5 +56,11 @@ if(LIBAVCODEC_LIBRARY AND EXISTS ${FFMPEG_INCLUDE_PATH})
 		${LIBAVUTIL_LIBRARY}
 		${LIBAVCODEC_LIBRARY}
 		${LIBSWSCALE_LIBRARY}
+	)
+
+	install(TARGETS cam_receiver
+		ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 	)
 endif()

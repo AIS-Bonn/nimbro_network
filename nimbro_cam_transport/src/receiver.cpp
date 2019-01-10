@@ -71,7 +71,10 @@ int main(int argc, char** argv)
 	
 	ros::NodeHandle nh("~");
 
-	avcodec_register_all();
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
+    avcodec_register_all();
+#endif
+
 	av_log_set_level(AV_LOG_QUIET);
 
 	AVCodec* decoder = avcodec_find_decoder(AV_CODEC_ID_H264);
@@ -80,8 +83,13 @@ int main(int argc, char** argv)
 
 	g_codec = avcodec_alloc_context3(decoder);
 
-	g_codec->flags |= CODEC_FLAG_LOW_DELAY;
-	g_codec->flags2 |= CODEC_FLAG2_SHOW_ALL;
+	g_codec->flags |= AV_CODEC_FLAG_LOW_DELAY;
+
+#ifdef AV_CODEC_FLAG2_SHOW_ALL
+	g_codec->flags2 |= AV_CODEC_FLAG2_SHOW_ALL;
+#else
+#warning This version of FFMPEG does not offer AV_CODEC_FLAG2_SHOW_ALL. Consider upgrading your FFMPEG.
+#endif
 
 	g_codec->thread_type = 0;
 
@@ -90,7 +98,7 @@ int main(int argc, char** argv)
 
 	g_pub = nh.advertise<sensor_msgs::Image>("image", 1);
 	
-	ros::Subscriber sub = nh.subscribe("encoded", 5, &handleImage);
+	ros::Subscriber sub = nh.subscribe("encoded", 25, &handleImage);
 	
 	ros::spin();
 	

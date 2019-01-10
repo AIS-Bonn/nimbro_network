@@ -59,6 +59,27 @@ private:
 } __attribute__((packed));
 
 template<>
+class LEValue<3>
+{
+public:
+	inline operator uint32_t() const
+	{ return (static_cast<uint32_t>(m_value_high) << 16) | le16toh(m_value_low); }
+
+	inline uint32_t operator()() const
+	{ return (static_cast<uint32_t>(m_value_high) << 16) | le16toh(m_value_low); }
+
+	inline uint32_t operator=(uint32_t value)
+	{
+		m_value_low = htole16(value & 0xFFFF);
+		m_value_high = value >> 16;
+		return value;
+	}
+private:
+	uint16_t m_value_low;
+	uint8_t m_value_high;
+} __attribute__((packed));
+
+template<>
 class LEValue<4>
 {
 public:

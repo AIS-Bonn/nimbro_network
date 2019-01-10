@@ -49,6 +49,8 @@ BandwidthGui::~BandwidthGui()
 
 void BandwidthGui::initPlugin(qt_gui_cpp::PluginContext& ctx)
 {
+	getPrivateNodeHandle();
+
 	m_plot = new QCustomPlot();
 	m_plot->legend->setVisible(true);
 	m_plot->legend->setIconBorderPen(Qt::NoPen);
@@ -117,8 +119,7 @@ void BandwidthGui::initPlugin(qt_gui_cpp::PluginContext& ctx)
 		&m_plotTimer, SIGNAL(timeout()),
 		this, SLOT(updatePlot())
 	);
-	m_plotTimer.start(0);
-
+	m_plotTimer.start(50);
 }
 
 void BandwidthGui::shutdownPlugin()
@@ -257,6 +258,7 @@ void BandwidthGui::updatePlot()
 		gv.graph->addData(gv.timestamp, plotValue);
 		m_maxBandwidth = std::max(m_maxBandwidth, plotValue);
 		m_plot->yAxis->setRangeUpper(m_maxBandwidth + (m_maxBandwidth/50.0));
+#warning fix and test this!
 		gv.graph->removeDataBefore(5*WINDOW_SIZE);
 		gv.last_timestamp = gv.timestamp;
 	}

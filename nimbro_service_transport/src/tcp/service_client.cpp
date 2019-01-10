@@ -116,6 +116,7 @@ ServiceClient::ServiceClient()
 		throw std::runtime_error("Invalid address length");
 
 	memcpy(&m_addr, info->ai_addr, info->ai_addrlen);
+	m_addrFamily = info->ai_family;
 	m_addrLen = info->ai_addrlen;
 
 	XmlRpc::XmlRpcValue list;
@@ -179,7 +180,7 @@ bool ServiceClient::call(const std::string& name, ros::ServiceCallbackHelperCall
 	{
 		if(m_fd < 0)
 		{
-			m_fd = socket(AF_INET, SOCK_STREAM, 0);
+			m_fd = socket(m_addrFamily, SOCK_STREAM, 0);
 			if(m_fd < 0)
 			{
 				perror("Could not create socket");

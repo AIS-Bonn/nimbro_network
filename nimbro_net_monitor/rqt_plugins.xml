@@ -1,0 +1,15 @@
+<library path="lib/libnimbro_net_monitor_display">
+	<class name="nimbro_net_monitor/monitor_display" type="nimbro_net_monitor::MonitorDisplay" base_class_type="rqt_gui_cpp::Plugin">
+		<description>
+			Display nimbro_net_monitor statistics
+		</description>
+		<qtgui>
+			<group>
+				<label>nimbro_network</label>
+			</group>
+
+			<label>Network Monitor</label>
+			<statustip>Diagnostic nimbro_net_monitor information</statustip>
+		</qtgui>
+	</class>
+</library>
