@@ -25,7 +25,7 @@ namespace topic_info
  * @param stripNL If true, strip off the final newline.
  * @return rosmsg output
  **/
-static std::string msgQuery(const std::string& cmd, const std::string& type, bool stripNL)
+static std::string msgQuery(const std::string& cmd, const std::string& type)
 {
 	std::vector<char> buf(1024);
 	int idx = 0;
@@ -48,7 +48,7 @@ static std::string msgQuery(const std::string& cmd, const std::string& type, boo
 		close(fds[0]);
 		dup2(fds[1], STDOUT_FILENO);
 
-		if(execlp("rosmsg", "rosmsg", cmd.c_str(), type.c_str(), 0) != 0)
+		if(execlp("rosrun", "rosrun", "nimbro_topic_transport", "get_msg_def.py", cmd.c_str(), type.c_str(), 0) != 0)
 		{
 			throw std::runtime_error("Could not execlp() rosmsg");
 		}
@@ -80,22 +80,17 @@ static std::string msgQuery(const std::string& cmd, const std::string& type, boo
 		return "";
 	}
 
-	std::string ret(buf.data(), idx);
-
-	if(stripNL)
-		return std::string(buf.data(), idx-1);
-	else
-		return std::string(buf.data(), idx);
+	return std::string(buf.data(), idx);
 }
 
 std::string getMsgDef(const std::string& type)
 {
-	return msgQuery("show", type, false);
+	return msgQuery("def", type);
 }
 
 std::string getMd5Sum(const std::string& type)
 {
-	return msgQuery("md5", type, true);
+	return msgQuery("md5", type);
 }
 
 void packMD5(const std::string& str, LEValue< 4 >* dest)

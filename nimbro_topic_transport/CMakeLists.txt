@@ -115,3 +115,7 @@ install(TARGETS nimbro_topic_transport sender receiver action_proxy
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+
+install(FILES utils/get_msg_def.py
+        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
