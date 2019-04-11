@@ -18,12 +18,11 @@ namespace topic_info
 {
 
 /**
- * Execute a rosmsg query and return result.
+ * Execute a message query and return result.
  *
- * The executed command is "rosmsg @a cmd @a type".
+ * See utils/get_msg_def.py.
  *
- * @param stripNL If true, strip off the final newline.
- * @return rosmsg output
+ * @return output (message definition or md5sum)
  **/
 static std::string msgQuery(const std::string& cmd, const std::string& type)
 {
