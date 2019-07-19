@@ -45,6 +45,7 @@ void sendTransforms()
 
 		geometry_msgs::TransformStamped m;
 		tf::transformStampedTFToMsg(transform, m);
+		m.header.stamp = ros::Time::now();
 
 		msg.transforms.push_back(m);
 	}
