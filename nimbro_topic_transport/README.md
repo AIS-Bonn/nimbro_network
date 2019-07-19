@@ -68,4 +68,12 @@ The UDP transport can do forward error correction if [OpenFEC][1] is available.
 A short guide on how to install and configure the system is available
 in `doc/FEC.md`.
 
+Dependencies
+------------------------------
+
+Needed dependecies to build this package:
+```
+sudo apt-get install qt4-dev-tools
+```
+
 [1]: http://openfec.org/
