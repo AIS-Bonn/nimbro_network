@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8)
 
 project(nimbro_service_transport)
 
+option(NIMBRO_BUILD_QT "Whether to compile QT based components" TRUE)
+
 find_package(catkin REQUIRED COMPONENTS
 	roscpp
 	roslib
@@ -68,25 +70,27 @@ add_dependencies(udp_client
 )
 
 # GUI
-find_package(Qt4 REQUIRED)
-include(${QT_USE_FILE})
+if(NIMBRO_BUILD_QT)
+  find_package(Qt4 REQUIRED)
+  include(${QT_USE_FILE})
 
-qt4_wrap_cpp(MOC_SRCS
-	src/gui/service_widget.h
-)
+  qt4_wrap_cpp(MOC_SRCS
+    src/gui/service_widget.h
+  )
 
-add_library(service_widget
-	${MOC_SRCS}
-	src/gui/service_widget.cpp
-)
+  add_library(service_widget
+    ${MOC_SRCS}
+    src/gui/service_widget.cpp
+  )
 
-add_dependencies(service_widget
-	${PROJECT_NAME}_generate_messages_cpp
-)
+  add_dependencies(service_widget
+    ${PROJECT_NAME}_generate_messages_cpp
+  )
 
-target_link_libraries(service_widget
-	${QT_LIBRARIES}
-)
+  target_link_libraries(service_widget
+    ${QT_LIBRARIES}
+  )
+endif()
 
 # Tests
 if(catch_ros_FOUND)
@@ -115,3 +119,12 @@ if(catch_ros_FOUND)
 	add_rostest(test/test_udp.test)
 	add_rostest(test/test_tcp.test)
 endif()
+
+#install
+install(TARGETS service_server
+                service_client
+                udp_server
+                udp_client
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
