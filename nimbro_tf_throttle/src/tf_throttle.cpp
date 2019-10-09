@@ -20,8 +20,6 @@ void sendTransforms()
 	tf2_msgs::TFMessage msg;
 	msg.transforms.reserve(frames.size());
 
-	ros::Time now = ros::Time::now();
-
 	BOOST_FOREACH(std::string frame, frames)
 	{
 		std::string parentFrame;
