@@ -64,13 +64,13 @@ void Depacketizer::handleMessagePacket(std::list<PartialMessage>::iterator it, c
 
 	msg->packets[header.symbol_id()] = packet;
 
-	std::size_t symbolSize;
-	if(header.source_symbols() == 1)
-		symbolSize = packet->length - sizeof(UDPPacket::Header);
-	else
-		symbolSize = UDPPacket::MaxDataSize;
-
 	// TODO: Check this!
+// 	std::size_t symbolSize;
+// 	if(header.source_symbols() == 1)
+// 		symbolSize = packet->length - sizeof(UDPPacket::Header);
+// 	else
+// 		symbolSize = UDPPacket::MaxDataSize;
+
 // 	if(msg->decoder)
 // 	{
 // 		if(header.source_symbols() != msg->params->nb_source_symbols
