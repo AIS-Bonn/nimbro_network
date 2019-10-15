@@ -42,3 +42,5 @@ catkin_tools_tests:
   artifacts:
     paths:
       - test_results/summary.xml
+    reports:
+      junit: test_results/summary.xml
