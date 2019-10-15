@@ -1,0 +1,16 @@
+<launch>
+	<node name="sender" pkg="nimbro_cam_transport" type="cam_sender" output="screen">
+		<remap from="~image" to="/image_tx" />
+		<remap from="~encoded" to="/image_encoded" />
+
+		<param name="rate" value="5000.0" />
+	</node>
+
+	<node name="receiver" pkg="nimbro_cam_transport" type="cam_receiver" output="screen">
+		<remap from="~encoded" to="/image_encoded" />
+		<remap from="~image" to="/image_rx" />
+	</node>
+
+	<test test-name="basic_test" pkg="nimbro_cam_transport" type="basic.py">
+	</test>
+</launch>
