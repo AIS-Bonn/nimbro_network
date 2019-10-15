@@ -64,3 +64,10 @@ if(LIBAVCODEC_LIBRARY AND EXISTS ${FFMPEG_INCLUDE_PATH})
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 	)
 endif()
+
+# Register unit tests
+if(CATKIN_ENABLE_TESTING AND TARGET cam_sender AND TARGET cam_receiver)
+	# Integration tests
+	find_package(rostest REQUIRED)
+	add_rostest(test/basic.test DEPENDENCIES cam_sender cam_receiver)
+endif()

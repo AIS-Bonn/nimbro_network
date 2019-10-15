@@ -16,11 +16,31 @@ catkin_build:
   artifacts:
     paths:
       - test_results/
+
+melodic:
+  stage: build
+  image: xqms/ros:ais
+  script:
+    - git clone https://git.ais.uni-bonn.de/nimbroshared/ros_gitlab_ci.git
+    - source ros_gitlab_ci/gitlab-ci.bash
+    - catkin build --summarize --no-status --force-color
+    - source devel/setup.bash
+    - ROS_TEST_RESULTS_DIR=$(pwd)/melodic_results catkin run_tests --no-status --force-color
+    - find build -name test_results -type d -exec cp -R '{}' $CI_PROJECT_DIR/ ';' -print
+    - mv ${CI_PROJECT_DIR}/test_results ${CI_PROJECT_DIR}/melodic_results
+  artifacts:
+    paths:
+      - melodic_results/
+
 catkin_tools_tests:
   stage: test
   script:
     - ls -la
-    - echo test_results/*/*.xml
+    - echo test_results/*/*.xml melodic_results/*/*.xml
     - git clone https://git.ais.uni-bonn.de/nimbroshared/ros_gitlab_ci.git
-    - python ros_gitlab_ci/summarize_results.py test_results/*/*.xml test_results/summary.xml
-
+    - python ros_gitlab_ci/summarize_results.py test_results/*/*.xml melodic_results/*/*.xml test_results/summary.xml
+  artifacts:
+    paths:
+      - test_results/summary.xml
+    reports:
+      junit: test_results/summary.xml
