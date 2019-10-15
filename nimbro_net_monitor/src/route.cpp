@@ -16,6 +16,7 @@
 
 #include <cerrno>
 #include <cstring>
+#include <functional>
 #include <sstream>
 
 #include <ros/console.h>
