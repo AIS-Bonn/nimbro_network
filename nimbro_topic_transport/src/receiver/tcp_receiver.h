@@ -47,9 +47,6 @@ private:
 	std::thread m_thread;
 	bool m_shouldExit = false;
 
-	sockaddr_storage m_remoteAddr;
-	socklen_t m_remoteAddrLen;
-
 	Callback m_callback;
 
 	std::mutex m_topicMutex;
