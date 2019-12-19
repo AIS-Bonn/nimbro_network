@@ -9,6 +9,9 @@
 
 #include <boost/foreach.hpp>
 
+bool g_applyPrefix = false;
+std::string g_framePrefix;
+
 boost::scoped_ptr<tf::TransformListener> g_tf;
 ros::Publisher pub;
 
@@ -44,6 +47,12 @@ void sendTransforms()
 		geometry_msgs::TransformStamped m;
 		tf::transformStampedTFToMsg(transform, m);
 
+                if ( g_applyPrefix )
+                {
+                    m.header.frame_id = g_framePrefix+"_"+m.header.frame_id;
+                    m.child_frame_id = g_framePrefix+"_"+m.child_frame_id;
+                }
+
 		msg.transforms.push_back(m);
 	}
 
@@ -60,6 +69,8 @@ int main(int argc, char** argv)
 
 	double rate;
 	nh.param("rate", rate, 4.0);
+        nh.param<std::string>("prefix", g_framePrefix, "");
+        g_applyPrefix = g_framePrefix != "";
 
 	ros::Timer timer = nh.createTimer(
 		ros::Duration(1.0 / rate),
