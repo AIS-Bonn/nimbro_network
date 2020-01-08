@@ -47,7 +47,7 @@ static std::string msgQuery(const std::string& cmd, const std::string& type)
 		close(fds[0]);
 		dup2(fds[1], STDOUT_FILENO);
 
-		if(execlp("rosrun", "rosrun", "nimbro_topic_transport", "get_msg_def.py", cmd.c_str(), type.c_str(), 0) != 0)
+		if(execlp("rosrun", "rosrun", "nimbro_topic_transport", "get_msg_def.py", cmd.c_str(), type.c_str(), static_cast<char*>(nullptr)) != 0)
 		{
 			throw std::runtime_error("Could not execlp() rosmsg");
 		}
