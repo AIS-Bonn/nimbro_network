@@ -78,6 +78,14 @@ target_link_libraries(receiver
 	nimbro_topic_transport
 )
 
+add_executable(transceiver
+	src/transceiver.cpp
+)
+target_link_libraries(transceiver
+	${catkin_LIBRARIES}
+	nimbro_topic_transport
+)
+
 # Tools
 add_executable(action_proxy
 	src/action_proxy.cpp
@@ -111,10 +119,11 @@ if(catch_ros_FOUND)
 
 	add_rostest(test/topic_transport.test ARGS port:=5778 fec:=false)
 	add_rostest(test/topic_transport.test ARGS port:=5779 fec:=true)
+	add_rostest(test/transceiver.test ARGS port:=5780 fec:=false)
 endif()
 
 #install
-install(TARGETS nimbro_topic_transport sender receiver action_proxy
+install(TARGETS nimbro_topic_transport sender receiver action_proxy transceiver
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

@@ -1,0 +1,37 @@
+<?xml version="1" ?>
+<launch>
+	<arg name="fec" default="false" />
+	<arg name="port" default="5777" />
+
+	<node name="transceiver" pkg="nimbro_topic_transport" type="transceiver" output="screen">
+		<!-- SENDER -->
+			<!-- Destination: localhost -->
+			<param name="sender/destination_addr" value="127.0.0.1" />
+			<param name="sender/port" value="$(arg port)" />
+
+			<!-- If required, enable FEC -->
+			<param name="sender/fec" if="$(arg fec)" value="0.5" />
+
+			<!-- This can be used to strip a robot-specific topic name prefix prior to sending -->
+			<param name="sender/strip_prefix" value="/odd_prefix" />
+
+			<!-- Load topics from yaml file -->
+			<rosparam command="load" ns="sender" file="$(find nimbro_topic_transport)/test/topics.yaml" />
+		<!-- END SENDER -->
+
+		<!-- RECEIVER -->
+			<!-- Network configuration -->
+			<param name="receiver/port" value="$(arg port)" />
+
+			<!-- Prefix all received topics with '/receive' -->
+			<param name="receiver/prefix" value="/receive" />
+		<!-- END RECEIVER -->
+	</node>
+
+	<test test-name="udp" pkg="nimbro_topic_transport" type="test_comm">
+	</test>
+
+	<test test-name="tcp" pkg="nimbro_topic_transport" type="test_comm">
+	</test>
+</launch>
+
