@@ -13,10 +13,8 @@
 namespace nimbro_topic_transport
 {
 
-UDPReceiver::UDPReceiver()
+UDPReceiver::UDPReceiver(ros::NodeHandle& nh)
 {
-	ros::NodeHandle nh("~");
-
 	m_fd = socket(AF_INET6, SOCK_DGRAM, 0);
 	if(m_fd < 0)
 	{

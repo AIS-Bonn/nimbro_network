@@ -11,6 +11,11 @@
 
 #include <netinet/in.h>
 
+namespace ros
+{
+class NodeHandle;
+}
+
 namespace nimbro_topic_transport
 {
 
@@ -19,7 +24,7 @@ class UDPReceiver
 public:
 	typedef std::function<void(const Packet::Ptr&)> Callback;
 
-	UDPReceiver();
+	explicit UDPReceiver(ros::NodeHandle& nh);
 	~UDPReceiver();
 
 	void setCallback(const Callback& cb);

@@ -17,7 +17,7 @@ namespace nimbro_topic_transport
 class Sender
 {
 public:
-	Sender();
+	Sender(ros::NodeHandle nh = ros::NodeHandle("~"));
 
 private:
 	std::string stripPrefix(const std::string& topic) const;

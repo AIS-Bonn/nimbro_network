@@ -22,8 +22,8 @@ namespace String
 
 }
 
-Sender::Sender()
- : m_nh("~")
+Sender::Sender(ros::NodeHandle nh)
+ : m_nh{std::move(nh)}
 {
 	m_nh.getParam("strip_prefix", m_stripPrefix);
 
@@ -56,7 +56,7 @@ std::string Sender::stripPrefix(const std::string& topic) const
 
 void Sender::initTCP(XmlRpc::XmlRpcValue& topicList)
 {
-	m_tcp_sender.reset(new TCPSender);
+	m_tcp_sender = std::make_unique<TCPSender>(m_nh);
 
 	for(int32_t i = 0; i < topicList.size(); ++i)
 	{
@@ -100,8 +100,8 @@ void Sender::initTCP(XmlRpc::XmlRpcValue& topicList)
 
 void Sender::initUDP(XmlRpc::XmlRpcValue& topicList)
 {
-	m_udp_sender.reset(new UDPSender);
-	m_packetizer.reset(new Packetizer);
+	m_udp_sender = std::make_unique<UDPSender>(m_nh);
+	m_packetizer = std::make_unique<Packetizer>();
 
 	for(int32_t i = 0; i < topicList.size(); ++i)
 	{

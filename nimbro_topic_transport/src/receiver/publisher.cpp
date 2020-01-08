@@ -29,7 +29,8 @@ private:
 namespace nimbro_topic_transport
 {
 
-Publisher::Publisher(const Topic::ConstPtr& topic)
+Publisher::Publisher(const Topic::ConstPtr& topic, const std::string& prefix)
+ : m_prefix{prefix}
 {
 }
 
@@ -47,13 +48,9 @@ void Publisher::publish(const Message::ConstPtr& msg)
 		m_messageDefinition = topic_info::getMsgDef(msg->type);
 
 		ros::NodeHandle nh;
-		ros::NodeHandle privNh("~");
-
-		std::string prefix;
-		privNh.getParam("prefix", prefix);
 
 		ros::AdvertiseOptions options(
-			prefix + msg->topic->name,
+			m_prefix + msg->topic->name,
 			50,
 			msg->md5,
 			msg->type,

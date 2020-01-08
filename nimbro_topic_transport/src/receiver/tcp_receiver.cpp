@@ -39,10 +39,8 @@ namespace
 namespace nimbro_topic_transport
 {
 
-TCPReceiver::TCPReceiver()
+TCPReceiver::TCPReceiver(ros::NodeHandle& nh)
 {
-	ros::NodeHandle nh("~");
-
 	m_fd = socket(AF_INET6, SOCK_STREAM, 0);
 	if(m_fd < 0)
 	{

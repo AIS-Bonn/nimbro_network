@@ -19,15 +19,15 @@ namespace nimbro_topic_transport
 class Receiver
 {
 public:
-	Receiver();
+	Receiver(ros::NodeHandle nh = ros::NodeHandle("~"));
 private:
 	void handleMessage(const Message::ConstPtr& message);
 
 	struct TopicHandler
 	{
-		explicit TopicHandler(const Topic::ConstPtr& topic)
+		explicit TopicHandler(const Topic::ConstPtr& topic, const std::string& prefix)
 		 : topic(topic)
-		 , publisher(topic)
+		 , publisher(topic, prefix)
 		{}
 
 		void handleMessage(const Message::ConstPtr& msg);
@@ -38,6 +38,8 @@ private:
 		Publisher publisher;
 	};
 
+	ros::NodeHandle m_nh;
+
 	Depacketizer m_depacketizer;
 	ThreadPool m_threadPool;
 
@@ -46,6 +48,8 @@ private:
 
 	TCPReceiver m_tcp_receiver;
 	UDPReceiver m_udp_receiver;
+
+	std::string m_prefix;
 };
 
 }

@@ -16,7 +16,7 @@ namespace nimbro_topic_transport
 class TCPSender
 {
 public:
-	TCPSender();
+	explicit TCPSender(ros::NodeHandle& nh);
 	~TCPSender();
 
 	//! @note may be called from multiple threads

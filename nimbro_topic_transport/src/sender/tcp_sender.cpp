@@ -12,8 +12,8 @@
 namespace nimbro_topic_transport
 {
 
-TCPSender::TCPSender()
- : m_nh("~")
+TCPSender::TCPSender(ros::NodeHandle& nh)
+ : m_nh{nh}
  , m_fd(-1)
 {
 	std::string addr;

@@ -17,7 +17,7 @@ namespace nimbro_topic_transport
 class UDPSender
 {
 public:
-	UDPSender();
+	explicit UDPSender(ros::NodeHandle& nh);
 	~UDPSender();
 
 	void send(const std::vector<Packet::Ptr>& packets);

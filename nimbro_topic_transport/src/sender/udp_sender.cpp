@@ -9,10 +9,8 @@
 namespace nimbro_topic_transport
 {
 
-UDPSender::UDPSender()
+UDPSender::UDPSender(ros::NodeHandle& nh)
 {
-	ros::NodeHandle nh("~");
-
 	// Get ROS parameters
 	std::string dest_host;
 	nh.param("destination_addr", dest_host, std::string("localhost"));

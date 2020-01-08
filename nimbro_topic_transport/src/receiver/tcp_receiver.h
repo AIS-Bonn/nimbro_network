@@ -20,7 +20,7 @@ class TCPReceiver
 public:
 	typedef std::function<void(const Message::Ptr&)> Callback;
 
-	TCPReceiver();
+	explicit TCPReceiver(ros::NodeHandle& nh);
 	~TCPReceiver();
 
 	void setCallback(const Callback& cb);

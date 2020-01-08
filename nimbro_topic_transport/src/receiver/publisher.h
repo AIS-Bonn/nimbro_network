@@ -14,7 +14,7 @@ namespace nimbro_topic_transport
 class Publisher
 {
 public:
-	Publisher(const Topic::ConstPtr& topic);
+	Publisher(const Topic::ConstPtr& topic, const std::string& prefix);
 	~Publisher();
 
 	void publish(const Message::ConstPtr& msg);
@@ -23,6 +23,7 @@ private:
 	void finishHoldoff();
 
 	bool m_advertised = false;
+	std::string m_prefix;
 
 	bool m_inHoldoffTime = true;
 	ros::WallTime m_advertiseTime;
