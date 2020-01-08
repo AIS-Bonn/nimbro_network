@@ -99,7 +99,7 @@ bool TCPSender::connect()
 
 	if(::connect(m_fd, (sockaddr*)&m_addr, m_addrLen) != 0)
 	{
-		ROS_ERROR("Could not connect: %s", strerror(errno));
+		ROS_ERROR_THROTTLE(5.0, "Could not connect: %s", strerror(errno));
 		return false;
 	}
 	ROS_INFO("Connected to destination");
@@ -209,7 +209,7 @@ void TCPSender::send(const Message::ConstPtr& msg)
 		return;
 	}
 
-	ROS_ERROR(
+	ROS_ERROR_THROTTLE(5.0,
 		"Could not send TCP packet. Dropping message from topic %s!",
 		msg->topic->name.c_str()
 	);
