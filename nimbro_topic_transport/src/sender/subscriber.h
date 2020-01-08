@@ -17,7 +17,7 @@ class Subscriber
 public:
 	typedef std::function<void(const Message::ConstPtr&)> Callback;
 
-	Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh);
+	Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh, const std::string& fullTopicName);
 
 	void registerCallback(const Callback& cb);
 private:

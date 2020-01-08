@@ -8,9 +8,6 @@
 namespace nimbro_topic_transport
 {
 
-namespace
-{
-
 class VectorBuffer
 {
 public:
@@ -32,9 +29,7 @@ private:
 	std::size_t m_offset = 0;
 };
 
-}
-
-Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh)
+Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh, const std::string& fullTopicName)
  : m_topic(topic)
 {
 	// Subscribe
@@ -45,7 +40,7 @@ Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh)
 	ros::SubscribeOptions ops;
 	boost::function<void(const topic_tools::ShapeShifter::ConstPtr&)> func
 		= boost::bind(&Subscriber::handleData, this, _1);
-	ops.initByFullCallbackType(topic->name, queue_length, func);
+	ops.initByFullCallbackType(fullTopicName, queue_length, func);
 
 	m_subscriber = nh.subscribe(ops);
 
