@@ -8,21 +8,22 @@
 		<param name="destination_addr" value="127.0.0.1" />
 		<param name="port" value="$(arg port)" />
 
+		<!-- If required, enable FEC -->
 		<param if="$(arg fec)" name="fec" value="0.5" />
+
+		<!-- This can be used to strip a robot-specific topic name prefix prior to sending -->
+		<param name="strip_prefix" value="/odd_prefix" />
 
 		<!-- Load topics from yaml file -->
 		<rosparam command="load" file="$(find nimbro_topic_transport)/test/topics.yaml" />
 	</node>
 
 	<node name="receiver" pkg="nimbro_topic_transport" type="receiver" output="screen">
+		<!-- Network configuration -->
 		<param name="port" value="$(arg port)" />
-		<remap from="/udp/test_topic" to="/udp/receive/test_topic" />
-		<remap from="/udp/array_topic" to="/udp/receive/array_topic" />
 
-		<remap from="/tcp/test_topic" to="/tcp/receive/test_topic" />
-		<remap from="/tcp/array_topic" to="/tcp/receive/array_topic" />
-
-		<param name="fec" value="$(arg fec)" />
+		<!-- Prefix all received topics with '/receive' -->
+		<param name="prefix" value="/receive" />
 	</node>
 
 	<test test-name="udp" pkg="nimbro_topic_transport" type="test_comm">

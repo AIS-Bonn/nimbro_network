@@ -50,8 +50,20 @@ TEST_CASE("simple", "[topic]")
 
 	ros::NodeHandle nh("~");
 
-	ros::Publisher pub = nh.advertise<std_msgs::Int64>("test_topic", 2);
-	ros::Subscriber sub = nh.subscribe("receive/test_topic", 2, &handle_simple);
+	ros::Publisher pub;
+	ros::Subscriber sub;
+
+	SECTION("simple")
+	{
+		pub = nh.advertise<std_msgs::Int64>("test_topic", 2);
+		sub = nh.subscribe("/receive/" + nh.resolveName("test_topic"), 2, &handle_simple);
+	}
+
+	SECTION("remove prefix")
+	{
+		pub = nh.advertise<std_msgs::Int64>("/odd_prefix/" + nh.resolveName("unprefix_me"), 2);
+		sub = nh.subscribe("/receive/" + nh.resolveName("unprefix_me"), 2, &handle_simple);
+	}
 
 	int timeout = 50;
 	while(pub.getNumSubscribers() == 0)
@@ -91,7 +103,7 @@ TEST_CASE("simple", "[topic]")
 	}
 
 	CAPTURE(g_counter);
-	FAIL("Not enough messages received");
+	FAIL("Not enough messages received on topic " << sub.getTopic());
 }
 
 TEST_CASE("array", "[topic]")
@@ -107,13 +119,13 @@ TEST_CASE("array", "[topic]")
 
 	SECTION("small")
 	{
-		sub = nh.subscribe("receive/array_topic", 2, &handle_array);
+		sub = nh.subscribe("/receive/" + nh.resolveName("array_topic"), 2, &handle_array);
 		for(int i = 0; i < 512; ++i)
 			msg.data.push_back(i);
 	}
 	SECTION("huge")
 	{
-		sub = nh.subscribe("receive/array_topic", 2, &handle_huge);
+		sub = nh.subscribe("/receive/" + nh.resolveName("array_topic"), 2, &handle_huge);
 		for(int i = 0; i < HUGE_SIZE; ++i)
 			msg.data.push_back(i);
 	}
