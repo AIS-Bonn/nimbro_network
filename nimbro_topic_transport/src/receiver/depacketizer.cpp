@@ -64,24 +64,6 @@ void Depacketizer::handleMessagePacket(std::list<PartialMessage>::iterator it, c
 
 	msg->packets[header.symbol_id()] = packet;
 
-	// TODO: Check this!
-// 	std::size_t symbolSize;
-// 	if(header.source_symbols() == 1)
-// 		symbolSize = packet->length - sizeof(UDPPacket::Header);
-// 	else
-// 		symbolSize = UDPPacket::MaxDataSize;
-
-// 	if(msg->decoder)
-// 	{
-// 		if(header.source_symbols() != msg->params->nb_source_symbols
-// 			|| header.repair_symbols() != msg->params->nb_repair_symbols
-// 			|| symbolSize != msg->params->encoding_symbol_length)
-// 		{
-// 			ROS_ERROR("Received packet with mismatched FEC parameters, dropping");
-// 			return;
-// 		}
-// 	}
-
 	std::vector<uint8_t> recoveredData;
 
 	// Do we need to do FEC decoding?
