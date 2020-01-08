@@ -12,24 +12,49 @@ namespace
 	static bool sureRead(int fd, void* dest, ssize_t size)
 	{
 		uint8_t* destWPtr = (uint8_t*)dest;
+		fd_set fds;
+		FD_ZERO(&fds);
+
 		while(size != 0)
 		{
-			ssize_t ret = read(fd, destWPtr, size);
+			timeval timeout = {};
+			timeout.tv_sec = 1;
+
+			FD_SET(fd, &fds);
+			auto ret = select(fd+1, &fds, nullptr, nullptr, &timeout);
+
+			if(!ros::ok())
+				return false;
 
 			if(ret < 0)
+			{
+				if(errno == EAGAIN)
+					continue;
+
+				ROS_ERROR("Could not select(): %s", strerror(errno));
+				return false;
+			}
+
+			// Nothing happened
+			if(ret == 0)
+				continue;
+
+			ssize_t bytes = read(fd, destWPtr, size);
+
+			if(bytes < 0)
 			{
 				ROS_ERROR("Could not read(): %s", strerror(errno));
 				return false;
 			}
 
-			if(ret == 0)
+			if(bytes == 0)
 			{
 				// Client has closed connection (ignore silently)
 				return false;
 			}
 
-			size -= ret;
-			destWPtr += ret;
+			size -= bytes;
+			destWPtr += bytes;
 		}
 
 		return true;
@@ -190,7 +215,6 @@ void TCPReceiver::ClientHandler::start()
 
 void TCPReceiver::handleClient(int fd)
 {
-	// TODO: This thread will freeze at exit. Need to use select() in sureRead()...
 	while(!m_shouldExit)
 	{
 		TCPHeader header;
