@@ -11,10 +11,9 @@
 		<param name="port" value="17001" />
 
 		<!-- Remap topics so that sender & receiver do not clash if run on the
-		  same machine. This is not necessary in a typical setup :-)
+		  same machine. This can also be used to distinguish remote topics
+		  from local ones.
 		 -->
-		<remap from="/my_first_topic" to="/recv/my_first_topic" />
-		<remap from="/my_second_topic" to="/recv/my_second_topic" />
-		<remap from="/tcp_topic" to="/recv/tcp_topic" />
+		<param name="prefix" value="/recv" />
 	</node>
 </launch>
