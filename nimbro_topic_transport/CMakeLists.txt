@@ -32,7 +32,9 @@ pkg_check_modules(ZSTD REQUIRED libzstd>=1.1.4)
 include_directories(${ZSTD_INCLUDE_DIRS})
 include_directories(contrib)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11 -march=native")
+set(CMAKE_CXX_STANDARD 17)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -march=native")
 
 add_library(nimbro_topic_transport
 	contrib/wirehair/wirehair.cpp
