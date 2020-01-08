@@ -47,9 +47,13 @@ void Publisher::publish(const Message::ConstPtr& msg)
 		m_messageDefinition = topic_info::getMsgDef(msg->type);
 
 		ros::NodeHandle nh;
+		ros::NodeHandle privNh("~");
+
+		std::string prefix;
+		privNh.getParam("prefix", prefix);
 
 		ros::AdvertiseOptions options(
-			msg->topic->name,
+			prefix + msg->topic->name,
 			50,
 			msg->md5,
 			msg->type,
