@@ -35,12 +35,14 @@ private:
 	{
 		explicit PartialMessage(uint32_t id)
 		 : id(id)
+		 , receptionTime(ros::SteadyTime::now())
 		{}
 
 		uint32_t id;
 		bool complete = 0;
 		std::size_t received_symbols = 0;
 		std::vector<Packet::Ptr> packets;
+		ros::SteadyTime receptionTime;
 
 		std::shared_ptr<WirehairCodec_t> decoder;
 	};

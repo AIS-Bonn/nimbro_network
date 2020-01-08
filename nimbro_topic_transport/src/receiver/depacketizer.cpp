@@ -192,14 +192,27 @@ void Depacketizer::handleMessagePacket(std::list<PartialMessage>::iterator it, c
 
 void Depacketizer::pruneMessages()
 {
-	// Erase messages that are too old (after index 31)
-	auto itr = m_messageBuffer.begin();
-	auto it_end = m_messageBuffer.end();
-	for(int i = 0; i < 31; ++i)
+	// First pass: Erase messages that are too old
 	{
-		itr++;
-		if(itr == it_end)
-			break;
+		auto itr = m_messageBuffer.begin();
+		auto it_end = m_messageBuffer.end();
+		for(int i = 0; i < 32; ++i)
+		{
+			itr++;
+			if(itr == it_end)
+				break;
+		}
+
+		m_messageBuffer.erase(itr, it_end);
+	}
+
+	// Second pass: erase messages that are more than 5s in the past
+	{
+		ros::SteadyTime cutoffTime = ros::SteadyTime::now() - ros::WallDuration(5.0);
+
+		m_messageBuffer.remove_if([&](const PartialMessage& m) {
+			return m.receptionTime < cutoffTime;
+		});
 	}
 }
 
