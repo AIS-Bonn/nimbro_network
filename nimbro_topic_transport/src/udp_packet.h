@@ -16,10 +16,6 @@ namespace nimbro_topic_transport
 // leave space for one additional UDP/IP envelope.
 const int PACKET_SIZE = 1500 - 20 - 8 - 20 - 8;
 
-//! Minimum number of packets for choosing LDPC FEC algorithm
-//! Below this limit, Reed-Solomon is used.
-const int MIN_PACKETS_LDPC = 255;
-
 struct UDPPacket
 {
 	struct Header
