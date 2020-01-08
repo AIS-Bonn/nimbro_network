@@ -42,16 +42,18 @@ add_library(nimbro_topic_transport
 	contrib/wirehair/WirehairCodec.cpp
 	contrib/wirehair/WirehairTools.cpp
 	src/sender/compressor.cpp
+	src/sender/get_route.cpp
 	src/sender/packetizer.cpp
 	src/sender/subscriber.cpp
-	src/sender/udp_sender.cpp
+	src/sender/sender.cpp
 	src/sender/tcp_sender.cpp
-	src/sender/get_route.cpp
+	src/sender/udp_sender.cpp
 	src/receiver/decompressor.cpp
 	src/receiver/depacketizer.cpp
 	src/receiver/publisher.cpp
-	src/receiver/udp_receiver.cpp
+	src/receiver/receiver.cpp
 	src/receiver/tcp_receiver.cpp
+	src/receiver/udp_receiver.cpp
 	src/topic_info.cpp
 	src/thread_pool.cpp
 )
@@ -61,7 +63,7 @@ target_link_libraries(nimbro_topic_transport
 )
 
 add_executable(sender
-	src/sender/sender.cpp
+	src/sender/main.cpp
 )
 target_link_libraries(sender
 	${catkin_LIBRARIES}
@@ -69,7 +71,7 @@ target_link_libraries(sender
 )
 
 add_executable(receiver
-	src/receiver/receiver.cpp
+	src/receiver/main.cpp
 )
 target_link_libraries(receiver
 	${catkin_LIBRARIES}
