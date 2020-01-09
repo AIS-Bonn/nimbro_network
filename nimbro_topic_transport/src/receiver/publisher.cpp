@@ -76,6 +76,10 @@ void Publisher::publish(const Message::ConstPtr& msg)
 		m_advertised = true;
 	}
 
+	// If the payload is empty, this is just an advertisement
+	if(msg->payload.empty())
+		return;
+
 	if(m_inHoldoffTime)
 		m_heldoffMsgs.push_back(msg);
 	else

@@ -20,6 +20,9 @@ public:
 	Sender(ros::NodeHandle nh = ros::NodeHandle("~"));
 
 private:
+	void advertiseTopics();
+	void refreshTopicList();
+
 	std::string stripPrefix(const std::string& topic) const;
 
 	void initTCP(XmlRpc::XmlRpcValue& topicList);
@@ -35,6 +38,12 @@ private:
 	std::shared_ptr<Packetizer> m_packetizer;
 
 	std::string m_stripPrefix;
+
+	std::map<std::string, std::string> m_topicTypeMap;
+	std::mutex m_topicTypeMapMutex;
+
+	std::thread m_topicThread;
+	ros::SteadyTimer m_advertiseTimer;
 };
 
 }

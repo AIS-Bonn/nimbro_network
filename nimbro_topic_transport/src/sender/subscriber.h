@@ -20,6 +20,10 @@ public:
 	Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh, const std::string& fullTopicName);
 
 	void registerCallback(const Callback& cb);
+	void sendAdvertisement(const std::string& typeHint = {});
+
+	std::string rosTopicName() const
+	{ return m_subscriber.getTopic(); }
 private:
 	void handleData(const topic_tools::ShapeShifter::ConstPtr& data);
 
@@ -38,6 +42,8 @@ private:
 	Message::ConstPtr m_lastMsg;
 	//@}
 
+	std::string m_type;
+	std::string m_md5;
 	uint32_t m_counter = 0;
 };
 

@@ -43,6 +43,9 @@ Sender::Sender(ros::NodeHandle nh)
 		initUDP(topicList);
 	}
 
+	m_advertiseTimer = m_nh.createSteadyTimer(ros::WallDuration(1.0), std::bind(&Sender::advertiseTopics, this));
+	m_topicThread = std::thread(std::bind(&Sender::refreshTopicList, this));
+
 	ROS_INFO("Sender initialized, listening on %lu topics.", m_subs.size());
 }
 
@@ -143,6 +146,47 @@ void Sender::initUDP(XmlRpc::XmlRpcValue& topicList)
 
 		sub->registerCallback(m_threadPool.createInputHandler(sink));
 		m_subs.emplace_back(std::move(sub));
+	}
+}
+
+void Sender::advertiseTopics()
+{
+	std::unique_lock<std::mutex> lock(m_topicTypeMapMutex);
+
+	for(auto& sub : m_subs)
+	{
+		auto it = m_topicTypeMap.find(sub->rosTopicName());
+
+		if(it != m_topicTypeMap.end())
+			sub->sendAdvertisement(it->second);
+		else
+			sub->sendAdvertisement();
+	}
+}
+
+void Sender::refreshTopicList()
+{
+	ros::WallRate rate(0.25);
+
+	for(; ros::ok(); rate.sleep())
+	{
+		std::vector<ros::master::TopicInfo> topicInfos;
+		if(!ros::master::getTopics(topicInfos))
+		{
+			ROS_ERROR_THROTTLE(1.0, "Could not query topics from master");
+			continue;
+		}
+
+		std::map<std::string, std::string> update;
+		for(auto& topic : topicInfos)
+		{
+			update[topic.name] = topic.datatype;
+		}
+
+		{
+			std::unique_lock<std::mutex> lock(m_topicTypeMapMutex);
+			m_topicTypeMap = std::move(update);
+		}
 	}
 }
 

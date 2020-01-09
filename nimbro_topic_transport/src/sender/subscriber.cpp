@@ -37,6 +37,13 @@ Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh, const std::
 	if(topic->config.hasMember("queue"))
 		queue_length = topic->config["queue"];
 
+	std::string topicName = topic->name;
+	std::string stripPrefix;
+	if(nh.getParam("strip_prefix", stripPrefix) && !stripPrefix.empty())
+	{
+
+	}
+
 	ros::SubscribeOptions ops;
 	boost::function<void(const topic_tools::ShapeShifter::ConstPtr&)> func
 		= boost::bind(&Subscriber::handleData, this, _1);
@@ -88,6 +95,32 @@ void Subscriber::handleData(const topic_tools::ShapeShifter::ConstPtr& data)
 		return;
 
 	m_lastTime = now;
+
+	for(auto& cb : m_callbacks)
+		cb(msg);
+}
+
+void Subscriber::sendAdvertisement(const std::string& typeHint)
+{
+	if(m_type.empty() && !typeHint.empty())
+	{
+		m_type = typeHint;
+		m_md5 = topic_info::getMd5Sum(typeHint);
+	}
+
+	if(m_type.empty() || m_md5.empty())
+	{
+		ROS_DEBUG("Cannot determine topic type of topic '%s'", rosTopicName().c_str());
+		return;
+	}
+
+	ROS_DEBUG("Sending advertisement: %s", rosTopicName().c_str());
+
+	auto msg = std::make_shared<Message>();
+	msg->topic = m_topic;
+	msg->type = m_type;
+	msg->md5 = m_md5;
+	msg->counter = m_counter++;
 
 	for(auto& cb : m_callbacks)
 		cb(msg);
