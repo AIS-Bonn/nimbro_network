@@ -18,6 +18,7 @@ class Sender
 {
 public:
 	Sender(ros::NodeHandle nh = ros::NodeHandle("~"));
+	~Sender();
 
 private:
 	void advertiseTopics();

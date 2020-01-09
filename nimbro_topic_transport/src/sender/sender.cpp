@@ -49,6 +49,11 @@ Sender::Sender(ros::NodeHandle nh)
 	ROS_INFO("Sender initialized, listening on %lu topics.", m_subs.size());
 }
 
+Sender::~Sender()
+{
+	m_topicThread.join();
+}
+
 std::string Sender::stripPrefix(const std::string& topic) const
 {
 	if(String::beginsWith(topic, m_stripPrefix))
