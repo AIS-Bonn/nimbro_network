@@ -1,0 +1,14 @@
+
+cflags = -fPIC -std=c++17 -I/opt/ros/melodic/include
+
+rule cc
+  deps = gcc
+  depfile = $out.d
+  command = g++ -MMD -MF $out.d $cflags -c -o $out $in
+
+rule link
+  command = g++ -shared $in -o $out
+
+build rewrite_header.o: cc rewrite_header.cpp
+
+build librewrite_header.so: link rewrite_header.o
