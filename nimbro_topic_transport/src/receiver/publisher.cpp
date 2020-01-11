@@ -5,8 +5,6 @@
 
 #include "../topic_info.h"
 
-#include "rewrite_headers/rewriter.h"
-
 namespace
 {
 
@@ -31,9 +29,8 @@ private:
 namespace nimbro_topic_transport
 {
 
-Publisher::Publisher(const Topic::ConstPtr& topic, const std::string& prefix)
- : m_prefix{prefix}
- , m_rewriter{prefix}
+Publisher::Publisher(const Topic::ConstPtr& topic, Rewriter& rewriter)
+ : m_rewriter{rewriter}
 {
 }
 
@@ -53,7 +50,7 @@ void Publisher::publish(const Message::ConstPtr& msg)
 		ros::NodeHandle nh;
 
 		ros::AdvertiseOptions options(
-			m_prefix + msg->topic->name,
+			m_rewriter.rewriteTopicName(msg->topic->name),
 			50,
 			msg->md5,
 			msg->type,
@@ -73,13 +70,13 @@ void Publisher::publish(const Message::ConstPtr& msg)
 		m_inHoldoffTime = true;
 
 		m_holdoffTimer = nh.createWallTimer(ros::WallDuration(0.5),
-			std::bind(&Publisher::finishHoldoff, this), true
+			std::bind(&Publisher::finishHoldoff, this)
 		);
 
 		m_advertised = true;
+		m_advertisedMd5 = msg->md5;
 
-		if(!m_prefix.empty())
-			m_rewriter.prepare(msg->type, msg->md5);
+		m_topicRewriterFuture = m_rewriter.open(msg->type, msg->md5);
 	}
 
 	// If the payload is empty, this is just an advertisement
@@ -97,6 +94,11 @@ void Publisher::publish(const Message::ConstPtr& msg)
 
 void Publisher::finishHoldoff()
 {
+	if(m_topicRewriterFuture.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+		return;
+
+	m_topicRewriter = &m_topicRewriterFuture.get();
+
 	std::unique_lock<std::mutex> lock(m_holdoffMutex);
 
 	for(auto msg : m_heldoffMsgs)
@@ -104,17 +106,35 @@ void Publisher::finishHoldoff()
 	m_heldoffMsgs.clear();
 
 	m_inHoldoffTime = false;
+	m_holdoffTimer.stop();
 }
 
 void Publisher::internalPublish(const Message::ConstPtr& msg)
 {
-	// FIXME: Check type again here?
+	if(msg->md5 != m_advertisedMd5)
+	{
+		ROS_ERROR_THROTTLE(1.0, "Received msg with md5 '%s' on topic '%s', but we already advertised with '%s'. Discarding...",
+			msg->md5.c_str(),
+			msg->topic->name.c_str(),
+			m_advertisedMd5.c_str()
+		);
+		return;
+	}
 
 	boost::shared_ptr<topic_tools::ShapeShifter> shapeShifter(new topic_tools::ShapeShifter);
 	shapeShifter->morph(msg->md5, msg->type, m_messageDefinition, "");
 
-	VectorStream stream(&msg->payload);
-	shapeShifter->read(stream);
+	auto rewritten = m_topicRewriter->rewrite(msg->payload);
+	if(!rewritten.empty())
+	{
+		VectorStream stream{&rewritten};
+		shapeShifter->read(stream);
+	}
+	else
+	{
+		VectorStream stream(&msg->payload);
+		shapeShifter->read(stream);
+	}
 
 	m_pub.publish(shapeShifter);
 }

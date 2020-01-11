@@ -25,9 +25,9 @@ private:
 
 	struct TopicHandler
 	{
-		explicit TopicHandler(const Topic::ConstPtr& topic, const std::string& prefix)
+		explicit TopicHandler(const Topic::ConstPtr& topic, Rewriter& rewriter)
 		 : topic(topic)
-		 , publisher(topic, prefix)
+		 , publisher(topic, rewriter)
 		{}
 
 		void handleMessage(const Message::ConstPtr& msg);
@@ -42,6 +42,8 @@ private:
 
 	Depacketizer m_depacketizer;
 	ThreadPool m_threadPool;
+
+	std::unique_ptr<Rewriter> m_rewriter;
 
 	std::mutex m_topicMutex;
 	std::map<std::string, std::unique_ptr<TopicHandler>> m_topics;

@@ -51,7 +51,7 @@ add_library(nimbro_topic_transport
 	src/sender/udp_sender.cpp
 	src/receiver/decompressor.cpp
 	src/receiver/depacketizer.cpp
-	src/receiver/rewrite_headers/rewriter.cpp
+	src/receiver/rewriter.cpp
 	src/receiver/publisher.cpp
 	src/receiver/receiver.cpp
 	src/receiver/tcp_receiver.cpp

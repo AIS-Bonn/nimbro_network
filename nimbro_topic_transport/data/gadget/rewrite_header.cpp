@@ -1,9 +1,13 @@
+// Rewriting gadget (this is compiled for every encountered message type)
+// Author: Max Schwarz <max.schwarz@ais.uni-bonn.de>
 
 #include MSG_INCLUDE
 
 #include <topic_tools/shape_shifter.h>
 
 #include <type_traits>
+
+#include "interface.h"
 
 template <typename>
 constexpr std::false_type isCompositeH (long);
@@ -16,11 +20,7 @@ template <typename T>
 using isComposite = decltype( isCompositeH<T>(0) );
 
 
-using ShapeShifterPtr = boost::shared_ptr<topic_tools::ShapeShifter>;
-
 using FinalMessageType = MSG_PACKAGE::MSG_TYPE;
-
-
 
 class Remapper
 {
@@ -29,15 +29,20 @@ public:
 	 : m_prefix{prefix}
 	{}
 
+	// This method is called recursively for every field instance of the message.
 	template<class T>
 	void next(T& instance)
 	{
+		// Do we have a std_msgs::Header instance?
 		if constexpr(std::is_same_v<std::decay_t<T>, std_msgs::Header>)
 		{
-			instance.frame_id = m_prefix + instance.frame_id;
+			// Leave empty frame_ids untouched.
+			if(!instance.frame_id.empty())
+				instance.frame_id = m_prefix + instance.frame_id;
 		}
 		else if constexpr(isComposite<std::decay_t<T>>{})
 		{
+			// Recurse
 			ros::serialization::Serializer<T>::allInOne(*this, instance);
 		}
 	}
@@ -47,35 +52,30 @@ private:
 };
 
 template<typename MessageType>
-ShapeShifterPtr morph(const ShapeShifterPtr& msg, const std::string& prefix)
+std::vector<uint8_t> morph(const std::vector<uint8_t>& msg, const std::string& prefix)
 {
 	if constexpr(ros::message_traits::HasHeader<MessageType>::value)
 	{
-		auto instance = msg->instantiate<MessageType>();
-		if(!instance)
-			throw std::runtime_error(std::string{"Could not create instance"} + ros::message_traits::DataType<MessageType>::value());
+		ros::serialization::IStream istream(const_cast<uint8_t*>(msg.data()), msg.size());
+
+		MessageType instance;
+		ros::serialization::deserialize(istream, instance);
 
 		Remapper remapper(prefix);
-		ros::serialization::Serializer<MessageType>::allInOne(remapper, *instance);
+		ros::serialization::Serializer<MessageType>::allInOne(remapper, instance);
 
-		uint32_t serial_size = ros::serialization::serializationLength(*instance);
-		boost::shared_array<uint8_t> buffer(new uint8_t[serial_size]);
-		ros::serialization::OStream stream(buffer.get(), serial_size);
-		ros::serialization::serialize(stream, *instance);
+		uint32_t serial_size = ros::serialization::serializationLength(instance);
+		std::vector<uint8_t> ret(serial_size);
+		ros::serialization::OStream stream(ret.data(), ret.size());
+		ros::serialization::serialize(stream, instance);
 
-		auto out = boost::make_shared<topic_tools::ShapeShifter>();
-		ros::serialization::IStream istream(buffer.get(), serial_size);
-		out->read(istream);
-
-		return out;
+		return ret;
 	}
 	else
-		return msg;
+		return {};
 }
 
-template ShapeShifterPtr morph<FinalMessageType>(const ShapeShifterPtr&, const std::string& prefix);
-
-typedef ShapeShifterPtr (*MorphPtr)(const ShapeShifterPtr& msg, const std::string& prefix);
+template std::vector<uint8_t> morph<FinalMessageType>(const std::vector<uint8_t>&, const std::string& prefix);
 
 extern "C"
 {

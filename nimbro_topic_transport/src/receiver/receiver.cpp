@@ -13,6 +13,8 @@ Receiver::Receiver(ros::NodeHandle nh)
 {
 	m_nh.getParam("prefix", m_prefix);
 
+	m_rewriter = std::make_unique<Rewriter>(m_prefix);
+
 	m_tcp_receiver.setCallback(std::bind(&Receiver::handleMessage, this, std::placeholders::_1));
 	m_udp_receiver.setCallback(std::bind(&Depacketizer::addPacket, &m_depacketizer, std::placeholders::_1));
 
@@ -27,7 +29,7 @@ void Receiver::handleMessage(const Message::ConstPtr& message)
 		auto it = m_topics.find(message->topic->name);
 		if(it == m_topics.end())
 		{
-			std::unique_ptr<TopicHandler> handlerPtr(new TopicHandler(message->topic, m_prefix));
+			std::unique_ptr<TopicHandler> handlerPtr(new TopicHandler(message->topic, *m_rewriter));
 
 			handlerPtr->queue = m_threadPool.createInputHandler(
 				std::bind(&TopicHandler::handleMessage, handlerPtr.get(), std::placeholders::_1)

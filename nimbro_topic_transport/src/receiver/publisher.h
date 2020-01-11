@@ -5,7 +5,7 @@
 #define TT_RECEIVER_PUBLISHER_H
 
 #include "../message.h"
-#include "rewrite_headers/rewriter.h"
+#include "rewriter.h"
 
 #include <mutex>
 
@@ -15,7 +15,7 @@ namespace nimbro_topic_transport
 class Publisher
 {
 public:
-	Publisher(const Topic::ConstPtr& topic, const std::string& prefix);
+	Publisher(const Topic::ConstPtr& topic, Rewriter& rewriter);
 	~Publisher();
 
 	void publish(const Message::ConstPtr& msg);
@@ -24,7 +24,6 @@ private:
 	void finishHoldoff();
 
 	bool m_advertised = false;
-	std::string m_prefix;
 
 	bool m_inHoldoffTime = true;
 	ros::WallTime m_advertiseTime;
@@ -37,7 +36,11 @@ private:
 
 	std::string m_messageDefinition;
 
-	Rewriter m_rewriter;
+	Rewriter& m_rewriter;
+	Rewriter::TopicRewriterFuture m_topicRewriterFuture;
+	const Rewriter::TopicRewriter* m_topicRewriter = nullptr;
+
+	std::string m_advertisedMd5;
 };
 
 }
