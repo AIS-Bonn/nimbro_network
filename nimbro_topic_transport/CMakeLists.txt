@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
 	topic_tools
 	rostest
 	message_generation
+	roslib
 )
 
 add_message_files(FILES
@@ -50,6 +51,7 @@ add_library(nimbro_topic_transport
 	src/sender/udp_sender.cpp
 	src/receiver/decompressor.cpp
 	src/receiver/depacketizer.cpp
+	src/receiver/rewrite_headers/rewriter.cpp
 	src/receiver/publisher.cpp
 	src/receiver/receiver.cpp
 	src/receiver/tcp_receiver.cpp

@@ -5,6 +5,8 @@
 
 #include "../topic_info.h"
 
+#include "rewrite_headers/rewriter.h"
+
 namespace
 {
 
@@ -31,6 +33,7 @@ namespace nimbro_topic_transport
 
 Publisher::Publisher(const Topic::ConstPtr& topic, const std::string& prefix)
  : m_prefix{prefix}
+ , m_rewriter{prefix}
 {
 }
 
@@ -74,6 +77,9 @@ void Publisher::publish(const Message::ConstPtr& msg)
 		);
 
 		m_advertised = true;
+
+		if(!m_prefix.empty())
+			m_rewriter.prepare(msg->type, msg->md5);
 	}
 
 	// If the payload is empty, this is just an advertisement

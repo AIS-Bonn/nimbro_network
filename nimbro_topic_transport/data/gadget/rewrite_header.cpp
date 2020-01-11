@@ -1,10 +1,4 @@
 
-#ifndef MSG_PACKAGE
-#define MSG_PACKAGE geometry_msgs
-#define MSG_TYPE PointStamped
-#define MSG_INCLUDE <geometry_msgs/PointStamped.h>
-#endif
-
 #include MSG_INCLUDE
 
 #include <topic_tools/shape_shifter.h>

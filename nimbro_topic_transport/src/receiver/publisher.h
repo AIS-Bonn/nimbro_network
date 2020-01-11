@@ -5,6 +5,7 @@
 #define TT_RECEIVER_PUBLISHER_H
 
 #include "../message.h"
+#include "rewrite_headers/rewriter.h"
 
 #include <mutex>
 
@@ -35,6 +36,8 @@ private:
 	ros::Publisher m_pub;
 
 	std::string m_messageDefinition;
+
+	Rewriter m_rewriter;
 };
 
 }
