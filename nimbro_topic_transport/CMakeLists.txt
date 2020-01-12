@@ -96,7 +96,7 @@ add_custom_target(copy_precompiled_header ALL
 )
 
 add_custom_target(copy_gadget ALL
-	COMMAND cmake -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/data/gadget/rewrite_header.cpp ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}
+	COMMAND cmake -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/data/gadget/topic_rewriter.cpp ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 add_custom_target(copy_gadget_interfaces ALL
 	COMMAND cmake -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/data/gadget/interface.h ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}

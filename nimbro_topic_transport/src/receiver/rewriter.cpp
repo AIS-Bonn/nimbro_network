@@ -205,8 +205,8 @@ public:
 		std::string type = fullType.substr(split+1);
 
 		fs::path msgBinPath = binaryPath / (package + "___" + type + "___" + md5);
-		fs::path outputFile = msgBinPath / "librewrite_header.so";
-		fs::path inputFile = sharePath / "rewrite_header.cpp";
+		fs::path outputFile = msgBinPath / "libtopic_rewriter.so";
+		fs::path inputFile = sharePath / "topic_rewriter.cpp";
 
 		auto lastUpdate = std::max(
 			fs::last_write_time(inputFile),
@@ -215,6 +215,8 @@ public:
 
 		if(!fs::exists(outputFile) || fs::last_write_time(outputFile) <= lastUpdate)
 		{
+			ROS_INFO("Compiling topic rewriter for topic type '%s'", fullType.c_str());
+
 			if(!fs::exists(msgBinPath))
 			{
 				if(!fs::create_directories(msgBinPath))
@@ -240,17 +242,22 @@ public:
 				args.push_back(a);
 			args.push_back(inputFile.string());
 
-			ROS_INFO("gcc command line:");
-			std::stringstream ss;
-			for(auto& arg : args)
-				ss << arg << " ";
-			ROS_INFO("%s\n", ss.str().c_str());
-
 			if(!call("g++", args))
 			{
-				ROS_ERROR("Compilation of rewrite gadget for msg type %s failed (see stderr above)",
+				ROS_ERROR("Compilation of rewrite gadget for msg type %s failed (see stderr above). Command line was:",
 					fullType.c_str()
 				);
+
+				std::stringstream ss;
+				for(auto& arg : args)
+				{
+					if(arg.find(' ') != std::string::npos)
+						ss << "'" << arg << "'";
+					else
+						ss << arg << " ";
+				}
+				ROS_ERROR("%s", ss.str().c_str());
+
 				return {};
 			}
 		}
