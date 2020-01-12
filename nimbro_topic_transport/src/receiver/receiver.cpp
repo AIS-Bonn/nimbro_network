@@ -19,6 +19,9 @@ Receiver::Receiver(ros::NodeHandle nh)
 	m_udp_receiver.setCallback(std::bind(&Depacketizer::addPacket, &m_depacketizer, std::placeholders::_1));
 
 	m_depacketizer.setCallback(std::bind(&Receiver::handleMessage, this, std::placeholders::_1));
+
+	m_udp_receiver.start();
+	m_tcp_receiver.start();
 }
 
 void Receiver::handleMessage(const Message::ConstPtr& message)

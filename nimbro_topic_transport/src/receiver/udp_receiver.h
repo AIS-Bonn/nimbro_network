@@ -28,6 +28,8 @@ public:
 	~UDPReceiver();
 
 	void setCallback(const Callback& cb);
+
+	void start();
 private:
 	void thread();
 

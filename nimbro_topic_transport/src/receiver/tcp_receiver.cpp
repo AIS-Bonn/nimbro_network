@@ -101,8 +101,6 @@ TCPReceiver::TCPReceiver(ros::NodeHandle& nh)
 		ROS_FATAL("Could not listen: %s", strerror(errno));
 		throw std::runtime_error(strerror(errno));
 	}
-
-	m_thread = std::thread(std::bind(&TCPReceiver::thread, this));
 }
 
 TCPReceiver::~TCPReceiver()
@@ -114,6 +112,14 @@ TCPReceiver::~TCPReceiver()
 	{
 		delete handler;
 	}
+}
+
+void TCPReceiver::start()
+{
+	if(!m_callback)
+		throw std::logic_error{"Call setCallback() before start()!"};
+
+	m_thread = std::thread(std::bind(&TCPReceiver::thread, this));
 }
 
 void TCPReceiver::thread()

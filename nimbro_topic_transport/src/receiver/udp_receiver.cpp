@@ -44,14 +44,20 @@ UDPReceiver::UDPReceiver(ros::NodeHandle& nh)
 		ROS_FATAL("Could not set broadcast flag: %s", strerror(errno));
 		throw std::runtime_error(strerror(errno));
 	}
-
-	m_thread = std::thread(std::bind(&UDPReceiver::thread, this));
 }
 
 UDPReceiver::~UDPReceiver()
 {
 	m_shouldExit = true;
 	m_thread.join();
+}
+
+void UDPReceiver::start()
+{
+	if(!m_callback)
+		throw std::logic_error{"Call setCallback() before start()!"};
+
+	m_thread = std::thread(std::bind(&UDPReceiver::thread, this));
 }
 
 void UDPReceiver::thread()
@@ -126,6 +132,7 @@ void UDPReceiver::thread()
 
 		ROS_DEBUG_NAMED("udp", "Received UDP packet of size %ld", size);
 		packet->length = size;
+
 		m_callback(packet);
 	}
 }

@@ -22,6 +22,8 @@ using isComposite = decltype( isCompositeH<T>(0) );
 
 using FinalMessageType = MSG_PACKAGE::MSG_TYPE;
 
+template<class T> void handle(T& instance, const std::string& prefix);
+
 class Remapper
 {
 public:
@@ -33,46 +35,46 @@ public:
 	template<class T>
 	void next(T& instance)
 	{
-		// Do we have a std_msgs::Header instance?
-		if constexpr(std::is_same_v<std::decay_t<T>, std_msgs::Header>)
-		{
-			// Leave empty frame_ids untouched.
-			if(!instance.frame_id.empty())
-				instance.frame_id = m_prefix + instance.frame_id;
-		}
-		else if constexpr(isComposite<std::decay_t<T>>{})
-		{
-			// Recurse
-			ros::serialization::Serializer<T>::allInOne(*this, instance);
-		}
+		handle<T>(instance, m_prefix);
 	}
 
 private:
-	std::string m_prefix;
+	const std::string& m_prefix;
 };
+
+template<class T> void handle(T& instance, const std::string& prefix)
+{
+	// Do we have a std_msgs::Header instance?
+	if constexpr(std::is_same_v<std::decay_t<T>, std_msgs::Header>)
+	{
+		// Leave empty frame_ids untouched.
+		if(!instance.frame_id.empty())
+			instance.frame_id = prefix + instance.frame_id;
+	}
+	else if constexpr(isComposite<std::decay_t<T>>{})
+	{
+		// Recurse
+		Remapper remapper(prefix);
+		ros::serialization::Serializer<T>::template allInOne<Remapper, T&>(remapper, instance);
+	}
+}
 
 template<typename MessageType>
 std::vector<uint8_t> morph(const std::vector<uint8_t>& msg, const std::string& prefix)
 {
-	if constexpr(ros::message_traits::HasHeader<MessageType>::value)
-	{
-		ros::serialization::IStream istream(const_cast<uint8_t*>(msg.data()), msg.size());
+	ros::serialization::IStream istream(const_cast<uint8_t*>(msg.data()), msg.size());
 
-		MessageType instance;
-		ros::serialization::deserialize(istream, instance);
+	MessageType instance;
+	ros::serialization::deserialize(istream, instance);
 
-		Remapper remapper(prefix);
-		ros::serialization::Serializer<MessageType>::allInOne(remapper, instance);
+	handle(instance, prefix);
 
-		uint32_t serial_size = ros::serialization::serializationLength(instance);
-		std::vector<uint8_t> ret(serial_size);
-		ros::serialization::OStream stream(ret.data(), ret.size());
-		ros::serialization::serialize(stream, instance);
+	uint32_t serial_size = ros::serialization::serializationLength(instance);
+	std::vector<uint8_t> ret(serial_size);
+	ros::serialization::OStream stream(ret.data(), ret.size());
+	ros::serialization::serialize(stream, instance);
 
-		return ret;
-	}
-	else
-		return {};
+	return ret;
 }
 
 template std::vector<uint8_t> morph<FinalMessageType>(const std::vector<uint8_t>&, const std::string& prefix);

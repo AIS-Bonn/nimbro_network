@@ -7,6 +7,7 @@
 
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/trim.hpp>
 
 #include <ros/console.h>
 #include <ros/package.h>
@@ -17,6 +18,8 @@
 #include "../thread_pool.h"
 
 #include "../../data/gadget/interface.h"
+
+#include "tt_compile_flags.h"
 
 namespace fs = boost::filesystem;
 
@@ -59,6 +62,74 @@ namespace
 
 		return true;
 	}
+
+	std::optional<std::string> obtainOutput(const std::string& program, const std::vector<std::string>& args)
+	{
+		// removing const is ok - args are only modified in the child process.
+		std::vector<char*> argsP;
+		for(auto& a : args)
+			argsP.push_back(const_cast<char*>(a.data()));
+		argsP.push_back(nullptr);
+
+		int fds[2];
+		if(pipe(fds) != 0)
+		{
+			ROS_ERROR("Could not create pipe: %s", strerror(errno));
+			return {};
+		}
+
+		int pid = fork();
+		if(pid == 0)
+		{
+			// Child
+			close(fds[0]);
+			dup2(fds[1], STDOUT_FILENO);
+
+			int ret = execvp(program.c_str(), argsP.data());
+			if(ret != 0)
+			{
+				fprintf(stderr, "Could not execvp() g++: %s\n", strerror(errno));
+			}
+
+			std::abort();
+		}
+
+		// Parent
+		close(fds[1]);
+
+		std::vector<char> buf;
+		std::size_t idx = 0;
+		while(1)
+		{
+			buf.resize(idx + 1024);
+			int size = read(fds[0], buf.data() + idx, 1024);
+
+			if(size < 0)
+			{
+				ROS_ERROR("Could not read() from child process: %s", strerror(errno));
+				close(fds[0]);
+				return {};
+			}
+			else if(size == 0)
+				break;
+
+			idx += size;
+		}
+
+		close(fds[0]);
+
+		int status;
+		if(waitpid(pid, &status, 0) < 0)
+		{
+			ROS_ERROR("Could not waitpid(): %s", strerror(errno));
+			return {};
+		}
+
+		if(!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+			return {};
+
+		return std::string{buf.data(), idx};
+	}
 }
 
 class Rewriter::TopicRewriter::Private
@@ -72,7 +143,7 @@ public:
 Rewriter::TopicRewriter::TopicRewriter() = default;
 
 Rewriter::TopicRewriter::TopicRewriter(const std::string& library, const std::string& prefix)
-	: m_d{std::make_unique<Private>()}
+ : m_d{std::make_unique<Private>()}
 {
 	ROS_INFO("Loading TopicRewriter: %s\n", library.c_str());
 
@@ -98,6 +169,7 @@ Rewriter::TopicRewriter::TopicRewriter(const std::string& library, const std::st
 	}
 
 	m_d->morph = func();
+	m_d->prefix = prefix;
 }
 
 Rewriter::TopicRewriter::~TopicRewriter()
@@ -134,14 +206,14 @@ public:
 
 		fs::path msgBinPath = binaryPath / (package + "___" + type + "___" + md5);
 		fs::path outputFile = msgBinPath / "librewrite_header.so";
-		fs::path inputFile = sourcePath / "data" / "gadget" / "rewrite_header.cpp";
+		fs::path inputFile = sharePath / "rewrite_header.cpp";
 
 		auto lastUpdate = std::max(
 			fs::last_write_time(inputFile),
 			fs::last_write_time(pchFile)
 		);
 
-		if(!fs::exists(outputFile) || fs::last_write_time(inputFile) >= lastUpdate)
+		if(!fs::exists(outputFile) || fs::last_write_time(outputFile) <= lastUpdate)
 		{
 			if(!fs::exists(msgBinPath))
 			{
@@ -160,11 +232,19 @@ public:
 				"-include", pchPath.string(),
 				"-DMSG_INCLUDE=<" + fullType + ".h>",
 				"-DMSG_PACKAGE=" + package,
-				"-DMSG_TYPE=" + type
+				"-DMSG_TYPE=" + type,
+				"-Winvalid-pch"
+				TT_COMPILE_FLAGS
 			};
 			for(auto& a : includeFlags)
 				args.push_back(a);
 			args.push_back(inputFile.string());
+
+			ROS_INFO("gcc command line:");
+			std::stringstream ss;
+			for(auto& arg : args)
+				ss << arg << " ";
+			ROS_INFO("%s\n", ss.str().c_str());
 
 			if(!call("g++", args))
 			{
@@ -181,7 +261,7 @@ public:
 	std::string prefix;
 
 	fs::path binaryPath;
-	fs::path sourcePath;
+	fs::path sharePath;
 	fs::path pchPath;
 	fs::path pchFile;
 
@@ -199,64 +279,24 @@ Rewriter::Rewriter(const std::string& prefix)
 	m_d->prefix = prefix;
 
 	m_d->binaryPath = fs::path(getenv("HOME")) / ".ros" / "nimbro_topic_transport";
-	m_d->sourcePath = fs::path(ros::package::getPath("nimbro_topic_transport"));
-	if(m_d->sourcePath.empty())
+
+	auto sourcePath = obtainOutput(
+		"catkin_find",
+		{"catkin_find", "--first-only", "--share", "nimbro_topic_transport"}
+	);
+	if(!sourcePath)
+		throw std::runtime_error("Could not find the share path of nimbro_topic_transport");
+
+	boost::algorithm::trim(*sourcePath);
+
+	m_d->sharePath = fs::path(*sourcePath);
+	if(m_d->sharePath.empty())
 		throw std::runtime_error("Could not find nimbro_topic_transport package");
 
 	// Compile the precompiled header
 	{
-		fs::path pchDir = m_d->binaryPath / "pch";
-		if(!fs::exists(pchDir))
-		{
-			if(!fs::create_directories(pchDir))
-			{
-				throw std::runtime_error("Could not create binary directory " + pchDir.string());
-			}
-		}
-
-		const char* ROS_ROOT = getenv("ROS_ROOT");
-		if(!ROS_ROOT)
-			throw std::runtime_error("ROS_ROOT is not set, cannot find ROS includes");
-
-		// Write Makefile
-		{
-			std::ofstream stream((pchDir / "Makefile").string());
-			if(!stream)
-				throw std::runtime_error("Could not write Makefile to " + pchDir.string());
-
-			std::string sourceFile = (m_d->sourcePath / "data" / "pch" / "ros_includes.h").string();
-
-			stream << R"EOS(
-CFLAGS := -fPIC -std=c++17 -O2 -I)EOS" << ROS_ROOT << R"EOS(/../../include
-DEPFLAGS = -MT $@ -MMD -MP -MF $*.d
-
-ros_includes.h.gch: )EOS" << sourceFile << R"EOS(
-ros_includes.h.gch: )EOS" << sourceFile << R"EOS( ros_includes.d
-	echo "Compiling nimbro_topic_transport PCH..."
-	echo g++ -x c++-header -MT ros_includes.h.gch -MMD -MP -MF ros_includes.d $(CFLAGS) -c $(OUTPUT_OPTION) $<
-	g++ -x c++-header -MT ros_includes.h.gch -MMD -MP -MF ros_includes.d $(CFLAGS) -c $(OUTPUT_OPTION) $<
-	touch ros_includes.h.gch
-
-DEPFILES := ros_includes.d
-$(DEPFILES):
-
-include $(wildcard ros_includes.d)
-)EOS";
-		}
-
-		// Run make
-		std::vector<std::string> args{
-			"make", "--silent",
-			"-C", pchDir.string()
-		};
-
-		if(!call("make", args))
-		{
-			throw std::runtime_error("PCH build failed. See above!");
-		}
-
-		m_d->pchPath = pchDir / "ros_includes.h";
-		m_d->pchFile = pchDir / "ros_includes.h.gch";
+		m_d->pchPath = m_d->sharePath / "ros_includes.h";
+		m_d->pchFile = m_d->sharePath / "ros_includes.h.gch";
 	}
 
 	// Compute include dirs from CMAKE_PREFIX_PATH
