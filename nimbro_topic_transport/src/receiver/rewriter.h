@@ -8,6 +8,8 @@
 #include <optional>
 #include <vector>
 
+#include <ros/node_handle.h>
+
 namespace nimbro_topic_transport
 {
 
@@ -45,7 +47,7 @@ public:
 
 	using TopicRewriterFuture = std::shared_future<TopicRewriter>;
 
-	explicit Rewriter(const std::string& prefix);
+	explicit Rewriter(const ros::NodeHandle& nh);
 	~Rewriter();
 
 	std::string rewriteTopicName(const std::string& name);

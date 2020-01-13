@@ -14,6 +14,11 @@
 		  same machine. This can also be used to distinguish remote topics
 		  from local ones.
 		 -->
-		<param name="prefix" value="recv/" />
+		<param name="topic_prefix" value="recv/" />
+
+		<!-- Rewrite messages so that tf frame_ids are prefixed with the
+		  specified string.
+		-->
+		<param name="tf_prefix" value="recv/" />
 	</node>
 </launch>

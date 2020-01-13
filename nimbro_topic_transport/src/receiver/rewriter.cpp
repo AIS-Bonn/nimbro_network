@@ -262,10 +262,11 @@ public:
 			}
 		}
 
-		return TopicRewriter{outputFile.string(), prefix};
+		return TopicRewriter{outputFile.string(), tfPrefix};
 	}
 
-	std::string prefix;
+	std::string topicPrefix;
+	std::string tfPrefix;
 
 	fs::path binaryPath;
 	fs::path sharePath;
@@ -280,10 +281,24 @@ public:
 	std::map<Key, TopicRewriterFuture> rewriters;
 };
 
-Rewriter::Rewriter(const std::string& prefix)
+Rewriter::Rewriter(const ros::NodeHandle& nhIn)
  : m_d{std::make_unique<Private>()}
 {
-	m_d->prefix = prefix;
+	// Get configuration
+	{
+		ros::NodeHandle nh{nhIn};
+
+		std::string prefix;
+		if(nh.getParam("prefix", prefix))
+		{
+			ROS_WARN("You specified the receiver 'prefix' param. This param is deprecated, you should instead set topic_prefix and tf_prefix separately.");
+			m_d->topicPrefix = prefix;
+			m_d->tfPrefix = prefix;
+		}
+
+		nh.getParam("tf_prefix", m_d->tfPrefix);
+		nh.getParam("topic_prefix", m_d->topicPrefix);
+	}
 
 	m_d->binaryPath = fs::path(getenv("HOME")) / ".ros" / "nimbro_topic_transport";
 
@@ -332,7 +347,7 @@ Rewriter::~Rewriter()
 
 Rewriter::TopicRewriterFuture Rewriter::open(const std::string& topicType, const std::string& md5)
 {
-	if(m_d->prefix.empty())
+	if(m_d->tfPrefix.empty())
 	{
 		std::promise<TopicRewriter> promise;
 		auto future = promise.get_future().share();
@@ -358,7 +373,7 @@ Rewriter::TopicRewriterFuture Rewriter::open(const std::string& topicType, const
 
 std::string Rewriter::rewriteTopicName(const std::string& name)
 {
-	return m_d->prefix + name;
+	return m_d->topicPrefix + name;
 }
 
 }
