@@ -4,9 +4,11 @@ tcp_topics:
  - name: "/tcp/throttled_topic"
    rate: 1.0
  - name: "/tcp/array_topic"
+ - name: "/tcp/rewriting_topic"
 udp_topics:
  - name: "/udp/test_topic"
  - name: "/odd_prefix/udp/unprefix_me"
  - name: "/udp/throttled_topic"
    rate: 1.0
  - name: "/udp/array_topic"
+ - name: "/udp/rewriting_topic"

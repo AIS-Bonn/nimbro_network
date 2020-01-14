@@ -24,7 +24,8 @@
 			<param name="receiver/port" value="$(arg port)" />
 
 			<!-- Prefix all received topics with '/receive' -->
-			<param name="receiver/prefix" value="/receive" />
+			<param name="receiver/topic_prefix" value="/receive" />
+			<param name="receiver/tf_prefix" value="tf_prefix/" />
 		<!-- END RECEIVER -->
 	</node>
 
