@@ -8,6 +8,8 @@ find_package(catkin REQUIRED COMPONENTS
 	rostest
 	message_generation
 	roslib
+	geometry_msgs
+	nav_msgs
 )
 
 add_message_files(FILES
