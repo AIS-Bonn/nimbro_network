@@ -10,6 +10,15 @@
 
 #include "interface.h"
 
+namespace
+{
+	template<template <typename...> class Template, typename T>
+	struct is_specialization_of : std::false_type {};
+
+	template<template<typename...> class Template, typename... Args>
+	struct is_specialization_of<Template, Template<Args...>> : std::true_type {};
+}
+
 
 using FinalMessageType = MSG_PACKAGE::MSG_TYPE;
 
@@ -48,7 +57,23 @@ namespace visitor
 			f(const_cast<DecT&>(instance));
 		}
 
-		if constexpr(!std::is_arithmetic_v<DecT> && !std::is_same_v<DecT, std::string>)
+		// Figure out how to recurse.
+
+		// Skip primitive types, they are not interesting
+		if constexpr(std::is_arithmetic_v<DecT> || std::is_same_v<DecT, std::string>)
+			;
+
+		// Do we have a vector?
+		else if constexpr(is_specialization_of<std::vector, DecT>())
+		{
+			// Visit each item.
+			for(auto& item : const_cast<DecT&>(instance))
+				visit<std::decay_t<decltype(item)>, M, F>(item, f);
+		}
+
+		// For other cases (structs) use the ros serializer to recurse into
+		// members.
+		else
 		{
 			// Recurse
 			Caller<M, F> caller(f);
