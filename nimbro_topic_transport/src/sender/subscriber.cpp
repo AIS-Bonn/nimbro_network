@@ -37,13 +37,6 @@ Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh, const std::
 	if(topic->config.hasMember("queue"))
 		queue_length = topic->config["queue"];
 
-	std::string topicName = topic->name;
-	std::string stripPrefix;
-	if(nh.getParam("strip_prefix", stripPrefix) && !stripPrefix.empty())
-	{
-
-	}
-
 	ros::SubscribeOptions ops;
 	boost::function<void(const topic_tools::ShapeShifter::ConstPtr&)> func
 		= boost::bind(&Subscriber::handleData, this, _1);
