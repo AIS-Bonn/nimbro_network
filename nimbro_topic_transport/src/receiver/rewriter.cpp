@@ -145,7 +145,7 @@ Rewriter::TopicRewriter::TopicRewriter() = default;
 Rewriter::TopicRewriter::TopicRewriter(const std::string& library, const std::string& prefix)
  : m_d{std::make_unique<Private>()}
 {
-	ROS_INFO("Loading TopicRewriter: %s\n", library.c_str());
+	ROS_INFO("Loading TopicRewriter: %s", library.c_str());
 
 	m_d->handle = dlopen(library.c_str(), RTLD_NOW | RTLD_LOCAL);
 	if(!m_d->handle)
