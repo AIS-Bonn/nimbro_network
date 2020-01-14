@@ -230,7 +230,7 @@ public:
 			std::vector<std::string> args{
 				"g++",
 				"-o", outputFile.string(),
-				"-shared", "-std=c++17", "-O2", "-fPIC",
+				"-shared", "-fPIC",
 				"-include", pchPath.string(),
 				"-DMSG_INCLUDE=<" + fullType + ".h>",
 				"-DMSG_PACKAGE=" + package,
