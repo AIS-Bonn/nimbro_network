@@ -41,6 +41,8 @@ public:
 		TopicRewriter();
 		explicit TopicRewriter(const std::string& library, const std::string& prefix);
 
+		bool isNull() const;
+
 		class Private;
 		std::unique_ptr<Private> m_d;
 	};

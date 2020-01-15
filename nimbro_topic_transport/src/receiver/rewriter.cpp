@@ -189,6 +189,11 @@ std::vector<uint8_t> Rewriter::TopicRewriter::rewrite(const std::vector<uint8_t>
 	return m_d->morph(data, m_d->prefix);
 }
 
+bool Rewriter::TopicRewriter::isNull() const
+{
+	return !m_d->morph;
+}
+
 class Rewriter::Private
 {
 public:
@@ -213,54 +218,76 @@ public:
 			fs::last_write_time(pchFile)
 		);
 
-		if(!fs::exists(outputFile) || fs::last_write_time(outputFile) <= lastUpdate)
+		bool upToDate = fs::exists(outputFile) && fs::last_write_time(outputFile) > lastUpdate;
+
+		if(upToDate)
 		{
-			ROS_INFO("Compiling topic rewriter for topic type '%s'", fullType.c_str());
+			TopicRewriter rewriter{outputFile.string(), tfPrefix};
+			if(!rewriter.isNull())
+				return rewriter;
+		}
 
-			if(!fs::exists(msgBinPath))
+		// The output file does not exist, is not up to date, or cannot be loaded.
+		// => Compile a new one!
+
+		ROS_INFO("Compiling topic rewriter for topic type '%s'", fullType.c_str());
+
+		if(!fs::exists(msgBinPath))
+		{
+			if(!fs::create_directories(msgBinPath))
 			{
-				if(!fs::create_directories(msgBinPath))
-				{
-					ROS_ERROR("Could not create binary path '%s': %s", msgBinPath.c_str(), strerror(errno));
-					return {};
-				}
-			}
-
-			// Run compiler
-			std::vector<std::string> args{
-				"g++",
-				"-o", outputFile.string(),
-				"-shared", "-fPIC",
-				"-include", pchPath.string(),
-				"-DMSG_INCLUDE=<" + fullType + ".h>",
-				"-DMSG_PACKAGE=" + package,
-				"-DMSG_TYPE=" + type,
-				"-Winvalid-pch"
-				TT_COMPILE_FLAGS
-			};
-			for(auto& a : includeFlags)
-				args.push_back(a);
-			args.push_back(inputFile.string());
-
-			if(!call("g++", args))
-			{
-				ROS_ERROR("Compilation of rewrite gadget for msg type %s failed (see stderr above). Command line was:",
-					fullType.c_str()
-				);
-
-				std::stringstream ss;
-				for(auto& arg : args)
-				{
-					if(arg.find(' ') != std::string::npos)
-						ss << "'" << arg << "'";
-					else
-						ss << arg << " ";
-				}
-				ROS_ERROR("%s", ss.str().c_str());
-
+				ROS_ERROR("Could not create binary path '%s': %s", msgBinPath.c_str(), strerror(errno));
 				return {};
 			}
 		}
+
+		std::string tmpfile = (msgBinPath / "tmp-XXXXXX").string();
+		int fd = mkstemp(tmpfile.data());
+
+		if(fd < 0)
+		{
+			ROS_ERROR("Could not create temporary file '%s': %s", tmpfile.c_str(), strerror(errno));
+			return {};
+		}
+		close(fd);
+
+		// Run compiler
+		std::vector<std::string> args{
+			"g++",
+			"-o", tmpfile,
+			"-shared", "-fPIC",
+			"-include", pchPath.string(),
+			"-DMSG_INCLUDE=<" + fullType + ".h>",
+			"-DMSG_PACKAGE=" + package,
+			"-DMSG_TYPE=" + type,
+			"-Winvalid-pch"
+			TT_COMPILE_FLAGS
+		};
+		for(auto& a : includeFlags)
+			args.push_back(a);
+		args.push_back(inputFile.string());
+
+		if(!call("g++", args))
+		{
+			ROS_ERROR("Compilation of rewrite gadget for msg type %s failed (see stderr above). Command line was:",
+				fullType.c_str()
+			);
+
+			std::stringstream ss;
+			for(auto& arg : args)
+			{
+				if(arg.find(' ') != std::string::npos)
+					ss << "'" << arg << "'";
+				else
+					ss << arg << " ";
+			}
+			ROS_ERROR("%s", ss.str().c_str());
+
+			return {};
+		}
+
+		// This is atomic
+		fs::rename(tmpfile, outputFile);
 
 		return TopicRewriter{outputFile.string(), tfPrefix};
 	}
