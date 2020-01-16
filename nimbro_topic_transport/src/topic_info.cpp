@@ -5,17 +5,39 @@
 
 #include <ros/names.h>
 
-#include <sys/wait.h>
-#include <stdio.h>
-#include <unistd.h>
+#include <mutex>
 
-#include <string>
+#include <boost/algorithm/string/trim.hpp>
+
+#include "subprocess.h"
 
 namespace nimbro_topic_transport
 {
 
 namespace topic_info
 {
+
+namespace
+{
+	std::string getHelperPath()
+	{
+		auto output = subprocess::obtainOutput("rosrun", {
+			"rosrun", "--prefix", "echo", "nimbro_topic_transport", "get_msg_def.py"
+		});
+
+		if(!output)
+		{
+			ROS_ERROR("Could not find get_msg_def.py helper script");
+			return {};
+		}
+
+		boost::algorithm::trim(*output);
+
+		return *output;
+	}
+
+	std::string g_helperPath = getHelperPath();
+}
 
 /**
  * Execute a message query and return result.
@@ -26,60 +48,20 @@ namespace topic_info
  **/
 static std::string msgQuery(const std::string& cmd, const std::string& type)
 {
-	std::vector<char> buf(1024);
-	int idx = 0;
+	if(g_helperPath.empty())
+		throw std::runtime_error{"topic_info module was not properly initialized"};
 
-	std::string error;
-	if(!ros::names::validate(type, error))
+	auto output = subprocess::obtainOutput(g_helperPath, {
+		"get_msg_def.py", cmd, type
+	});
+
+	if(!output)
 	{
-		ROS_WARN("Got invalid message type '%s'", type.c_str());
-		return "";
+		ROS_ERROR("Could not execute get_msg_def.py helper script for msg '%s'", type.c_str());
+		return {};
 	}
 
-	int fds[2];
-	if(pipe(fds) != 0)
-		throw std::runtime_error("Could not create pipe");
-
-	int pid = fork();
-
-	if(pid == 0)
-	{
-		close(fds[0]);
-		dup2(fds[1], STDOUT_FILENO);
-
-		if(execlp("rosrun", "rosrun", "nimbro_topic_transport", "get_msg_def.py", cmd.c_str(), type.c_str(), static_cast<char*>(nullptr)) != 0)
-		{
-			throw std::runtime_error("Could not execlp() rosmsg");
-		}
-	}
-
-	close(fds[1]);
-
-	while(1)
-	{
-		buf.resize(idx + 1024);
-		int size = read(fds[0], buf.data() + idx, 1024);
-
-		if(size < 0)
-			throw std::runtime_error("Could not read()");
-		else if(size == 0)
-			break;
-
-		idx += size;
-	}
-
-	close(fds[0]);
-
-	int status;
-	waitpid(pid, &status, 0);
-
-	if(!WIFEXITED(status) || WEXITSTATUS(status) != 0 || idx == 0)
-	{
-		ROS_WARN("Could not get rosmsg %s for type '%s'", cmd.c_str(), type.c_str());
-		return "";
-	}
-
-	return std::string(buf.data(), idx);
+	return *output;
 }
 
 std::string getMsgDef(const std::string& type)

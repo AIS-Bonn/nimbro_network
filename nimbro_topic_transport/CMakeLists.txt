@@ -58,6 +58,7 @@ add_library(nimbro_topic_transport
 	src/receiver/receiver.cpp
 	src/receiver/tcp_receiver.cpp
 	src/receiver/udp_receiver.cpp
+	src/subprocess.cpp
 	src/topic_info.cpp
 	src/thread_pool.cpp
 )
@@ -131,6 +132,7 @@ target_link_libraries(transceiver
 # Tools
 add_executable(action_proxy
 	src/action_proxy.cpp
+	src/subprocess.cpp
 	src/topic_info.cpp
 )
 target_link_libraries(action_proxy
