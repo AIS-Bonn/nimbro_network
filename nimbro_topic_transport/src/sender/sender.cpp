@@ -177,9 +177,9 @@ void Sender::advertiseTopics()
 	}
 }
 
-void Sender::refreshTopicList()
+void Sender::refreshTopicList(double _rate)
 {
-	ros::WallRate rate(0.25);
+	ros::WallRate rate(_rate);
 
 	for(; ros::ok(); rate.sleep())
 	{
