@@ -11,7 +11,7 @@ catkin_build:
     - source ros_gitlab_ci/gitlab-ci.bash
     - catkin build --summarize --no-status --force-color
     - source devel/setup.bash
-    - ROS_TEST_RESULTS_DIR=$(pwd)/test_results catkin run_tests --no-status --force-color
+    - ROS_TEST_RESULTS_DIR=$(pwd)/test_results catkin --no-status --force-color --catkin-make-args run_tests
     - find build -name test_results -type d -exec cp -R '{}' $CI_PROJECT_DIR/ ';' -print
   artifacts:
     paths:
