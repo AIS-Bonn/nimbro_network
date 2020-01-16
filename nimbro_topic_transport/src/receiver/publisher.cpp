@@ -40,6 +40,8 @@ Publisher::~Publisher()
 
 void Publisher::publish(const Message::ConstPtr& msg)
 {
+	ROS_DEBUG("Publisher::publish() for topic '%s'", msg->topic->name.c_str());
+
 	std::unique_lock<std::mutex> lock(m_holdoffMutex);
 
 	if(!m_advertised)
@@ -60,7 +62,7 @@ void Publisher::publish(const Message::ConstPtr& msg)
 		m_pub = nh.advertise(options);
 
 		// Because subscribers will not immediately subscribe, we introduce
-		// a "hold-off" period of 500ms. During this time, we will buffer
+		// a "hold-off" period of 1s. During this time, we will buffer
 		// any received messages, and publish them as soon as the period
 		// is over. This prevents messsage loss on topics where this is
 		// undesirable (e.g. H264 encoded video, where we would miss the
@@ -69,7 +71,7 @@ void Publisher::publish(const Message::ConstPtr& msg)
 		m_advertiseTime = ros::WallTime::now();
 		m_inHoldoffTime = true;
 
-		m_holdoffTimer = nh.createWallTimer(ros::WallDuration(0.5),
+		m_holdoffTimer = nh.createWallTimer(ros::WallDuration(1.0),
 			std::bind(&Publisher::finishHoldoff, this)
 		);
 
@@ -111,6 +113,8 @@ void Publisher::finishHoldoff()
 
 void Publisher::internalPublish(const Message::ConstPtr& msg)
 {
+	ROS_DEBUG("Publisher::internalPublish() for topic '%s'", msg->topic->name.c_str());
+
 	if(msg->md5 != m_advertisedMd5)
 	{
 		ROS_ERROR_THROTTLE(1.0, "Received msg with md5 '%s' on topic '%s', but we already advertised with '%s'. Discarding...",
