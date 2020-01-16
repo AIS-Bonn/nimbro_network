@@ -60,12 +60,12 @@ TEST_CASE("simple", "[topic]")
 		usleep(20 * 1000);
 	}
 
-	usleep(250 * 1000);
+	usleep(50 * 1000);
 
 	msg.data = 0;
 	pub.publish(msg);
 
-	for(int i = 0; i < 100; ++i)
+	for(int i = 0; i < 50; ++i)
 	{
 		ros::spinOnce();
 		usleep(1000);
@@ -155,7 +155,7 @@ TEST_CASE("array", "[topic]")
 	msgCounter = 0;
 	pub.publish(msg);
 
-	for(int i = 0; i < 100; ++i)
+	for(int i = 0; i < 50; ++i)
 	{
 		ros::spinOnce();
 		usleep(1000);
@@ -200,10 +200,12 @@ TEST_CASE("rewriting", "[topic]")
 	msg.header.frame_id = "abc";
 	msg.child_frame_id = "def";
 
+	ros::WallTime t0 = ros::WallTime::now();
 	int timeout = 300;
 	while(pub.getNumSubscribers() == 0 || sub.getNumPublishers() == 0)
 	{
 		ros::spinOnce();
+		ROS_INFO("pub: %u, sub: %u", pub.getNumSubscribers(), sub.getNumPublishers());
 		if(--timeout == 0)
 		{
 			CAPTURE(pub.getNumSubscribers());
@@ -214,8 +216,10 @@ TEST_CASE("rewriting", "[topic]")
 
 		usleep(20 * 1000);
 	}
+	ros::WallTime t1 = ros::WallTime::now();
+	ROS_INFO("Waiting for connection took %f s", (t1 - t0).toSec());
 
-	usleep(250 * 1000);
+	usleep(50 * 1000);
 
 	pub.publish(msg);
 
