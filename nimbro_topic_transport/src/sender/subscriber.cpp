@@ -88,6 +88,8 @@ void Subscriber::handleData(const topic_tools::ShapeShifter::ConstPtr& data)
 		return;
 
 	m_lastTime = now;
+	m_type = msg->type;
+	m_md5 = msg->md5;
 
 	for(auto& cb : m_callbacks)
 		cb(msg);
