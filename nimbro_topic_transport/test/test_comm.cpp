@@ -11,6 +11,7 @@
 #include <std_msgs/UInt64MultiArray.h>
 
 #include <geometry_msgs/TransformStamped.h>
+#include <nav_msgs/Odometry.h>
 
 TEST_CASE("simple", "[topic]")
 {
@@ -191,6 +192,69 @@ TEST_CASE("rewriting", "[topic]")
 
 	sub = nh.subscribe<geometry_msgs::TransformStamped>(
 		"/receive/" + nh.resolveName("rewriting_topic"), 2, [&](const geometry_msgs::TransformStampedConstPtr& msg){
+			ROS_INFO("rewrite");
+			msgCounter++;
+			receivedMsg = msg;
+		}
+	);
+
+	msg.header.frame_id = "abc";
+	msg.child_frame_id = "def";
+
+	ros::WallTime t0 = ros::WallTime::now();
+	int timeout = 300;
+	while(pub.getNumSubscribers() == 0 || sub.getNumPublishers() == 0)
+	{
+		ros::spinOnce();
+		ROS_INFO("pub: %u, sub: %u", pub.getNumSubscribers(), sub.getNumPublishers());
+		if(--timeout == 0)
+		{
+			CAPTURE(pub.getNumSubscribers());
+			CAPTURE(sub.getNumPublishers());
+			FAIL("sender did not subscribe or receiver did not advertise on our topic");
+			return;
+		}
+
+		usleep(20 * 1000);
+	}
+	ros::WallTime t1 = ros::WallTime::now();
+	ROS_INFO("Waiting for connection took %f s", (t1 - t0).toSec());
+
+	usleep(50 * 1000);
+
+	pub.publish(msg);
+
+	for(int i = 0; i < 1000; ++i)
+	{
+		ros::spinOnce();
+		usleep(1000);
+
+		if(msgCounter == 1)
+		{
+			CHECK(receivedMsg->header.frame_id == "tf_prefix/abc");
+			CHECK(receivedMsg->child_frame_id == "tf_prefix/def");
+			return;
+		}
+	}
+
+	CAPTURE(msgCounter);
+	FAIL("Not enough messages received");
+}
+
+TEST_CASE("odometry rewrite", "[topic]")
+{
+	nav_msgs::Odometry msg;
+
+	ros::NodeHandle nh("~");
+
+	ros::Publisher pub = nh.advertise<nav_msgs::Odometry>("odom_rewriting_topic", 2);
+	ros::Subscriber sub;
+
+	int msgCounter = 0;
+	nav_msgs::OdometryConstPtr receivedMsg;
+
+	sub = nh.subscribe<nav_msgs::Odometry>(
+		"/receive/" + nh.resolveName("odom_rewriting_topic"), 2, [&](const nav_msgs::OdometryConstPtr& msg){
 			ROS_INFO("rewrite");
 			msgCounter++;
 			receivedMsg = msg;

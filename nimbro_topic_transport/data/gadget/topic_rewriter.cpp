@@ -17,6 +17,14 @@ namespace
 
 	template<template<typename...> class Template, typename... Args>
 	struct is_specialization_of<Template, Template<Args...>> : std::true_type {};
+
+	template<typename Msg>
+	struct is_boost_array : std::false_type {};
+
+	template<typename T, std::size_t N>
+	struct is_boost_array<boost::array<T, N>> : std::true_type {};
+
+	static_assert(is_boost_array<std::decay_t<const boost::array<double, 5>&>>(), "boost array check");
 }
 
 
@@ -60,11 +68,11 @@ namespace visitor
 		// Figure out how to recurse.
 
 		// Skip primitive types, they are not interesting
-		if constexpr(std::is_arithmetic_v<DecT> || std::is_same_v<DecT, std::string>)
+		else if constexpr(std::is_arithmetic_v<DecT> || std::is_same_v<DecT, std::string>)
 			;
 
-		// Do we have a vector?
-		else if constexpr(is_specialization_of<std::vector, DecT>())
+		// Do we have a vector or array?
+		else if constexpr(is_specialization_of<std::vector, DecT>() || is_boost_array<DecT>())
 		{
 			// Visit each item.
 			for(auto& item : const_cast<DecT&>(instance))
@@ -73,7 +81,7 @@ namespace visitor
 
 		// For other cases (structs) use the ros serializer to recurse into
 		// members.
-		else
+		else if constexpr(!is_boost_array<DecT>())
 		{
 			// Recurse
 			Caller<M, F> caller(f);
