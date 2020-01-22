@@ -47,6 +47,9 @@ void sendTransforms()
 		geometry_msgs::TransformStamped m;
 		tf::transformStampedTFToMsg(transform, m);
 
+		if(m.header.stamp == ros::Time(0))
+			m.header.stamp = ros::Time::now();
+
                 if ( g_applyPrefix )
                 {
                     m.header.frame_id = g_framePrefix+"_"+m.header.frame_id;
