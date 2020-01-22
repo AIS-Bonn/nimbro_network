@@ -24,6 +24,8 @@ public:
 	~TCPReceiver();
 
 	void setCallback(const Callback& cb);
+
+	void start();
 private:
 	class ClientHandler
 	{

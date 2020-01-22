@@ -14,6 +14,10 @@
 		<!-- This can be used to strip a robot-specific topic name prefix prior to sending -->
 		<param name="strip_prefix" value="/odd_prefix" />
 
+		<!-- Faster testing -->
+		<param name="topic_refresh_rate" value="4.0" />
+		<param name="topic_advertisement_rate" value="5.0" />
+
 		<!-- Load topics from yaml file -->
 		<rosparam command="load" file="$(find nimbro_topic_transport)/test/topics.yaml" />
 	</node>
@@ -23,7 +27,10 @@
 		<param name="port" value="$(arg port)" />
 
 		<!-- Prefix all received topics with '/receive' -->
-		<param name="prefix" value="/receive" />
+		<param name="topic_prefix" value="/receive" />
+
+		<!-- Prefix all received frame_ids with 'tf_prefix' -->
+		<param name="tf_prefix" value="tf_prefix/" />
 	</node>
 
 	<test test-name="udp" pkg="nimbro_topic_transport" type="test_comm">

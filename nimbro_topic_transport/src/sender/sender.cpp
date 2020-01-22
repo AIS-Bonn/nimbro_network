@@ -43,8 +43,16 @@ Sender::Sender(ros::NodeHandle nh)
 		initUDP(topicList);
 	}
 
-	m_advertiseTimer = m_nh.createSteadyTimer(ros::WallDuration(1.0), std::bind(&Sender::advertiseTopics, this));
-	m_topicThread = std::thread(std::bind(&Sender::refreshTopicList, this));
+	double topicRefreshRate = 0.25;
+	m_nh.getParam("topic_refresh_rate", topicRefreshRate);
+
+	double advertisementRate = 1.0;
+	m_nh.getParam("topic_advertisement_rate", advertisementRate);
+
+	ROS_INFO("Topic refresh rate: %f Hz, advertisement rate: %f Hz", topicRefreshRate, advertisementRate);
+
+	m_advertiseTimer = m_nh.createSteadyTimer(ros::WallDuration(1.0/advertisementRate), std::bind(&Sender::advertiseTopics, this));
+	m_topicThread = std::thread(std::bind(&Sender::refreshTopicList, this, topicRefreshRate));
 
 	ROS_INFO("Sender initialized, listening on %lu topics.", m_subs.size());
 }
@@ -169,9 +177,9 @@ void Sender::advertiseTopics()
 	}
 }
 
-void Sender::refreshTopicList()
+void Sender::refreshTopicList(double _rate)
 {
-	ros::WallRate rate(0.25);
+	ros::WallRate rate(_rate);
 
 	for(; ros::ok(); rate.sleep())
 	{

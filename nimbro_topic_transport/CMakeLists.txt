@@ -7,6 +7,9 @@ find_package(catkin REQUIRED COMPONENTS
 	topic_tools
 	rostest
 	message_generation
+	roslib
+	geometry_msgs
+	nav_msgs
 )
 
 add_message_files(FILES
@@ -34,7 +37,7 @@ include_directories(contrib)
 
 set(CMAKE_CXX_STANDARD 17)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -march=native")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
 add_library(nimbro_topic_transport
 	contrib/wirehair/wirehair.cpp
@@ -50,16 +53,56 @@ add_library(nimbro_topic_transport
 	src/sender/udp_sender.cpp
 	src/receiver/decompressor.cpp
 	src/receiver/depacketizer.cpp
+	src/receiver/rewriter.cpp
 	src/receiver/publisher.cpp
 	src/receiver/receiver.cpp
 	src/receiver/tcp_receiver.cpp
 	src/receiver/udp_receiver.cpp
+	src/subprocess.cpp
 	src/topic_info.cpp
 	src/thread_pool.cpp
 )
 target_link_libraries(nimbro_topic_transport
 	${catkin_LIBRARIES}
 	${ZSTD_LIBRARIES}
+)
+target_compile_options(nimbro_topic_transport PUBLIC
+	"-march=native"
+)
+target_include_directories(nimbro_topic_transport PRIVATE
+	${CMAKE_CURRENT_BINARY_DIR}
+)
+
+add_library(precompiled_header OBJECT
+	src/receiver/ros_includes.cpp
+)
+target_compile_options(precompiled_header PRIVATE
+	-x c++-header
+)
+set_target_properties(precompiled_header PROPERTIES
+	POSITION_INDEPENDENT_CODE ON
+
+	# We need to capture all compile definitions so that later JIT compilation
+	# can use the same options
+	RULE_LAUNCH_COMPILE "${CMAKE_CURRENT_SOURCE_DIR}/utils/extract_compile_flags.sh ${CMAKE_CURRENT_BINARY_DIR}/tt_compile_flags.h"
+)
+add_dependencies(nimbro_topic_transport precompiled_header)
+
+add_custom_command(
+	OUTPUT ros_includes.h.gch
+	DEPENDS precompiled_header $<TARGET_OBJECTS:precompiled_header>
+	COMMAND cmake -E copy $<TARGET_OBJECTS:precompiled_header> ${CMAKE_CURRENT_BINARY_DIR}/ros_includes.h.gch
+)
+add_custom_target(copy_precompiled_header ALL
+	DEPENDS ros_includes.h.gch
+	COMMAND cmake -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/ros_includes.h.gch ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
+add_custom_target(copy_gadget ALL
+	COMMAND cmake -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/data/gadget/topic_rewriter.cpp ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+add_custom_target(copy_gadget_interfaces ALL
+	COMMAND cmake -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/data/gadget/interface.h ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
 add_executable(sender
@@ -89,6 +132,7 @@ target_link_libraries(transceiver
 # Tools
 add_executable(action_proxy
 	src/action_proxy.cpp
+	src/subprocess.cpp
 	src/topic_info.cpp
 )
 target_link_libraries(action_proxy

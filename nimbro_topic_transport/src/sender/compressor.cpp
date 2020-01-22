@@ -59,6 +59,9 @@ Compressor::~Compressor()
 
 Message::ConstPtr Compressor::compress(const Message::ConstPtr& msg)
 {
+	if(msg->payload.empty())
+		return msg;
+
 	size_t len = ZSTD_compressBound(msg->payload.size());
 	g_compressionBuf.resize(len);
 

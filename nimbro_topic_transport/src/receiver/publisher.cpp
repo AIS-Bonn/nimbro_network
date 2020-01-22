@@ -29,8 +29,8 @@ private:
 namespace nimbro_topic_transport
 {
 
-Publisher::Publisher(const Topic::ConstPtr& topic, const std::string& prefix)
- : m_prefix{prefix}
+Publisher::Publisher(const Topic::ConstPtr& topic, Rewriter& rewriter)
+ : m_rewriter{rewriter}
 {
 }
 
@@ -40,6 +40,8 @@ Publisher::~Publisher()
 
 void Publisher::publish(const Message::ConstPtr& msg)
 {
+	ROS_DEBUG("Publisher::publish() for topic '%s'", msg->topic->name.c_str());
+
 	std::unique_lock<std::mutex> lock(m_holdoffMutex);
 
 	if(!m_advertised)
@@ -50,7 +52,7 @@ void Publisher::publish(const Message::ConstPtr& msg)
 		ros::NodeHandle nh;
 
 		ros::AdvertiseOptions options(
-			m_prefix + msg->topic->name,
+			m_rewriter.rewriteTopicName(msg->topic->name),
 			50,
 			msg->md5,
 			msg->type,
@@ -60,7 +62,7 @@ void Publisher::publish(const Message::ConstPtr& msg)
 		m_pub = nh.advertise(options);
 
 		// Because subscribers will not immediately subscribe, we introduce
-		// a "hold-off" period of 500ms. During this time, we will buffer
+		// a "hold-off" period of 1s. During this time, we will buffer
 		// any received messages, and publish them as soon as the period
 		// is over. This prevents messsage loss on topics where this is
 		// undesirable (e.g. H264 encoded video, where we would miss the
@@ -69,11 +71,14 @@ void Publisher::publish(const Message::ConstPtr& msg)
 		m_advertiseTime = ros::WallTime::now();
 		m_inHoldoffTime = true;
 
-		m_holdoffTimer = nh.createWallTimer(ros::WallDuration(0.5),
-			std::bind(&Publisher::finishHoldoff, this), true
+		m_holdoffTimer = nh.createWallTimer(ros::WallDuration(1.0),
+			std::bind(&Publisher::finishHoldoff, this)
 		);
 
 		m_advertised = true;
+		m_advertisedMd5 = msg->md5;
+
+		m_topicRewriterFuture = m_rewriter.open(msg->type, msg->md5);
 	}
 
 	// If the payload is empty, this is just an advertisement
@@ -91,6 +96,11 @@ void Publisher::publish(const Message::ConstPtr& msg)
 
 void Publisher::finishHoldoff()
 {
+	if(m_topicRewriterFuture.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+		return;
+
+	m_topicRewriter = &m_topicRewriterFuture.get();
+
 	std::unique_lock<std::mutex> lock(m_holdoffMutex);
 
 	for(auto msg : m_heldoffMsgs)
@@ -98,17 +108,52 @@ void Publisher::finishHoldoff()
 	m_heldoffMsgs.clear();
 
 	m_inHoldoffTime = false;
+	m_holdoffTimer.stop();
 }
 
 void Publisher::internalPublish(const Message::ConstPtr& msg)
 {
-	// FIXME: Check type again here?
+	ROS_DEBUG("Publisher::internalPublish() for topic '%s'", msg->topic->name.c_str());
+
+	if(msg->md5 != m_advertisedMd5)
+	{
+		ROS_ERROR_THROTTLE(1.0, "Received msg with md5 '%s' on topic '%s', but we already advertised with '%s'. Discarding...",
+			msg->md5.c_str(),
+			msg->topic->name.c_str(),
+			m_advertisedMd5.c_str()
+		);
+		return;
+	}
 
 	boost::shared_ptr<topic_tools::ShapeShifter> shapeShifter(new topic_tools::ShapeShifter);
 	shapeShifter->morph(msg->md5, msg->type, m_messageDefinition, "");
 
-	VectorStream stream(&msg->payload);
-	shapeShifter->read(stream);
+	std::vector<uint8_t> rewritten;
+	try
+	{
+		rewritten = m_topicRewriter->rewrite(msg->payload);
+	}
+	catch(ros::serialization::StreamOverrunException& e)
+	{
+		ROS_ERROR_THROTTLE(3.0,
+			"I caught a stream overrun exception while deserializing a message for topic '%s' in the rewriting module. "
+			"This usually happens when the topic definition changed unexpectedly. "
+			"I will drop the message. Exception message: '%s' (This message is throttled)",
+			msg->topic->name.c_str(),
+			e.what()
+		);
+	}
+
+	if(!rewritten.empty())
+	{
+		VectorStream stream{&rewritten};
+		shapeShifter->read(stream);
+	}
+	else
+	{
+		VectorStream stream(&msg->payload);
+		shapeShifter->read(stream);
+	}
 
 	m_pub.publish(shapeShifter);
 }

@@ -14,6 +14,12 @@
 	<depend>yaml-cpp</depend>
 	<depend>libzstd-dev</depend>
 
+	<!-- Since we have special rewriters for these messages, we depend on the
+	  message packages here.
+	-->
+	<depend>geometry_msgs</depend>
+	<depend>nav_msgs</depend>
+
 	<build_depend>message_generation</build_depend>
 
 	<!-- This is not a hard dependency, the package compiles without catch_ros -->

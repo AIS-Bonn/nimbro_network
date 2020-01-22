@@ -22,7 +22,7 @@ public:
 
 private:
 	void advertiseTopics();
-	void refreshTopicList();
+	void refreshTopicList(double rate);
 
 	std::string stripPrefix(const std::string& topic) const;
 
