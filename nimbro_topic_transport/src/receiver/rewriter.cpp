@@ -17,6 +17,7 @@
 
 #include "../thread_pool.h"
 #include "../subprocess.h"
+#include "../topic_info.h"
 
 #include "../../data/gadget/interface.h"
 
@@ -101,6 +102,18 @@ public:
 			return {};
 		}
 
+		std::string system_md5 = topic_info::getMd5Sum(fullType);
+		if(system_md5 != md5)
+		{
+			ROS_ERROR("We got a message of type '%s' with type md5 '%s', but our version is '%s'. Please make sure your messages are up to date on both systems!",
+				fullType.c_str(),
+				md5.c_str(),
+				system_md5.c_str()
+			);
+			ROS_ERROR("I will disable rewriting for this message type!");
+			return {};
+		}
+
 		std::string package = fullType.substr(0, split);
 		std::string type = fullType.substr(split+1);
 
@@ -155,6 +168,8 @@ public:
 			"-DMSG_INCLUDE=<" + fullType + ".h>",
 			"-DMSG_PACKAGE=" + package,
 			"-DMSG_TYPE=" + type,
+			"-DMSG_MD5_HIGH=0x" + md5.substr(0, 16) + "ULL",
+			"-DMSG_MD5_LOW=0x" + md5.substr(16) + "ULL",
 			"-Winvalid-pch"
 			TT_COMPILE_FLAGS
 		};

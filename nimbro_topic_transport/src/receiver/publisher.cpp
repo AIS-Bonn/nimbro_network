@@ -128,7 +128,22 @@ void Publisher::internalPublish(const Message::ConstPtr& msg)
 	boost::shared_ptr<topic_tools::ShapeShifter> shapeShifter(new topic_tools::ShapeShifter);
 	shapeShifter->morph(msg->md5, msg->type, m_messageDefinition, "");
 
-	auto rewritten = m_topicRewriter->rewrite(msg->payload);
+	std::vector<uint8_t> rewritten;
+	try
+	{
+		rewritten = m_topicRewriter->rewrite(msg->payload);
+	}
+	catch(ros::serialization::StreamOverrunException& e)
+	{
+		ROS_ERROR_THROTTLE(3.0,
+			"I caught a stream overrun exception while deserializing a message for topic '%s' in the rewriting module. "
+			"This usually happens when the topic definition changed unexpectedly. "
+			"I will drop the message. Exception message: '%s' (This message is throttled)",
+			msg->topic->name.c_str(),
+			e.what()
+		);
+	}
+
 	if(!rewritten.empty())
 	{
 		VectorStream stream{&rewritten};

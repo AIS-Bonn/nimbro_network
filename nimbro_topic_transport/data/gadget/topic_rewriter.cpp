@@ -23,12 +23,17 @@ namespace
 
 	template<typename T, std::size_t N>
 	struct is_boost_array<boost::array<T, N>> : std::true_type {};
-
-	static_assert(is_boost_array<std::decay_t<const boost::array<double, 5>&>>(), "boost array check");
 }
 
 
 using FinalMessageType = MSG_PACKAGE::MSG_TYPE;
+using MessageMD5 = ros::message_traits::MD5Sum<FinalMessageType>;
+
+static_assert(
+	MessageMD5::static_value1 == MSG_MD5_HIGH &&
+	MessageMD5::static_value2 == MSG_MD5_LOW,
+	"C++ message MD5 does not match the requested MD5. This should not happen!"
+);
 
 namespace visitor
 {
