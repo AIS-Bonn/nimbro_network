@@ -16,6 +16,7 @@ extern "C"
 ros::Publisher g_pub;
 AVCodecContext* g_codec = 0;
 SwsContext* g_sws = 0;
+AVFrame* g_frame = 0;
 
 const char* averror(int code)
 {
@@ -33,9 +34,6 @@ void handleImage(const sensor_msgs::CompressedImageConstPtr& img)
 	packet.pts = AV_NOPTS_VALUE;
 	packet.dts = AV_NOPTS_VALUE;
 
-	AVFrame frame;
-	memset(&frame, 0, sizeof(frame));
-
 #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57,48,101)
 	// Input packet to the encoder
 	int ret = avcodec_send_packet(g_codec, &packet);
@@ -46,7 +44,7 @@ void handleImage(const sensor_msgs::CompressedImageConstPtr& img)
 	}
 
 	// Try to retrieve output frame
-	ret = avcodec_receive_frame(g_codec, &frame);
+	ret = avcodec_receive_frame(g_codec, g_frame);
 	if(ret == AVERROR(EAGAIN))
 		return;
 
@@ -59,7 +57,7 @@ void handleImage(const sensor_msgs::CompressedImageConstPtr& img)
 	// old API
 
 	int gotPicture = 0;
-	if(avcodec_decode_video2(g_codec, &frame, &gotPicture, &packet) < 0)
+	if(avcodec_decode_video2(g_codec, g_frame, &gotPicture, &packet) < 0)
 	{
 		ROS_ERROR("avcodec_decode_video2 error");
 		return;
@@ -71,25 +69,25 @@ void handleImage(const sensor_msgs::CompressedImageConstPtr& img)
 
 	g_sws = sws_getCachedContext(
 		g_sws,
-		frame.width, frame.height, AV_PIX_FMT_YUV420P,
-		frame.width, frame.height, AV_PIX_FMT_RGB24,
+		g_frame->width, g_frame->height, AV_PIX_FMT_YUV420P,
+		g_frame->width, g_frame->height, AV_PIX_FMT_RGB24,
 		0, 0, 0, 0
 	);
 
 	sensor_msgs::ImagePtr out_img(new sensor_msgs::Image);
 
 	out_img->encoding = "rgb8";
-	out_img->data.resize(frame.width * frame.height * 3);
-	out_img->step = frame.width * 3;
-	out_img->width = frame.width;
-	out_img->height = frame.height;
+	out_img->data.resize(g_frame->width * g_frame->height * 3);
+	out_img->step = g_frame->width * 3;
+	out_img->width = g_frame->width;
+	out_img->height = g_frame->height;
 	out_img->header.frame_id = "cam";
 	out_img->header.stamp = ros::Time::now(); // FIXME
 
 	uint8_t* destData[1] = {out_img->data.data()};
 	int linesize[1] = {(int)out_img->step};
 
-	sws_scale(g_sws, frame.data, frame.linesize, 0, frame.height,
+	sws_scale(g_sws, g_frame->data, g_frame->linesize, 0, g_frame->height,
 		destData, linesize);
 
 	g_pub.publish(out_img);
@@ -106,6 +104,8 @@ int main(int argc, char** argv)
 #endif
 
 	av_log_set_level(AV_LOG_QUIET);
+
+	g_frame = av_frame_alloc();
 
 	AVCodec* decoder = avcodec_find_decoder(AV_CODEC_ID_H264);
 	if(!decoder)
@@ -131,6 +131,8 @@ int main(int argc, char** argv)
 	ros::Subscriber sub = nh.subscribe("encoded", 25, &handleImage);
 	
 	ros::spin();
+
+	av_frame_free(&g_frame);
 	
 	return 0;
 }
