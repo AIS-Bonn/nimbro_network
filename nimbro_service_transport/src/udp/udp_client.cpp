@@ -178,7 +178,7 @@ bool UDPClient::call(const std::string& name, ros::ServiceCallbackHelperCallPara
 	}
 
 	// TODO: Timeout
-	boost::system_time const timeout = boost::get_system_time() + boost::posix_time::milliseconds(m_timeout * 1000);
+	boost::system_time const timeout = boost::get_system_time() + boost::posix_time::milliseconds(static_cast<int>(m_timeout * 1000));
 
 	bool gotMsg = record.cond.timed_wait(lock, timeout, [&](){ return record.response.num_bytes != 0; });
 	m_requests.erase(it);
