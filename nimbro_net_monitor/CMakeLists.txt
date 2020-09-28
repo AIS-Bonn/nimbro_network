@@ -61,3 +61,7 @@ endif()
 
 # GUI
 add_subdirectory(src/gui)
+
+install(FILES rqt_plugins.xml
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)

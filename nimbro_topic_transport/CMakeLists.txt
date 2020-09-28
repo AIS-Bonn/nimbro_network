@@ -176,3 +176,6 @@ install(TARGETS nimbro_topic_transport sender receiver action_proxy transceiver
 install(FILES utils/get_msg_def.py
         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+install(FILES rqt_plugin.xml bandwidth_plugin.xml
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
