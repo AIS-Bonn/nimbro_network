@@ -26,7 +26,6 @@ MonitorDisplay::~MonitorDisplay()
 
 void MonitorDisplay::initPlugin(qt_gui_cpp::PluginContext& ctx)
 {
-	ROS_INFO("initPlugin()");
 	QWidget* w = new QWidget();
 	m_ui.setupUi(w);
 
@@ -41,7 +40,7 @@ void MonitorDisplay::initPlugin(qt_gui_cpp::PluginContext& ctx)
 	);
 
 	m_sub_stats = getPrivateNodeHandle().subscribe(
-		"/network_stats", 1,
+		"/network/monitor", 1,
 		&MonitorDisplay::statsReceived, this
 	);
 
@@ -71,7 +70,7 @@ void nimbro_net_monitor::MonitorDisplay::handleStats(const nimbro_net_monitor::N
 	if(!m_hosts.contains(host))
 	{
 		ROS_INFO("new host: %s", qPrintable(host));
-		auto idx = qLowerBound(
+		auto idx = std::lower_bound(
 			m_hosts.begin(), m_hosts.end(), host
 		);
 		m_hosts.insert(idx, host);
@@ -88,7 +87,7 @@ void nimbro_net_monitor::MonitorDisplay::handleStats(const nimbro_net_monitor::N
 		if(!m_interfaces.contains(iface))
 		{
 			ROS_INFO("new interface: %s", qPrintable(iface));
-			auto it = qLowerBound(
+			auto it = std::lower_bound(
 				m_interfaces.begin(), m_interfaces.end(), iface
 			);
 			m_interfaces.insert(it, iface);
