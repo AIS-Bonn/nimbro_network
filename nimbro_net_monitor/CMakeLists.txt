@@ -62,6 +62,10 @@ endif()
 # GUI
 add_subdirectory(src/gui)
 
+install(TARGETS net_monitor route_test
+	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 install(FILES rqt_plugins.xml
     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
