@@ -330,6 +330,12 @@ public:
 			return;
 		}
 
+		if(stats_response.getType() != XmlRpc::XmlRpcValue::TypeArray)
+		{
+			ROS_WARN("Ignoring '%s'", name.c_str());
+			return;
+		}
+
 		// python nodes report (success code, status, response)
 		// C++ nodes report response directly. go figure.
 		XmlRpc::XmlRpcValue publish_stats;
