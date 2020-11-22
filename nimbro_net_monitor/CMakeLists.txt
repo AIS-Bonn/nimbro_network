@@ -57,15 +57,19 @@ if(MNL_FOUND)
 		${catkin_LIBRARIES}
 		${MNL_LIBRARIES}
 	)
+
+	install(TARGETS route_test
+		RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+	)
 endif()
 
 # GUI
 add_subdirectory(src/gui)
 
-install(TARGETS net_monitor route_test
+install(TARGETS net_monitor
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 install(FILES rqt_plugins.xml
-    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
