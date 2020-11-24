@@ -94,9 +94,10 @@ void BandwidthGui::initPlugin(qt_gui_cpp::PluginContext& ctx)
 	m_sub_senderStats = getPrivateNodeHandle().subscribe(
 		"/network/sender_stats", 1, &BandwidthGui::senderStatsReceived, this
 	);
-	m_plot->xAxis->setTickLabelType(QCPAxis::ltDateTime);
-	m_plot->xAxis->setDateTimeFormat("hh:mm:ss");
-	m_plot->xAxis->setAutoTickStep(true);
+
+	QSharedPointer<QCPAxisTickerDateTime> ticker{ new QCPAxisTickerDateTime };
+	ticker->setDateTimeFormat("hh:mm:ss");
+	m_plot->xAxis->setTicker(ticker);
 	m_plot->yAxis->setRangeLower(0);
 	QCPLayoutGrid* subLayout = new QCPLayoutGrid();
 	QCPLayoutElement* dummy = new QCPLayoutElement();
@@ -258,8 +259,7 @@ void BandwidthGui::updatePlot()
 		gv.graph->addData(gv.timestamp, plotValue);
 		m_maxBandwidth = std::max(m_maxBandwidth, plotValue);
 		m_plot->yAxis->setRangeUpper(m_maxBandwidth + (m_maxBandwidth/50.0));
-#warning fix and test this!
-		gv.graph->removeDataBefore(5*WINDOW_SIZE);
+		gv.graph->data()->removeBefore(ros::Time::now().toSec() - 5*WINDOW_SIZE);
 		gv.last_timestamp = gv.timestamp;
 	}
 	m_plot->xAxis->setRange(ros::Time::now().toSec() + 0.25, WINDOW_SIZE, Qt::AlignRight);

@@ -44,9 +44,9 @@ void MonitorDisplay::initPlugin(qt_gui_cpp::PluginContext& ctx)
 		&MonitorDisplay::statsReceived, this
 	);
 
-	m_ui.plot->xAxis->setTickLabelType(QCPAxis::ltDateTime);
-	m_ui.plot->xAxis->setDateTimeFormat("hh:mm:ss");
-	m_ui.plot->xAxis->setAutoTickStep(true);
+	QSharedPointer<QCPAxisTickerDateTime> ticker{new QCPAxisTickerDateTime};
+    ticker->setDateTimeFormat("hh:mm:ss");
+    m_ui.plot->xAxis->setTicker(ticker);
 
 	m_ui.plot->yAxis->setRangeLower(0);
 
@@ -167,7 +167,7 @@ void MonitorDisplay::updatePlot()
 
 		peer.graph->addData(peer.timestamp, plotValue);
 
-		peer.graph->removeDataBefore(peer.timestamp - WINDOW_SIZE);
+		peer.graph->data()->removeBefore(peer.timestamp - WINDOW_SIZE);
 	}
 
 	m_ui.plot->xAxis->setRange(ros::Time::now().toSec() + 0.25, WINDOW_SIZE, Qt::AlignRight);
