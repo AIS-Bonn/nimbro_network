@@ -8936,7 +8936,11 @@ void QCPAxis::wheelEvent(QWheelEvent *event)
   
   const double wheelSteps = event->angleDelta().y()/120.0; // a single step delta is +/-120 usually
   const double factor = qPow(mAxisRect->rangeZoomFactor(orientation()), wheelSteps);
+# if QT_VERSION < QT_VERSION_CHECK(5,14,0)
+  scaleRange(factor, pixelToCoord(orientation() == Qt::Horizontal ? event->pos().x() : event->pos().y()));
+# else
   scaleRange(factor, pixelToCoord(orientation() == Qt::Horizontal ? event->position().x() : event->position().y()));
+# endif
   mParentPlot->replot();
 }
 
@@ -14970,7 +14974,11 @@ void QCustomPlot::wheelEvent(QWheelEvent *event)
 {
   emit mouseWheel(event);
   // forward event to layerable under cursor:
+# if QT_VERSION < QT_VERSION_CHECK(5,14,0)
+  QList<QCPLayerable*> candidates = layerableListAt(event->pos(), false);
+# else
   QList<QCPLayerable*> candidates = layerableListAt(event->position(), false);
+# endif
   for (int i=0; i<candidates.size(); ++i)
   {
     event->accept(); // default impl of QCPLayerable's mouse events ignore the event, in that case propagate to next candidate in list
@@ -17933,6 +17941,12 @@ void QCPAxisRect::wheelEvent(QWheelEvent *event)
   {
     if (mRangeZoom != 0)
     {
+# if QT_VERSION < QT_VERSION_CHECK(5,14,0)
+      auto pos = event->pos();
+# else
+      auto pos = event->position();
+# endif
+
       double factor;
       double wheelSteps = event->angleDelta().y()/120.0; // a single step delta is +/-120 usually
       if (mRangeZoom.testFlag(Qt::Horizontal))
@@ -17941,7 +17955,7 @@ void QCPAxisRect::wheelEvent(QWheelEvent *event)
         for (int i=0; i<mRangeZoomHorzAxis.size(); ++i)
         {
           if (!mRangeZoomHorzAxis.at(i).isNull())
-            mRangeZoomHorzAxis.at(i)->scaleRange(factor, mRangeZoomHorzAxis.at(i)->pixelToCoord(event->position().x()));
+            mRangeZoomHorzAxis.at(i)->scaleRange(factor, mRangeZoomHorzAxis.at(i)->pixelToCoord(pos.x()));
         }
       }
       if (mRangeZoom.testFlag(Qt::Vertical))
@@ -17950,7 +17964,7 @@ void QCPAxisRect::wheelEvent(QWheelEvent *event)
         for (int i=0; i<mRangeZoomVertAxis.size(); ++i)
         {
           if (!mRangeZoomVertAxis.at(i).isNull())
-            mRangeZoomVertAxis.at(i)->scaleRange(factor, mRangeZoomVertAxis.at(i)->pixelToCoord(event->position().y()));
+            mRangeZoomVertAxis.at(i)->scaleRange(factor, mRangeZoomVertAxis.at(i)->pixelToCoord(pos.y()));
         }
       }
       mParentPlot->replot();
