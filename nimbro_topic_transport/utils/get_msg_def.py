@@ -7,6 +7,8 @@ type
 Author: Max Schwarz <max.schwarz@ais.uni-bonn.de>
 """
 
+from __future__ import print_function
+
 import roslib.message
 
 def message_definition_for_type(msg_type):
@@ -26,7 +28,7 @@ def get_all():
 	for (p, direc) in packs:
 		for file in rosmsg._list_types(direc, 'msg', rosmsg.MODE_MSG):
 			full = "{}/{}".format(p, file)
-			print "{}: {}".format(full, rosmsg.rosmsg_md5(rosmsg.MODE_MSG, full))
+			print("{}: {}".format(full, rosmsg.rosmsg_md5(rosmsg.MODE_MSG, full)))
 
 if __name__ == "__main__":
 	import sys
