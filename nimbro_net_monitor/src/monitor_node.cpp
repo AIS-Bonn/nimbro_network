@@ -237,7 +237,7 @@ public:
 				m_nodesByURI[n->uri] = n;
 				m_nodesByName[n->name] = n;
 			}
-			catch(NodeInfo::LookupException)
+			catch(NodeInfo::LookupException&)
 			{
 				continue;
 			}
