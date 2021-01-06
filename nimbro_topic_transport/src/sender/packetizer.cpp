@@ -18,6 +18,17 @@ namespace
 	{
 		return (a + b - 1) / b;
 	}
+
+	template<std::size_t N>
+	bool fillCharArray(char(&array)[N], const std::string& input)
+	{
+		auto copySize = std::min(input.size(), N-1);
+
+		std::memcpy(array, input.data(), copySize);
+		std::memset(array + copySize, 0, N - copySize);
+
+		return copySize == input.size();
+	}
 }
 
 uint32_t Packetizer::allocateMessageID()
@@ -71,24 +82,21 @@ std::vector<Packet::Ptr> TopicPacketizer::packetize(const Message::ConstPtr& msg
 		data->header.flags = msg->flags;
 		data->header.topic_msg_counter = msg->counter;
 
-		strncpy(data->header.topic_name, msg->topic->name.c_str(), sizeof(data->header.topic_name));
-		if(data->header.topic_name[sizeof(data->header.topic_name)-1] != 0)
+
+		if(!fillCharArray(data->header.topic_name, msg->topic->name))
 		{
 			ROS_ERROR_THROTTLE(0.5,
 				"Topic '%s' is too long. Please shorten the name.",
 				msg->topic->name.c_str()
 			);
-			data->header.topic_name[sizeof(data->header.topic_name)-1] = 0;
 		}
 
-		strncpy(data->header.topic_type, msg->type.c_str(), sizeof(data->header.topic_type));
-		if(data->header.topic_type[sizeof(data->header.topic_type)-1] != 0)
+		if(!fillCharArray(data->header.topic_type, msg->type))
 		{
 			ROS_ERROR_THROTTLE(0.5,
 				"Topic type '%s' is too long. Please shorten the name.",
 				msg->topic->name.c_str()
 			);
-			data->header.topic_type[sizeof(data->header.topic_type)-1] = 0;
 		}
 
 		for(int i = 0; i < 4; ++i)
