@@ -214,6 +214,7 @@ void nimbro_net_monitor::MonitorDisplay::handleStats(const nimbro_net_monitor::N
 					if(bw > 0.5)
 					{
 						auto& container = conMsg.direction == nimbro_net_monitor::ConnectionStats::DIR_IN ? m_rxTopics : m_txTopics;
+						auto& plot = conMsg.direction == nimbro_net_monitor::ConnectionStats::DIR_IN ? m_ui.topicRXPlot : m_ui.topicTXPlot;
 
 						auto topicName = QString::fromStdString(conMsg.topic);
 						auto it = container.find(topicName);
@@ -223,7 +224,7 @@ void nimbro_net_monitor::MonitorDisplay::handleStats(const nimbro_net_monitor::N
 
 							TopicInfo& topic = it->second;
 
-							topic.graph = m_ui.topicRXPlot->addGraph();
+							topic.graph = plot->addGraph();
 							topic.graph->setName(topicName);
 							topic.graph->setPen(QPen(QColor::fromHsv(0,110,150)));
 							topic.graph->setBrush(QBrush(QColor::fromHsv(m_hue, BRUSH_SATURATION, BRUSH_VALUE)));
