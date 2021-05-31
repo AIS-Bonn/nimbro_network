@@ -24,7 +24,7 @@ catkin_tools_tests:
     - ls -la
     - echo test_results/*/*.xml
     - git clone -b update https://git.ais.uni-bonn.de/nimbroshared/ros_gitlab_ci.git
-    - python ros_gitlab_ci/summarize_results.py test_results/*/*.xml test_results/summary.xml
+    - python3 ros_gitlab_ci/summarize_results.py test_results/*/*.xml test_results/summary.xml
   artifacts:
     paths:
       - test_results/summary.xml
