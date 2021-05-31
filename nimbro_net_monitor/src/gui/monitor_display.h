@@ -44,13 +44,54 @@ private Q_SLOTS:
 
 	void updatePlot();
 
+	void reset();
+
 private:
 	struct Peer
 	{
-		QCPGraph* graph;
+		Peer() = default;
+		Peer(Peer&&) = default;
+		Peer(const Peer&) = delete;
+
+		~Peer()
+		{
+			if(rxGraph)
+				rxGraph->parentPlot()->removeGraph(rxGraph);
+
+			if(txGraph)
+				txGraph->parentPlot()->removeGraph(rxGraph);
+		}
+
+		Peer& operator=(Peer&&) = default;
+		Peer& operator=(const Peer&) = delete;
+
+		QCPGraph* rxGraph = nullptr;
+		QCPGraph* txGraph = nullptr;
 		double timestamp;
 		double tx_bandwidth; // MBit/s
 		double rx_bandwidth; // MBit/s
+	};
+
+	struct TopicInfo
+	{
+		TopicInfo() = default;
+		TopicInfo(TopicInfo&&) = default;
+		TopicInfo(const TopicInfo&) = delete;
+
+		~TopicInfo()
+		{
+			if(graph)
+				graph->parentPlot()->removeGraph(graph);
+		}
+
+		TopicInfo& operator=(TopicInfo&&) = default;
+		TopicInfo& operator=(const TopicInfo&) = delete;
+
+		QCPGraph* graph = nullptr;
+
+		ros::SteadyTime timeLastSeen;
+		double timestamp;
+		double bandwidth; // MBit/s
 	};
 
 	ros::Subscriber m_sub_stats;
@@ -63,11 +104,24 @@ private:
 	QStringList m_interfaces;
 	QStringListModel m_interfaceModel;
 
-	QMap<QString, Peer> m_peers;
+	std::map<QString, Peer> m_peers;
 
 	QTimer m_plotTimer;
 
+	QCPGraph* m_peerRXTotalGraph = nullptr;
+	QCPGraph* m_peerTXTotalGraph = nullptr;
+
+	QCPGraph* m_topicRXTotalGraph = nullptr;
+	QCPGraph* m_topicTXTotalGraph = nullptr;
+
+	double m_statsTimestamp = 0.0;
+	double m_totalTX = 0.0; // MBit/s
+	double m_totalRX = 0.0; // MBit/s
+
 	int m_hue = 0;
+
+	std::map<QString, TopicInfo> m_txTopics;
+	std::map<QString, TopicInfo> m_rxTopics;
 };
 
 }

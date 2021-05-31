@@ -61,6 +61,8 @@ struct ConnectionInfo
 
 	static ConnectionInfo fromXmlRpc(XmlRpc::XmlRpcValue& in)
 	{
+		// Format: {2,/rosout,o,TCPROS,/rosout,1,TCPROS connection on port 46287 to [127.0.0.1:42256 on socket 24]}
+
 		ConnectionInfo ret;
 		ret.id = in[0];
 		ret.destination = static_cast<std::string>(in[1]);
@@ -153,18 +155,8 @@ struct Interface
 	{
 		// Read speed
 		{
-			char fname[256];
-			snprintf(fname, sizeof(fname), "/sys/class/net/%s/speed", name.c_str());
-			FILE* f = fopen(fname, "r");
-			if(f)
-			{
-				uint64_t val = 0;
-				if(fscanf(f, "%lu", &val) == 1)
-				{
-					bitsPerSecond = val * 1000ULL * 1000ULL;
-				}
-				fclose(f);
-			}
+			if(auto speed = readProp("speed"))
+				bitsPerSecond = (*speed) * 1000ULL * 1000ULL;
 		}
 
 		// Is it duplex?
@@ -397,7 +389,8 @@ public:
 
 		if(!slaveCall(nodeInfo.host, nodeInfo.port, "getBusStats", "net_monitor", stats_response))
 		{
-			ROS_WARN("Could not call node '%s'", name.c_str());
+			// This happens all the time since the roscore has many stale node infos
+			ROS_DEBUG("Could not call node '%s'", name.c_str());
 			return;
 		}
 
