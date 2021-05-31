@@ -7,7 +7,7 @@ variables:
 catkin_build:
   stage: build
   script:
-    - git clone https://git.ais.uni-bonn.de/nimbroshared/ros_gitlab_ci.git
+    - git clone -b update https://git.ais.uni-bonn.de/nimbroshared/ros_gitlab_ci.git
     - source ros_gitlab_ci/gitlab-ci.bash
     - catkin build --summarize --no-status --force-color
     - source devel/setup.bash
@@ -22,7 +22,7 @@ catkin_tools_tests:
   script:
     - ls -la
     - echo test_results/*/*.xml
-    - git clone https://git.ais.uni-bonn.de/nimbroshared/ros_gitlab_ci.git
+    - git clone -b update https://git.ais.uni-bonn.de/nimbroshared/ros_gitlab_ci.git
     - python ros_gitlab_ci/summarize_results.py test_results/*/*.xml test_results/summary.xml
   artifacts:
     paths:
