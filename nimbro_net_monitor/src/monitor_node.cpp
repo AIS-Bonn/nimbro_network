@@ -5,7 +5,9 @@
 #include <ros/master.h>
 #include <ros/network.h>
 
+#include <fstream>
 #include <stdexcept>
+#include <optional>
 
 #include <ros/xmlrpc_manager.h>
 #include <xmlrpcpp/XmlRpc.h>
@@ -149,23 +151,92 @@ struct Interface
 	Interface(const std::string& name)
 	 : name(name)
 	{
-		char fname[256];
-		snprintf(fname, sizeof(fname), "/sys/class/net/%s/speed", name.c_str());
-		FILE* f = fopen(fname, "r");
-		if(f)
+		// Read speed
 		{
-			uint64_t val = 0;
-			if(fscanf(f, "%lu", &val) == 1)
+			char fname[256];
+			snprintf(fname, sizeof(fname), "/sys/class/net/%s/speed", name.c_str());
+			FILE* f = fopen(fname, "r");
+			if(f)
 			{
-				bitsPerSecond = val * 1000ULL * 1000ULL;
+				uint64_t val = 0;
+				if(fscanf(f, "%lu", &val) == 1)
+				{
+					bitsPerSecond = val * 1000ULL * 1000ULL;
+				}
+				fclose(f);
 			}
-			fclose(f);
 		}
+
+		// Is it duplex?
+		{
+			char fname[256];
+			snprintf(fname, sizeof(fname), "/sys/class/net/%s/duplex", name.c_str());
+			std::ifstream stream(fname);
+			if(stream)
+			{
+				std::string str;
+				stream >> str;
+				if(str == "full")
+					duplex = true;
+			}
+		}
+
+		updateStats();
+	}
+
+// GCC produces a spurious warning here, see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=80635
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+	std::optional<uint64_t> readProp(const std::string& prop) const
+	{
+		char fname[256];
+		snprintf(fname, sizeof(fname), "/sys/class/net/%s/%s", name.c_str(), prop.c_str());
+
+		std::ifstream stream(fname);
+		if(!stream)
+			return {};
+
+		uint64_t val;
+		stream >> val;
+
+		if(stream.bad() || stream.fail())
+			return {};
+
+		return val;
+	}
+#pragma GCC diagnostic pop
+
+	void updateStats()
+	{
+		ros::SteadyTime now = ros::SteadyTime::now();
+
+		auto newRX = readProp("statistics/rx_bytes");
+		auto newTX = readProp("statistics/tx_bytes");
+
+		if(!newRX || !newTX)
+			return;
+
+		double timeDelta = (now - lastStatsTime).toSec();
+		rx_bandwidth = 8 * ((*newRX) - rx_bytes) / timeDelta;
+		tx_bandwidth = 8 * ((*newTX) - tx_bytes) / timeDelta;
+
+		rx_bytes = *newRX;
+		tx_bytes = *newTX;
+		lastStatsTime = now;
 	}
 
 	std::string name;
 	uint64_t bitsPerSecond = 0;
+	bool duplex = false;
 	std::map<std::string, Peer> peers;
+
+	uint64_t rx_bytes = 0;
+	uint64_t tx_bytes = 0;
+
+	double rx_bandwidth = 0;
+	double tx_bandwidth = 0;
+
+	ros::SteadyTime lastStatsTime;
 };
 
 class NetMonitor
@@ -433,6 +504,8 @@ public:
 
 		for(auto& iface : m_interfaces)
 		{
+			iface.second.updateStats();
+
 			for(auto& peer : iface.second.peers)
 			{
 				peer.second.active = false;
@@ -509,9 +582,14 @@ public:
 
 		for(auto& ifacePair : m_interfaces)
 		{
+			auto& iface = ifacePair.second;
+
 			nimbro_net_monitor::InterfaceStats ifaceStats;
-			ifaceStats.interface_name = ifacePair.first;
-			ifaceStats.max_bits_per_second = ifacePair.second.bitsPerSecond;
+			ifaceStats.interface_name = iface.name;
+			ifaceStats.max_bits_per_second = iface.bitsPerSecond;
+			ifaceStats.duplex = iface.duplex;
+			ifaceStats.rx_bandwidth = iface.rx_bandwidth;
+			ifaceStats.tx_bandwidth = iface.tx_bandwidth;
 
 			for(auto& peerIt : ifacePair.second.peers)
 			{
