@@ -35,10 +35,10 @@ void Depacketizer::addPacket(const Packet::Ptr& packet)
 
 	if(it == m_messageBuffer.end())
 	{
+		pruneMessages();
+
 		m_messageBuffer.push_front(PartialMessage(msg_id));
 		it = m_messageBuffer.begin();
-
-		pruneMessages();
 	}
 
 	handleMessagePacket(it, packet);
