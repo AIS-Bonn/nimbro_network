@@ -79,7 +79,8 @@ int main(int argc, char** argv)
 		for(auto& frame : ids)
 		{
 			std::string parent;
-			tfBuffer._getParent(frame, ros::Time(0), parent);
+			if(!tfBuffer._getParent(frame, ros::Time(0), parent))
+				continue;
 
 			auto trans = tfBuffer.lookupTransform(parent, frame, ros::Time(0));
 			out.transforms.push_back(trans);
