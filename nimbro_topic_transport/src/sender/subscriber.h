@@ -9,6 +9,8 @@
 #include <ros/subscriber.h>
 #include <topic_tools/shape_shifter.h>
 
+#include <unordered_set>
+
 namespace nimbro_topic_transport
 {
 
@@ -25,7 +27,7 @@ public:
 	std::string rosTopicName() const
 	{ return m_subscriber.getTopic(); }
 private:
-	void handleData(const topic_tools::ShapeShifter::ConstPtr& data);
+	void handleData(const ros::MessageEvent<topic_tools::ShapeShifter>& event);
 
 	Topic::Ptr m_topic;
 	ros::Subscriber m_subscriber;
@@ -45,6 +47,8 @@ private:
 	std::string m_type;
 	std::string m_md5;
 	uint32_t m_counter = 0;
+
+	std::unordered_set<std::string> m_excludedPublishers;
 };
 
 }

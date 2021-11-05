@@ -38,7 +38,7 @@ Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh, const std::
 		queue_length = topic->config["queue"];
 
 	ros::SubscribeOptions ops;
-	boost::function<void(const topic_tools::ShapeShifter::ConstPtr&)> func
+	boost::function<void(const ros::MessageEvent<topic_tools::ShapeShifter>&)> func
 		= boost::bind(&Subscriber::handleData, this, _1);
 	ops.initByFullCallbackType(fullTopicName, queue_length, func);
 
@@ -56,6 +56,24 @@ Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh, const std::
 			m_resendTimer = nh.createTimer(m_durationBetweenMsgs, cb);
 		}
 	}
+
+	// Publisher filtering
+	if(topic->config.hasMember("exclude_publishers"))
+	{
+		XmlRpc::XmlRpcValue list = topic->config["exclude_publishers"];
+		if(list.getType() != XmlRpc::XmlRpcValue::TypeArray)
+			throw std::runtime_error{"exclude_publishers should be a list"};
+
+		for(int i = 0; i < list.size(); ++i)
+		{
+			XmlRpc::XmlRpcValue entry = list[i];
+			if(entry.getType() != XmlRpc::XmlRpcValue::TypeString)
+				throw std::runtime_error{"exclude_publishers should be a list of strings"};
+
+			std::string s = entry;
+			m_excludedPublishers.insert(ros::names::resolve(s));
+		}
+	}
 }
 
 void Subscriber::registerCallback(const Callback& cb)
@@ -63,9 +81,31 @@ void Subscriber::registerCallback(const Callback& cb)
 	m_callbacks.push_back(cb);
 }
 
-void Subscriber::handleData(const topic_tools::ShapeShifter::ConstPtr& data)
+void Subscriber::handleData(const ros::MessageEvent<topic_tools::ShapeShifter>& event)
 {
 	ROS_DEBUG("sender: message on topic '%s'", m_topic->name.c_str());
+
+	// Is this publisher allowed?
+	if(!m_excludedPublishers.empty())
+	{
+		auto& connHeader = event.getConnectionHeader();
+		auto it = connHeader.find("callerid");
+
+		if(it == connHeader.end())
+			ROS_WARN_ONCE("No callerid in connection header");
+		else
+		{
+			if(m_excludedPublishers.find(it->second) != m_excludedPublishers.end())
+			{
+				ROS_DEBUG_NAMED("filter", "Caller ID: '%s' in exclusion list, not sending", it->second.c_str());
+				return;
+			}
+			else
+				ROS_DEBUG_NAMED("filter", "Caller ID: '%s' not in exclusion list, sending", it->second.c_str());
+		}
+	}
+
+	auto data = event.getMessage();
 	auto msg = std::make_shared<Message>();
 
 	// Serialize the shape shifter
