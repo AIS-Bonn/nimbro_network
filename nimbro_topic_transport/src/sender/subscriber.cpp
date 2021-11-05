@@ -58,17 +58,17 @@ Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh, const std::
 	}
 
 	// Publisher filtering
-	if(topic->config.hasMember("excluded_publishers"))
+	if(topic->config.hasMember("exclude_publishers"))
 	{
-		XmlRpc::XmlRpcValue list = topic->config["excluded_publishers"];
+		XmlRpc::XmlRpcValue list = topic->config["exclude_publishers"];
 		if(list.getType() != XmlRpc::XmlRpcValue::TypeArray)
-			throw std::runtime_error{"excluded_publishers should be a list"};
+			throw std::runtime_error{"exclude_publishers should be a list"};
 
 		for(int i = 0; i < list.size(); ++i)
 		{
 			XmlRpc::XmlRpcValue entry = list[i];
 			if(entry.getType() != XmlRpc::XmlRpcValue::TypeString)
-				throw std::runtime_error{"excluded_publishers should be a list of strings"};
+				throw std::runtime_error{"exclude_publishers should be a list of strings"};
 
 			std::string s = entry;
 			m_excludedPublishers.insert(ros::names::resolve(s));
@@ -97,9 +97,11 @@ void Subscriber::handleData(const ros::MessageEvent<topic_tools::ShapeShifter>& 
 		{
 			if(m_excludedPublishers.find(it->second) != m_excludedPublishers.end())
 			{
-				ROS_DEBUG("in exclusion list, not sending...");
+				ROS_DEBUG_NAMED("filter", "Caller ID: '%s' in exclusion list, not sending", it->second.c_str());
 				return;
 			}
+			else
+				ROS_DEBUG_NAMED("filter", "Caller ID: '%s' not in exclusion list, sending", it->second.c_str());
 		}
 	}
 
