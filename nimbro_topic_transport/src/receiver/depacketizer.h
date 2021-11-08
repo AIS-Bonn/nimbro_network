@@ -43,6 +43,7 @@ private:
 		std::size_t received_symbols = 0;
 		std::vector<Packet::Ptr> packets;
 		ros::SteadyTime receptionTime;
+		ros::Time earliestPacketTime;
 
 		std::shared_ptr<WirehairCodec_t> decoder;
 	};

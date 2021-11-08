@@ -22,6 +22,9 @@ public:
 	ThreadPool();
 	~ThreadPool();
 
+	ThreadPool(const ThreadPool&) = delete;
+	ThreadPool& operator=(const ThreadPool&) = delete;
+
 	Callback createInputHandler(const Callback& cb);
 private:
 	void work();

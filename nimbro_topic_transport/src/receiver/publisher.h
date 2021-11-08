@@ -18,10 +18,16 @@ public:
 	Publisher(const Topic::ConstPtr& topic, Rewriter& rewriter);
 	~Publisher();
 
+	Publisher(const Publisher&) = delete;
+	Publisher& operator=(const Publisher&) = delete;
+
 	void publish(const Message::ConstPtr& msg);
 private:
 	void internalPublish(const Message::ConstPtr& msg);
 	void finishHoldoff();
+	void printStats();
+
+	Topic::ConstPtr m_topic;
 
 	bool m_advertised = false;
 
@@ -41,6 +47,11 @@ private:
 	const Rewriter::TopicRewriter* m_topicRewriter = nullptr;
 
 	std::string m_advertisedMd5;
+
+	ros::Timer m_statsTimer;
+	std::mutex m_statsMutex;
+	uint64_t m_statCounter = 0;
+	ros::Duration m_statDelay;
 };
 
 }

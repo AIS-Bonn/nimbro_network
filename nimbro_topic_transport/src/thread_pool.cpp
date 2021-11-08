@@ -12,7 +12,7 @@ ThreadPool::ThreadPool()
 	if(threadCount == 0)
 		threadCount = 2;
 
-	ROS_DEBUG("Starting %u worker threads", threadCount);
+	ROS_INFO("Starting %u worker threads", threadCount);
 	for(unsigned int i = 0; i < threadCount; ++i)
 		m_threads.emplace_back(std::bind(&ThreadPool::work, this));
 }
@@ -32,6 +32,8 @@ ThreadPool::~ThreadPool()
 
 void ThreadPool::work()
 {
+	pthread_setname_np(pthread_self(), "threadpool");
+
 	while(1)
 	{
 		Message::ConstPtr jobData;

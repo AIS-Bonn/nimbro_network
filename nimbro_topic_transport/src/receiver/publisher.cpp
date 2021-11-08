@@ -8,6 +8,8 @@
 namespace
 {
 
+constexpr double STAT_PERIOD = 5.0;
+
 class VectorStream
 {
 public:
@@ -30,8 +32,9 @@ namespace nimbro_topic_transport
 {
 
 Publisher::Publisher(const Topic::ConstPtr& topic, Rewriter& rewriter)
- : m_rewriter{rewriter}
+ : m_topic{topic}, m_rewriter{rewriter}
 {
+	m_statsTimer = ros::NodeHandle{}.createTimer(ros::Duration(STAT_PERIOD), std::bind(&Publisher::printStats, this));
 }
 
 Publisher::~Publisher()
@@ -155,7 +158,29 @@ void Publisher::internalPublish(const Message::ConstPtr& msg)
 		shapeShifter->read(stream);
 	}
 
+	{
+		std::unique_lock<std::mutex> lock{m_statsMutex};
+		m_statCounter++;
+		m_statDelay = ros::Time::now() - msg->receiveTime;
+	}
 	m_pub.publish(shapeShifter);
+}
+
+void Publisher::printStats()
+{
+	uint64_t counter = 0;
+	ros::Duration delay{};
+	{
+		std::unique_lock<std::mutex> lock{m_statsMutex};
+		std::swap(counter, m_statCounter);
+		std::swap(delay, m_statDelay);
+	}
+
+	ROS_INFO("Topic '%20s': %.2f Hz, avg delay %.2fms",
+		m_topic->name.c_str(),
+		counter / STAT_PERIOD,
+		1000.0 * delay.toSec() / counter / STAT_PERIOD
+	);
 }
 
 }
