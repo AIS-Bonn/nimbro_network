@@ -9,6 +9,8 @@
 #include <array>
 #include <memory>
 
+#include <ros/time.h>
+
 namespace nimbro_topic_transport
 {
 
@@ -82,6 +84,7 @@ public:
 
 	std::array<uint8_t, PACKET_SIZE> data;
 	std::size_t length;
+	ros::Time srcReceiveTime;
 };
 
 }

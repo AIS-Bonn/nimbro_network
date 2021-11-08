@@ -103,8 +103,9 @@ void UDPSender::send(const std::vector<Packet::Ptr>& packets)
 		std::unique_lock<std::mutex> lock(m_mutex);
 		packetID = m_packetID;
 		m_packetID += packets.size();
-		m_statPackets += packets.size();
 	}
+
+	ros::Duration delay;
 
 	for(auto& packet : packets)
 	{
@@ -117,19 +118,30 @@ void UDPSender::send(const std::vector<Packet::Ptr>& packets)
 			ROS_ERROR("Could not send data of size %d: %s", (int)packet->data.size(), strerror(errno));
 			return;
 		}
+
+		delay += ros::Time::now() - packet->srcReceiveTime;
+	}
+
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		m_statPackets += packets.size();
+		m_statDelay += delay;
 	}
 }
 
 void UDPSender::printStats()
 {
 	uint64_t packets = 0;
+	ros::Duration delay;
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
 		std::swap(packets, m_statPackets);
+		std::swap(delay, m_statDelay);
 	}
 
-	ROS_INFO_NAMED("udp", "UDP sender: %.2f packets per sec",
-		packets / 5.0
+	ROS_INFO_NAMED("udp", "UDP sender: %.2f packets per sec, %.2fms delay introduced by sender",
+		packets / 5.0,
+		delay.toSec() / 5.0 / packets * 1000.0
 	);
 }
 

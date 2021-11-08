@@ -36,6 +36,7 @@ private:
 
 	ros::SteadyTimer m_statTimer;
 	uint64_t m_statPackets = 0;
+	ros::Duration m_statDelay;
 };
 
 }

@@ -95,7 +95,7 @@ void ThreadPool::handleInput(const WorkBuffer::Ptr& wb, const Message::ConstPtr&
 		std::unique_lock<std::mutex> lock(m_mutex);
 		wb->jobs.push_back(msg);
 
-		if(wb->jobs.size() > 5)
+		if(wb->jobs.size() > 25)
 		{
 			ROS_WARN_THROTTLE(1.0, "Dropping job from ThreadPool. Is the system overloaded?");
 			wb->jobs.pop_front();

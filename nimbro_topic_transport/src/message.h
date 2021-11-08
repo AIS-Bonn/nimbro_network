@@ -30,6 +30,7 @@ public:
 		md5 = other.md5;
 		flags = other.flags;
 		counter = other.counter;
+		receiveTime = other.receiveTime;
 	}
 
 	std::shared_ptr<const Topic> topic;
@@ -37,6 +38,7 @@ public:
 	std::string md5;
 	uint16_t flags = 0;
 	std::vector<uint8_t> payload;
+	ros::Time receiveTime;
 
 	//! Sequential counter (incremented in Subscriber class)
 	uint32_t counter;

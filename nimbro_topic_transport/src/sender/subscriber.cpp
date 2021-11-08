@@ -130,6 +130,7 @@ void Subscriber::handleData(const ros::MessageEvent<topic_tools::ShapeShifter>& 
 	msg->type = data->getDataType();
 	msg->md5 = data->getMD5Sum();
 	msg->counter = m_counter++;
+	msg->receiveTime = event.getReceiptTime();
 
 	m_lastMsg = msg;
 
