@@ -49,6 +49,15 @@ private:
 	uint32_t m_counter = 0;
 
 	std::unordered_set<std::string> m_excludedPublishers;
+
+	//! @name Statistics
+	//@{
+	void printStats();
+
+	uint64_t m_incomingMessages = 0;
+	uint64_t m_filteredMessages = 0;
+	ros::SteadyTimer m_statTimer;
+	//@}
 };
 
 }

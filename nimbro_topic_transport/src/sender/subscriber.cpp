@@ -8,26 +8,31 @@
 namespace nimbro_topic_transport
 {
 
-class VectorBuffer
+namespace
 {
-public:
-	explicit VectorBuffer(std::vector<uint8_t>* vector)
-	 : m_vector(vector)
-	{}
+	constexpr double STAT_PERIOD = 5.0;
 
-	inline uint8_t* advance(int off)
+	class VectorBuffer
 	{
-		if(m_offset + off > m_vector->size())
-			throw std::logic_error("VectorBuffer: long write");
+	public:
+		explicit VectorBuffer(std::vector<uint8_t>* vector)
+		: m_vector(vector)
+		{}
 
-		uint8_t* ptr = m_vector->data() + m_offset;
-		m_offset += off;
-		return ptr;
-	}
-private:
-	std::vector<uint8_t>* m_vector;
-	std::size_t m_offset = 0;
-};
+		inline uint8_t* advance(int off)
+		{
+			if(m_offset + off > m_vector->size())
+				throw std::logic_error("VectorBuffer: long write");
+
+			uint8_t* ptr = m_vector->data() + m_offset;
+			m_offset += off;
+			return ptr;
+		}
+	private:
+		std::vector<uint8_t>* m_vector;
+		std::size_t m_offset = 0;
+	};
+}
 
 Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh, const std::string& fullTopicName)
  : m_topic(topic)
@@ -74,6 +79,8 @@ Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh, const std::
 			m_excludedPublishers.insert(ros::names::resolve(s));
 		}
 	}
+
+	m_statTimer = nh.createSteadyTimer(ros::WallDuration(STAT_PERIOD), std::bind(&Subscriber::printStats, this));
 }
 
 void Subscriber::registerCallback(const Callback& cb)
@@ -84,6 +91,7 @@ void Subscriber::registerCallback(const Callback& cb)
 void Subscriber::handleData(const ros::MessageEvent<topic_tools::ShapeShifter>& event)
 {
 	ROS_DEBUG("sender: message on topic '%s'", m_topic->name.c_str());
+	m_incomingMessages++;
 
 	// Is this publisher allowed?
 	if(!m_excludedPublishers.empty())
@@ -104,6 +112,8 @@ void Subscriber::handleData(const ros::MessageEvent<topic_tools::ShapeShifter>& 
 				ROS_DEBUG_NAMED("filter", "Caller ID: '%s' not in exclusion list, sending", it->second.c_str());
 		}
 	}
+
+	m_filteredMessages++;
 
 	auto data = event.getMessage();
 	auto msg = std::make_shared<Message>();
@@ -178,6 +188,18 @@ void Subscriber::resend()
 
 	for(auto& cb : m_callbacks)
 		cb(msg);
+}
+
+void Subscriber::printStats()
+{
+	ROS_INFO("Topic %20s: Incoming %.2f Hz, filtered %.2f Hz",
+		m_topic->name.c_str(),
+		m_incomingMessages / STAT_PERIOD,
+		m_filteredMessages / STAT_PERIOD
+	);
+
+	m_incomingMessages = 0;
+	m_filteredMessages = 0;
 }
 
 }
