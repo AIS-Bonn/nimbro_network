@@ -167,6 +167,7 @@ void Subscriber::sendAdvertisement(const std::string& typeHint)
 	msg->type = m_type;
 	msg->md5 = m_md5;
 	msg->counter = m_counter++;
+	msg->receiveTime = ros::Time::now();
 
 	for(auto& cb : m_callbacks)
 		cb(msg);
@@ -184,6 +185,7 @@ void Subscriber::resend()
 	// TODO: Can we avoid the copy here? We do need to increment the counter, though...
 	Message::Ptr msg(new Message(*m_lastMsg));
 	msg->counter = m_counter++;
+	msg->receiveTime = ros::Time::now();
 
 	m_lastMsg = msg;
 
