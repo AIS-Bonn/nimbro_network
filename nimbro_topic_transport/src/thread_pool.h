@@ -6,6 +6,7 @@
 
 #include "message.h"
 
+#include <deque>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -41,7 +42,7 @@ private:
 		typedef std::shared_ptr<WorkBuffer> Ptr;
 		typedef std::shared_ptr<const WorkBuffer> ConstPtr;
 
-		Message::ConstPtr job;
+		std::deque<Message::ConstPtr> jobs;
 		Callback callback;
 	};
 
