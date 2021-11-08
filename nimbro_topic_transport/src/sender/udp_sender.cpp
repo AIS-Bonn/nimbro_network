@@ -112,10 +112,10 @@ void UDPSender::send(const std::vector<Packet::Ptr>& packets)
 		// Patch the packet ID
 		packet->packet()->header.packet_id = packetID++;
 
-		ROS_DEBUG_NAMED("udp", "Sending UDP packet of size %lu", packet->data.size());
-		if(sendto(m_fd, packet->data.data(), packet->data.size(), 0, (sockaddr*)&m_addr, m_addrLen) != (ssize_t)packet->data.size())
+		ROS_DEBUG_NAMED("udp", "Sending UDP packet of size %lu", packet->length);
+		if(sendto(m_fd, packet->data.data(), packet->length, 0, (sockaddr*)&m_addr, m_addrLen) != (ssize_t)packet->length)
 		{
-			ROS_ERROR("Could not send data of size %d: %s", (int)packet->data.size(), strerror(errno));
+			ROS_ERROR("Could not send data of size %d: %s", (int)packet->length, strerror(errno));
 			return;
 		}
 
