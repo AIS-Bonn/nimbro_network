@@ -86,6 +86,8 @@ UDPSender::UDPSender(ros::NodeHandle& nh)
 	}
 
 	freeaddrinfo(info);
+
+	m_statTimer = nh.createSteadyTimer(ros::WallDuration(5.0), std::bind(&UDPSender::printStats, this));
 }
 
 UDPSender::~UDPSender()
@@ -101,6 +103,7 @@ void UDPSender::send(const std::vector<Packet::Ptr>& packets)
 		std::unique_lock<std::mutex> lock(m_mutex);
 		packetID = m_packetID;
 		m_packetID += packets.size();
+		m_statPackets += packets.size();
 	}
 
 	for(auto& packet : packets)
@@ -115,6 +118,19 @@ void UDPSender::send(const std::vector<Packet::Ptr>& packets)
 			return;
 		}
 	}
+}
+
+void UDPSender::printStats()
+{
+	uint64_t packets = 0;
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		std::swap(packets, m_statPackets);
+	}
+
+	ROS_INFO_NAMED("udp", "UDP sender: %.2f packets per sec",
+		packets / 5.0
+	);
 }
 
 }
