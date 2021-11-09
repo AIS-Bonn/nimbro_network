@@ -139,6 +139,20 @@ target_link_libraries(action_proxy
 	${catkin_LIBRARIES}
 )
 
+add_executable(send_time
+	utils/send_time.cpp
+)
+target_link_libraries(send_time
+	${catkin_LIBRARIES}
+)
+
+add_executable(measure_latency
+	utils/measure_latency.cpp
+)
+target_link_libraries(measure_latency
+	${catkin_LIBRARIES}
+)
+
 # GUI
 add_subdirectory(src/gui)
 
@@ -167,7 +181,7 @@ if(catch_ros_FOUND)
 endif()
 
 #install
-install(TARGETS nimbro_topic_transport sender receiver action_proxy transceiver
+install(TARGETS nimbro_topic_transport sender receiver action_proxy transceiver send_time measure_latency
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
