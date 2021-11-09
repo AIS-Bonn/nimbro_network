@@ -37,6 +37,33 @@ namespace
 Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh, const std::string& fullTopicName)
  : m_topic(topic)
 {
+	// Transport hints
+	ros::TransportHints hints;
+	if(topic->config.hasMember("transport_hints"))
+	{
+		XmlRpc::XmlRpcValue list = topic->config["transport_hints"];
+		if(list.getType() != XmlRpc::XmlRpcValue::TypeArray)
+			throw std::runtime_error{"transport_hints should be a list"};
+
+		for(int i = 0; i < list.size(); ++i)
+		{
+			XmlRpc::XmlRpcValue entry = list[i];
+			if(entry.getType() != XmlRpc::XmlRpcValue::TypeString)
+				throw std::runtime_error{"transport_hints should be a list of strings"};
+
+			std::string s = entry;
+
+			if(s == "udp")
+				hints = hints.udp();
+			else if(s == "unreliable")
+				hints = hints.unreliable();
+			else if(strcasecmp(s.c_str(), "nodelay") == 0 || strcasecmp(s.c_str(), "tcpnodelay") == 0)
+				hints = hints.tcpNoDelay();
+			else
+				throw std::runtime_error{std::string{"Invalid transport_hint: "} + s};
+		}
+	}
+
 	// Subscribe
 	int queue_length = 1;
 	if(topic->config.hasMember("queue"))
@@ -46,6 +73,7 @@ Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh, const std::
 	boost::function<void(const ros::MessageEvent<topic_tools::ShapeShifter>&)> func
 		= boost::bind(&Subscriber::handleData, this, _1);
 	ops.initByFullCallbackType(fullTopicName, queue_length, func);
+	ops.transport_hints = hints;
 
 	m_subscriber = nh.subscribe(ops);
 
