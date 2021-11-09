@@ -153,6 +153,13 @@ target_link_libraries(measure_latency
 	${catkin_LIBRARIES}
 )
 
+add_executable(measure_tf_latency
+	utils/measure_tf_latency.cpp
+)
+target_link_libraries(measure_tf_latency
+	${catkin_LIBRARIES}
+)
+
 # GUI
 add_subdirectory(src/gui)
 
@@ -181,7 +188,7 @@ if(catch_ros_FOUND)
 endif()
 
 #install
-install(TARGETS nimbro_topic_transport sender receiver action_proxy transceiver send_time measure_latency
+install(TARGETS nimbro_topic_transport sender receiver action_proxy transceiver send_time measure_latency measure_tf_latency
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
