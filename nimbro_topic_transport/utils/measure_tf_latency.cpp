@@ -5,6 +5,8 @@
 
 #include <tf2_msgs/TFMessage.h>
 
+#include <boost/program_options.hpp>
+
 void handleMsg(const ros::MessageEvent<tf2_msgs::TFMessage>& msg)
 {
 	auto tfMsg = msg.getMessage();
@@ -20,16 +22,40 @@ void handleMsg(const ros::MessageEvent<tf2_msgs::TFMessage>& msg)
 
 int main(int argc, char** argv)
 {
+	namespace po = boost::program_options;
+
 	ros::init(argc, argv, "measure_tf_latency", ros::init_options::AnonymousName);
 
-	if(argc != 2)
+	po::options_description desc("Options");
+	desc.add_options()
+		("help", "This help message")
+		("udp", "Use UDP transport")
+		("nodelay", "Disable Nagle's algorithm")
+	;
+
+	po::variables_map vm;
+	po::store(po::command_line_parser(argc, argv).
+          options(desc).run(), vm);
+
+	if(vm.count("help"))
 	{
-		fprintf(stderr, "Usage: measure_tf_latency [topic]\n");
+		std::cerr << "Usage: measure_tf_latency\n";
+		std::cerr << desc << "\n";
 		return 1;
 	}
 
+	po::notify(vm);
+
+	ros::TransportHints hints;
+
+	if(vm.count("udp"))
+		hints = hints.udp();
+
+	if(vm.count("nodelay"))
+		hints = hints.tcpNoDelay();
+
 	ros::NodeHandle nh;
-	ros::Subscriber sub = nh.subscribe(argv[1], 1, &handleMsg);
+	ros::Subscriber sub = nh.subscribe("/tf", 1, &handleMsg, hints);
 
 	ros::spin();
 
