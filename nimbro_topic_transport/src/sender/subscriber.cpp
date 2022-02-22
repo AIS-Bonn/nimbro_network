@@ -10,7 +10,7 @@ namespace nimbro_topic_transport
 
 namespace
 {
-	constexpr double STAT_PERIOD = 5.0;
+	constexpr double STAT_PERIOD = 60.0;
 
 	class VectorBuffer
 	{
