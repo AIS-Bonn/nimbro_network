@@ -27,6 +27,9 @@ public:
 	explicit UDPReceiver(ros::NodeHandle& nh);
 	~UDPReceiver();
 
+	UDPReceiver(const UDPReceiver&) = delete;
+	UDPReceiver& operator=(const UDPReceiver&) = delete;
+
 	void setCallback(const Callback& cb);
 
 	void start();
@@ -37,8 +40,8 @@ private:
 	std::thread m_thread;
 	bool m_shouldExit = false;
 
-	sockaddr_storage m_remoteAddr;
-	socklen_t m_remoteAddrLen;
+	sockaddr_storage m_remoteAddr{};
+	socklen_t m_remoteAddrLen = 0;
 
 	Callback m_callback;
 };

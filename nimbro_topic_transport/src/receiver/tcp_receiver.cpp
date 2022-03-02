@@ -76,7 +76,7 @@ TCPReceiver::TCPReceiver(ros::NodeHandle& nh)
 	int port;
 	nh.param("port", port, 5050);
 
-	sockaddr_in6 addr;
+	sockaddr_in6 addr{};
 	addr.sin6_family = AF_INET6;
 	addr.sin6_addr = in6addr_any;
 	addr.sin6_port = htons(port);

@@ -138,6 +138,7 @@ std::vector<Packet::Ptr> TopicPacketizer::packetize(const Message::ConstPtr& msg
 			packet->header.repair_symbols = repairSymbols;
 			packet->header.symbol_id = packetID;
 			packet->header.prng_seed = seed;
+			packetBuf->srcReceiveTime = msg->receiveTime;
 
 			packetBuf->length = sizeof(UDPPacket::Header) + take_now;
 
@@ -207,6 +208,7 @@ std::vector<Packet::Ptr> TopicPacketizer::packetize(const Message::ConstPtr& msg
 				}
 
 				buf->length = length + sizeof(UDPPacket::Header);
+				buf->srcReceiveTime = msg->receiveTime;
 
 				packets.emplace_back(std::move(buf));
 			}

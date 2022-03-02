@@ -22,6 +22,8 @@ public:
 
 	void send(const std::vector<Packet::Ptr>& packets);
 private:
+	void printStats();
+
 	//! @name Socket stuff
 	//@{
 	int m_fd;
@@ -31,6 +33,10 @@ private:
 
 	std::mutex m_mutex;
 	uint32_t m_packetID = 0;
+
+	ros::SteadyTimer m_statTimer;
+	uint64_t m_statPackets = 0;
+	ros::Duration m_statDelay;
 };
 
 }

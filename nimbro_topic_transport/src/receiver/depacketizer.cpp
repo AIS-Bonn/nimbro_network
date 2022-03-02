@@ -39,6 +39,7 @@ void Depacketizer::addPacket(const Packet::Ptr& packet)
 
 		m_messageBuffer.push_front(PartialMessage(msg_id));
 		it = m_messageBuffer.begin();
+		it->earliestPacketTime = packet->srcReceiveTime;
 	}
 
 	handleMessagePacket(it, packet);
@@ -156,6 +157,7 @@ void Depacketizer::handleMessagePacket(std::list<PartialMessage>::iterator it, c
 
 	output->flags = data->header.flags();
 	output->counter = data->header.topic_msg_counter;
+	output->receiveTime = msg->earliestPacketTime;
 
 	output->payload.resize(data->header.size());
 

@@ -62,6 +62,8 @@ void UDPReceiver::start()
 
 void UDPReceiver::thread()
 {
+	pthread_setname_np(pthread_self(), "udp_rx");
+
 	while(!m_shouldExit)
 	{
 		auto packet = std::make_shared<Packet>();
@@ -86,7 +88,7 @@ void UDPReceiver::thread()
 		if(ret == 0)
 			continue;
 
-		sockaddr_storage addr;
+		sockaddr_storage addr{};
 		socklen_t addrlen = sizeof(addr);
 
 		ssize_t size = recvfrom(m_fd, packet->data.data(), packet->data.size(), 0, (sockaddr*)&addr, &addrlen);
@@ -132,6 +134,7 @@ void UDPReceiver::thread()
 
 		ROS_DEBUG_NAMED("udp", "Received UDP packet of size %ld", size);
 		packet->length = size;
+		packet->srcReceiveTime = ros::Time::now();
 
 		m_callback(packet);
 	}

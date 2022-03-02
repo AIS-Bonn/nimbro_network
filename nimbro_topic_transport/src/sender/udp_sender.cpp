@@ -86,6 +86,8 @@ UDPSender::UDPSender(ros::NodeHandle& nh)
 	}
 
 	freeaddrinfo(info);
+
+	m_statTimer = nh.createSteadyTimer(ros::WallDuration(5.0), std::bind(&UDPSender::printStats, this));
 }
 
 UDPSender::~UDPSender()
@@ -103,18 +105,44 @@ void UDPSender::send(const std::vector<Packet::Ptr>& packets)
 		m_packetID += packets.size();
 	}
 
+	ros::Duration delay;
+
 	for(auto& packet : packets)
 	{
 		// Patch the packet ID
 		packet->packet()->header.packet_id = packetID++;
 
-		ROS_DEBUG_NAMED("udp", "Sending UDP packet of size %lu", packet->data.size());
-		if(sendto(m_fd, packet->data.data(), packet->data.size(), 0, (sockaddr*)&m_addr, m_addrLen) != (ssize_t)packet->data.size())
+		ROS_DEBUG_NAMED("udp", "Sending UDP packet of size %lu", packet->length);
+		if(sendto(m_fd, packet->data.data(), packet->length, 0, (sockaddr*)&m_addr, m_addrLen) != (ssize_t)packet->length)
 		{
-			ROS_ERROR("Could not send data of size %d: %s", (int)packet->data.size(), strerror(errno));
+			ROS_ERROR("Could not send data of size %d: %s", (int)packet->length, strerror(errno));
 			return;
 		}
+
+		delay += ros::Time::now() - packet->srcReceiveTime;
 	}
+
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		m_statPackets += packets.size();
+		m_statDelay += delay;
+	}
+}
+
+void UDPSender::printStats()
+{
+	uint64_t packets = 0;
+	ros::Duration delay;
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		std::swap(packets, m_statPackets);
+		std::swap(delay, m_statDelay);
+	}
+
+	ROS_INFO_NAMED("udp", "UDP sender: %.2f packets per sec, %.2fms delay introduced by sender",
+		packets / 5.0,
+		delay.toSec() / 5.0 / packets * 1000.0
+	);
 }
 
 }

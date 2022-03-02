@@ -6,6 +6,7 @@
 
 #include "message.h"
 
+#include <deque>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -20,6 +21,9 @@ public:
 
 	ThreadPool();
 	~ThreadPool();
+
+	ThreadPool(const ThreadPool&) = delete;
+	ThreadPool& operator=(const ThreadPool&) = delete;
 
 	Callback createInputHandler(const Callback& cb);
 private:
@@ -41,7 +45,7 @@ private:
 		typedef std::shared_ptr<WorkBuffer> Ptr;
 		typedef std::shared_ptr<const WorkBuffer> ConstPtr;
 
-		Message::ConstPtr job;
+		std::deque<Message::ConstPtr> jobs;
 		Callback callback;
 	};
 

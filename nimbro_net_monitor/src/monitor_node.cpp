@@ -243,13 +243,13 @@ public:
 		double nodePeriod;
 		nh.param("node_period", nodePeriod, 4.0);
 
-		double statsPeriod;
-		nh.param("stats_period", statsPeriod, 2.0);
-
 		m_nodeTimer = nh.createSteadyTimer(
 			ros::WallDuration(nodePeriod),
 			std::bind(&NetMonitor::updateNodes, this)
 		);
+
+		double statsPeriod;
+		nh.param("stats_period", statsPeriod, 2.0);
 
 		m_statsTimer = nh.createSteadyTimer(
 			ros::WallDuration(statsPeriod),

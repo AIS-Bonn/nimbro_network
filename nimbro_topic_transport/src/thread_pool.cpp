@@ -12,7 +12,7 @@ ThreadPool::ThreadPool()
 	if(threadCount == 0)
 		threadCount = 2;
 
-	ROS_DEBUG("Starting %u worker threads", threadCount);
+	ROS_INFO("Starting %u worker threads", threadCount);
 	for(unsigned int i = 0; i < threadCount; ++i)
 		m_threads.emplace_back(std::bind(&ThreadPool::work, this));
 }
@@ -32,39 +32,45 @@ ThreadPool::~ThreadPool()
 
 void ThreadPool::work()
 {
+	pthread_setname_np(pthread_self(), "threadpool");
+
 	while(1)
 	{
-		std::unique_lock<std::mutex> lock(m_mutex);
-
-		// Wait for something to happen
-		m_cond.wait(lock);
-
-		if(m_shouldExit)
-			break;
-
-		// Look for open jobs. We try to be fair between topics here, so that
-		// one high-bandwidth topic cannot starve the other topics.
 		Message::ConstPtr jobData;
 		WorkBuffer::Ptr workBuffer;
 
-		for(unsigned int i = 0; i < m_workBuffers.size(); ++i)
 		{
-			unsigned int idx = (m_workCheckIdx + i) % m_workBuffers.size();
-			if(m_workBuffers[idx]->job)
-			{
-				// Take it!
-				workBuffer = m_workBuffers[idx];
-				jobData.swap(workBuffer->job);
+			std::unique_lock<std::mutex> lock(m_mutex);
+			m_cond.wait(lock, [&]() -> bool {
+				if(m_shouldExit)
+					return true;
 
-				// Let the next thread start searching after this element,
-				// this guarantees that this topic cannot starve the others.
-				m_workCheckIdx = (idx + 1) % m_workBuffers.size();
-				break;
-			}
+				// Look for open jobs. We try to be fair between topics here, so that
+				// one high-bandwidth topic cannot starve the other topics.
+
+				for(unsigned int i = 0; i < m_workBuffers.size(); ++i)
+				{
+					unsigned int idx = (m_workCheckIdx + i) % m_workBuffers.size();
+					if(!m_workBuffers[idx]->jobs.empty())
+					{
+						// Take it!
+						workBuffer = m_workBuffers[idx];
+						jobData = std::move(workBuffer->jobs.front());
+						workBuffer->jobs.pop_front();
+
+						// Let the next thread start searching after this element,
+						// this guarantees that this topic cannot starve the others.
+						m_workCheckIdx = (idx + 1) % m_workBuffers.size();
+						return true;
+					}
+				}
+
+				return false;
+			});
 		}
 
-		// Release the lock so other threads can run
-		lock.unlock();
+		if(m_shouldExit)
+			break;
 
 		if(jobData)
 		{
@@ -89,7 +95,13 @@ void ThreadPool::handleInput(const WorkBuffer::Ptr& wb, const Message::ConstPtr&
 {
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
-		wb->job = msg;
+		wb->jobs.push_back(msg);
+
+		if(wb->jobs.size() > 25)
+		{
+			ROS_WARN_THROTTLE(1.0, "Dropping job from ThreadPool. Is the system overloaded?");
+			wb->jobs.pop_front();
+		}
 	}
 	m_cond.notify_one();
 }
