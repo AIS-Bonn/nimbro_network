@@ -10,6 +10,8 @@
 	<depend>roscpp</depend>
 	<depend>rqt_gui_cpp</depend>
 	<depend>rqt_gui</depend>
+	<depend>libmnl-dev</depend>
+	<depend>rosfmt</depend>
 
 	<export>
 		<rqt_gui plugin="${prefix}/rqt_plugins.xml" />

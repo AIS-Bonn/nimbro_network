@@ -15,4 +15,6 @@ float64 tx_bandwidth
 # Total used RX Bandwidth in bit/s
 float64 rx_bandwidth
 
+WifiStats wifi
+
 PeerStats[] peers

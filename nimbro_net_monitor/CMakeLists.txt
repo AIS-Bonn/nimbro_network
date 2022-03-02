@@ -3,18 +3,17 @@ cmake_minimum_required(VERSION 3.0)
 project(nimbro_net_monitor)
 
 find_package(PkgConfig)
-pkg_check_modules(MNL libmnl>=1.0.0)
+pkg_check_modules(MNL libmnl>=1.0.0 IMPORTED_TARGET)
 
-if(MNL_FOUND)
-	include_directories(${MNL_INCLUDE_DIRS})
-	add_definitions(-DWITH_LIBMNL=1)
-else()
-	message(WARNING "Install libmnl-dev for network statistics by interface")
-	set(MNL_LIBRARIES "")
+if(NOT MNL_FOUND)
+	message(FATAL_ERROR "nimbro_net_monitor requires libmnl")
 endif()
+
+include_directories(${MNL_INCLUDE_DIRS})
 
 find_package(catkin REQUIRED COMPONENTS
 	roscpp
+	rosfmt
 	std_msgs
 	message_generation
 )
@@ -25,6 +24,7 @@ add_message_files(FILES
 	NetworkStats.msg
 	NodeStats.msg
 	PeerStats.msg
+	WifiStats.msg
 )
 
 generate_messages(DEPENDENCIES std_msgs)
@@ -37,31 +37,24 @@ set(CMAKE_CXX_STANDARD 17)
 add_executable(net_monitor
 	src/monitor_node.cpp
 	src/route.cpp
+	src/nl80211.cpp
 )
 target_link_libraries(net_monitor
 	${catkin_LIBRARIES}
-	${MNL_LIBRARIES}
+	PkgConfig::MNL
 )
 add_dependencies(net_monitor
 	${PROJECT_NAME}_generate_messages_cpp
 )
 
-if(MNL_FOUND)
-	include_directories(${MNL_INCLUDE_DIRS})
-
-	add_executable(route_test
-		src/route_test.cpp
-		src/route.cpp
-	)
-	target_link_libraries(route_test
-		${catkin_LIBRARIES}
-		${MNL_LIBRARIES}
-	)
-
-	install(TARGETS route_test
-		RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-	)
-endif()
+add_executable(route_test
+	src/route_test.cpp
+	src/route.cpp
+)
+target_link_libraries(route_test
+	${catkin_LIBRARIES}
+	PkgConfig::MNL
+)
 
 # GUI
 add_subdirectory(src/gui)

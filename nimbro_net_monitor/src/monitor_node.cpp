@@ -8,6 +8,12 @@
 #include <fstream>
 #include <stdexcept>
 #include <optional>
+#include <fstream>
+#include <filesystem>
+
+#include <ifaddrs.h>
+
+#include <rosfmt/full.h>
 
 #include <ros/xmlrpc_manager.h>
 #include <xmlrpcpp/XmlRpc.h>
@@ -15,6 +21,7 @@
 #include <nimbro_net_monitor/NetworkStats.h>
 
 #include "route.h"
+#include "nl80211.h"
 
 using XMLRPCManager = ros::XMLRPCManager;
 
@@ -150,8 +157,9 @@ struct Peer
 
 struct Interface
 {
-	Interface(const std::string& name)
+	Interface(const std::string& name, NL80211& nl)
 	 : name(name)
+	 , m_nl{nl}
 	{
 		// Read speed
 		{
@@ -171,6 +179,15 @@ struct Interface
 				if(str == "full")
 					duplex = true;
 			}
+		}
+
+		m_isWireless = std::filesystem::exists(fmt::format("/sys/class/net/{}/wireless", name));
+		if(m_isWireless)
+		{
+			if(auto idx = m_nl.getInterfaceByName(name))
+				m_wirelessIdx = *idx;
+			else
+				m_isWireless = false;
 		}
 
 		updateStats();
@@ -212,6 +229,12 @@ struct Interface
 		rx_bandwidth = 8 * ((*newRX) - rx_bytes) / timeDelta;
 		tx_bandwidth = 8 * ((*newTX) - tx_bytes) / timeDelta;
 
+		if(m_isWireless)
+		{
+			if(auto stats = m_nl.getStats(m_wirelessIdx))
+				wifiStats = std::move(*stats);
+		}
+
 		rx_bytes = *newRX;
 		tx_bytes = *newTX;
 		lastStatsTime = now;
@@ -229,6 +252,13 @@ struct Interface
 	double tx_bandwidth = 0;
 
 	ros::SteadyTime lastStatsTime;
+
+	nimbro_net_monitor::WifiStats wifiStats;
+
+private:
+	NL80211& m_nl;
+	bool m_isWireless = false;
+	unsigned int m_wirelessIdx = 0;
 };
 
 class NetMonitor
@@ -257,6 +287,20 @@ public:
 		);
 
 		m_pub = nh.advertise<nimbro_net_monitor::NetworkStats>("/network/monitor", 1, true);
+
+		ifaddrs* addrs = nullptr;
+		if(getifaddrs(&addrs) != 0)
+		{
+			ROSFMT_ERROR("Could not get local interfaces: {}\n", strerror(errno));
+			std::exit(1);
+		}
+
+		for(ifaddrs* addr = addrs; addr; addr = addr->ifa_next)
+		{
+			m_interfaces.insert(std::make_pair(std::string{addr->ifa_name}, Interface(addr->ifa_name, m_nl80211)));
+		}
+
+		freeifaddrs(addrs);
 
 		updateNodes();
 		updateStats();
@@ -334,7 +378,7 @@ public:
 		auto ifaceIt = m_interfaces.find(interfaceName);
 		if(ifaceIt == m_interfaces.end())
 		{
-			Interface interface(interfaceName);
+			Interface interface(interfaceName, m_nl80211);
 			ifaceIt = m_interfaces.insert(std::make_pair(interfaceName, interface)).first;
 		}
 
@@ -578,11 +622,14 @@ public:
 			auto& iface = ifacePair.second;
 
 			nimbro_net_monitor::InterfaceStats ifaceStats;
+
 			ifaceStats.interface_name = iface.name;
 			ifaceStats.max_bits_per_second = iface.bitsPerSecond;
 			ifaceStats.duplex = iface.duplex;
 			ifaceStats.rx_bandwidth = iface.rx_bandwidth;
 			ifaceStats.tx_bandwidth = iface.tx_bandwidth;
+
+			ifaceStats.wifi = ifacePair.second.wifiStats;
 
 			for(auto& peerIt : ifacePair.second.peers)
 			{
@@ -652,6 +699,8 @@ private:
 	ros::Publisher m_pub;
 
 	route::Cache m_routeCache;
+
+	NL80211 m_nl80211;
 };
 
 int main(int argc, char** argv)

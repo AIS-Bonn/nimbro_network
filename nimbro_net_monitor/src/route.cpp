@@ -3,9 +3,7 @@
 
 #include "route.h"
 
-#if WITH_LIBMNL
-#  include <libmnl/libmnl.h>
-#endif
+#include <libmnl/libmnl.h>
 
 #include <netdb.h>
 
@@ -23,8 +21,6 @@
 
 namespace route
 {
-
-#if WITH_LIBMNL
 
 Cache::Cache()
 {
@@ -214,22 +210,5 @@ std::string Cache::obtainInterfaceForHost(const std::string& host)
 
 	return ifname;
 }
-
-#else // WITH_LIBMNL
-
-Cache::Cache()
-{
-}
-
-Cache::~Cache()
-{
-}
-
-std::string Cache::obtainInterfaceForHost(const std::string& host)
-{
-	return {};
-}
-
-#endif // WITH_LIBMNL
 
 }
