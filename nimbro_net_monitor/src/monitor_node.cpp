@@ -361,7 +361,8 @@ public:
 			nodeIt = m_nodesByName.find(connection.destination);
 			if(nodeIt == m_nodesByName.end())
 			{
-				ROS_WARN("Could not find node '%s' in local cache", connection.destination.c_str());
+				// This can happen when the node disappears in between
+				ROS_DEBUG("Could not find node '%s' in local cache", connection.destination.c_str());
 				return;
 			}
 		}
