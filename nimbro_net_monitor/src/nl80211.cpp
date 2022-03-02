@@ -736,6 +736,7 @@ std::optional<nimbro_net_monitor::WifiStats> NL80211::getStats(int iface)
     nimbro_net_monitor::WifiStats stats;
     stats.is_wifi_device = true;
     stats.rx_bw = 20;
+    stats.tx_bw = 20;
     stats.associated = true;
     stats.ssid = associatedBSS->ssid;
     stats.frequency_mhz = associatedBSS->frequency;
