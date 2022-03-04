@@ -774,8 +774,12 @@ std::optional<nimbro_net_monitor::WifiStats> NL80211::getStats(int iface)
                                 case NL80211_RATE_INFO_BITRATE:
                                     bitrate16 = mnl_attr_get_u16(rate_attr) * 100ULL * 1000ULL;
                                     break;
-                                case NL80211_RATE_INFO_MCS:
+                                case NL80211_RATE_INFO_VHT_MCS:
                                     stats.rx_mcs = mnl_attr_get_u8(rate_attr);
+                                    break;
+								case NL80211_RATE_INFO_160_MHZ_WIDTH:
+								case NL80211_RATE_INFO_80P80_MHZ_WIDTH:
+                                    stats.rx_bw = 160;
                                     break;
                                 case NL80211_RATE_INFO_80_MHZ_WIDTH:
                                     stats.rx_bw = 80;
@@ -801,8 +805,12 @@ std::optional<nimbro_net_monitor::WifiStats> NL80211::getStats(int iface)
                                 case NL80211_RATE_INFO_BITRATE:
                                     bitrate16 = mnl_attr_get_u16(rate_attr) * 100ULL * 1000ULL;
                                     break;
-                                case NL80211_RATE_INFO_MCS:
+                                case NL80211_RATE_INFO_VHT_MCS:
                                     stats.tx_mcs = mnl_attr_get_u8(rate_attr);
+                                    break;
+								case NL80211_RATE_INFO_160_MHZ_WIDTH:
+								case NL80211_RATE_INFO_80P80_MHZ_WIDTH:
+                                    stats.tx_bw = 160;
                                     break;
                                 case NL80211_RATE_INFO_80_MHZ_WIDTH:
                                     stats.tx_bw = 80;
