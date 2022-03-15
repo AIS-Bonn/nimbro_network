@@ -37,7 +37,6 @@ void testMessage(const Message::Ptr& msg, float fec)
 	{
 		std::size_t sourceSymbols = packets.size() / (1.0f + fec);
 		std::size_t drop_surplus = (fec / 2.0f) * sourceSymbols;
-// 		printf("Dropping %lu packets\n", drop_surplus);
 		packets.resize(packets.size() - drop_surplus);
 	}
 
@@ -133,4 +132,48 @@ TEST_CASE("huge", "[packetizer]")
 		testMessage(msg, 0.0);
 	for(int i = 0; i < 5; ++i)
 		testMessage(msg, 0.5);
+}
+
+TEST_CASE("repeated", "[packetizer]")
+{
+	auto msg = std::make_shared<Message>();
+	msg->counter = 10;
+	msg->flags = Message::FLAG_COMPRESSED_ZSTD;
+	msg->type = "std_msgs/String";
+	msg->md5 = "992ce8a1687cec8c8bd883ec73ca41d1";
+	msg->payload.resize(5 * 1024);
+	for(std::size_t i = 0; i < msg->payload.size(); ++i)
+		msg->payload[i] = i;
+
+	auto topic = std::make_shared<Topic>();
+	topic->name = "/hello_world";
+
+	msg->topic = topic;
+
+	auto packetizer = std::make_shared<Packetizer>();
+	auto topicPacketizer = std::make_shared<TopicPacketizer>(packetizer, topic);
+
+	auto packets = topicPacketizer->packetize(msg);
+
+	REQUIRE(packets.size() > 1);
+
+	auto depacketizer = std::make_shared<Depacketizer>();
+
+	Message::ConstPtr receivedMsg;
+
+	depacketizer->setCallback([&](const Message::ConstPtr& newMsg){
+		REQUIRE(newMsg->topic->name == msg->topic->name);
+		REQUIRE(!receivedMsg);
+		receivedMsg = newMsg;
+	});
+
+	for(std::size_t i = 0; i < 2*packets.size(); ++i)
+		depacketizer->addPacket(packets[0]);
+
+	REQUIRE(!receivedMsg);
+
+	for(auto& packet : packets)
+		depacketizer->addPacket(packet);
+
+	REQUIRE(receivedMsg);
 }

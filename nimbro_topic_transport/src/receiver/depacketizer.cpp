@@ -63,6 +63,9 @@ void Depacketizer::handleMessagePacket(std::list<PartialMessage>::iterator it, c
 	uint64_t totalSymbols = header.source_symbols() + header.repair_symbols();
 	msg->packets.resize(totalSymbols);
 
+	if(msg->packets[header.symbol_id()])
+		return; // Duplicated packet
+
 	msg->packets[header.symbol_id()] = packet;
 
 	std::vector<uint8_t> recoveredData;
@@ -180,7 +183,7 @@ void Depacketizer::pruneMessages()
 	{
 		auto itr = m_messageBuffer.begin();
 		auto it_end = m_messageBuffer.end();
-		for(int i = 0; i < 32; ++i)
+		for(int i = 0; i < 64; ++i)
 		{
 			itr++;
 			if(itr == it_end)
