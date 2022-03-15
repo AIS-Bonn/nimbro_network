@@ -125,6 +125,7 @@ std::vector<Packet::Ptr> TopicPacketizer::packetize(const Message::ConstPtr& msg
 		{
 			uint64_t take_now = std::min<uint64_t>(UDPPacket::MaxDataSize, remaining);
 			auto packetBuf = std::make_shared<Packet>();
+			packetBuf->topic = msg->topic.get();
 
 			if(repairSymbols != 0 && sourceSymbols > 1 && take_now != UDPPacket::MaxDataSize)
 			{
@@ -164,6 +165,8 @@ std::vector<Packet::Ptr> TopicPacketizer::packetize(const Message::ConstPtr& msg
 			for(uint64_t i = 0; i < repairSymbols; ++i)
 			{
 				auto repeatedBuf = std::make_shared<Packet>(*packets[0]);
+				repeatedBuf->topic = msg->topic.get();
+
 				UDPPacket* packet = repeatedBuf->packet();
 
 				packet->header.symbol_id = 1 + i;
@@ -183,6 +186,8 @@ std::vector<Packet::Ptr> TopicPacketizer::packetize(const Message::ConstPtr& msg
 			for(std::size_t i = 0; i < repairSymbols; ++i)
 			{
 				auto buf = std::make_shared<Packet>();
+				buf->topic = msg->topic.get();
+
 				UDPPacket* packet = buf->packet();
 
 				packet->header.msg_id = messageID;

@@ -3,6 +3,8 @@
 
 #include "udp_sender.h"
 
+#include <nimbro_topic_transport/SenderStats.h>
+
 #include <netdb.h>
 #include <sys/uio.h>
 
@@ -44,15 +46,16 @@ UDPSender::UDPSender(ros::NodeHandle& nh)
 	}
 
 
-	int dest_port;
-	if(!nh.getParam("udp/port", dest_port))
-		nh.param("port", dest_port, 5050);
+	if(!nh.getParam("udp/port", m_destinationPort))
+		nh.param("port", m_destinationPort, 5050);
 
-	std::string dest_port_str = std::to_string(dest_port);
+	std::string dest_port_str = std::to_string(m_destinationPort);
 
 	for(auto& dest_host : destination_addrs)
 	{
 		auto& sock = m_sockets.emplace_back();
+
+		sock.destination = dest_host;
 
 		// Resolve the destination address
 		// note: getaddrinfo() also accepts direct IP addresses
@@ -82,7 +85,7 @@ UDPSender::UDPSender(ros::NodeHandle& nh)
 		memcpy(&sock.addr, info->ai_addr, info->ai_addrlen);
 		sock.addrLen = info->ai_addrlen;
 
-		int source_port = dest_port;
+		int source_port = 0;
 
 		// If we have a specified source port, bind to it.
 		if(nh.hasParam("udp/source_port") || nh.hasParam("source_port"))
@@ -92,47 +95,73 @@ UDPSender::UDPSender(ros::NodeHandle& nh)
 				ROS_FATAL("Invalid source_port");
 				throw std::runtime_error("Invalid source port");
 			}
+		}
 
-			std::string source_port_str = boost::lexical_cast<std::string>(source_port);
+		std::string source_port_str = boost::lexical_cast<std::string>(source_port);
 
-			addrinfo hints;
-			memset(&hints, 0, sizeof(hints));
+		addrinfo hints;
+		memset(&hints, 0, sizeof(hints));
 
-			hints.ai_flags = AI_PASSIVE;
-			hints.ai_family = info->ai_family;
-			hints.ai_socktype = SOCK_DGRAM;
+		hints.ai_flags = AI_PASSIVE;
+		hints.ai_family = info->ai_family;
+		hints.ai_socktype = SOCK_DGRAM;
 
-			addrinfo* localInfo = 0;
-			if(getaddrinfo(NULL, source_port_str.c_str(), &hints, &localInfo) != 0 || !localInfo)
+		addrinfo* localInfo = 0;
+		if(getaddrinfo(NULL, source_port_str.c_str(), &hints, &localInfo) != 0 || !localInfo)
+		{
+			ROS_FATAL("Could not get local address: %s", strerror(errno));
+			throw std::runtime_error("Could not get local address");
+		}
+
+		// If we have multiple destination addrs, set SO_REUSEPORT so that we can share
+		// the same source port
+		if(destination_addrs.size() > 1)
+		{
+			int on = 1;
+			if(setsockopt(sock.fd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on)) != 0)
 			{
-				ROS_FATAL("Could not get local address: %s", strerror(errno));
-				throw std::runtime_error("Could not get local address");
+				ROS_WARN("Could not set SO_REUSEPORT: %s", strerror(errno));
 			}
+		}
 
-			// If we have multiple destination addrs, set SO_REUSEPORT so that we can share
-			// the same source port
-			if(destination_addrs.size() > 1)
+		if(bind(sock.fd, localInfo->ai_addr, localInfo->ai_addrlen) != 0)
+		{
+			ROS_FATAL("Could not bind to source port: %s", strerror(errno));
+			throw std::runtime_error(strerror(errno));
+		}
+
+		freeaddrinfo(localInfo);
+
+		// Find out which port we bound to
+		sockaddr_storage addr;
+		socklen_t addrLen = sizeof(addr);
+		if(getsockname(sock.fd, reinterpret_cast<sockaddr*>(&addr), &addrLen) == 0)
+		{
+			if(addr.ss_family == AF_INET)
+				sock.source_port = ntohs(reinterpret_cast<sockaddr_in*>(&addr)->sin_port);
+			else if(addr.ss_family == AF_INET6)
+				sock.source_port = ntohs(reinterpret_cast<sockaddr_in6*>(&addr)->sin6_port);
+			else
 			{
-				int on = 1;
-				if(setsockopt(sock.fd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on)) != 0)
-				{
-					ROS_WARN("Could not set SO_REUSEPORT: %s", strerror(errno));
-				}
+				ROS_WARN("Unsupported address family");
+				sock.source_port = 0;
 			}
-
-			if(bind(sock.fd, localInfo->ai_addr, localInfo->ai_addrlen) != 0)
-			{
-				ROS_FATAL("Could not bind to source port: %s", strerror(errno));
-				throw std::runtime_error(strerror(errno));
-			}
-
-			freeaddrinfo(localInfo);
 		}
 
 		freeaddrinfo(info);
 	}
 
-	m_statTimer = nh.createSteadyTimer(ros::WallDuration(5.0), std::bind(&UDPSender::printStats, this));
+	char buf[256];
+	if(gethostname(buf, sizeof(buf)) != 0)
+	{
+		ROS_FATAL("Could not get hostname");
+		std::exit(1);
+	}
+	m_hostname = buf;
+
+	m_pub_stats = nh.advertise<nimbro_topic_transport::SenderStats>("udp/stats", 1);
+
+	m_statTimer = nh.createSteadyTimer(ros::WallDuration(0.1), std::bind(&UDPSender::sendStats, this));
 }
 
 UDPSender::~UDPSender()
@@ -174,23 +203,63 @@ void UDPSender::send(const std::vector<Packet::Ptr>& packets)
 		std::unique_lock<std::mutex> lock(m_mutex);
 		m_statPackets += packets.size();
 		m_statDelay += delay;
+
+		for(auto& packet : packets)
+		{
+			if(packet->topic)
+			{
+				m_topicBandwidth[packet->topic->name] += packet->length;
+			}
+		}
 	}
 }
 
-void UDPSender::printStats()
+void UDPSender::sendStats()
 {
+	ros::Time now = ros::Time::now();
+	double deltaTime = (now - m_lastStatTime).toSec();
+
 	uint64_t packets = 0;
 	ros::Duration delay;
+	std::map<std::string, std::uint64_t> topicBandwidth;
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
 		std::swap(packets, m_statPackets);
 		std::swap(delay, m_statDelay);
+		topicBandwidth = m_topicBandwidth;
 	}
 
-	ROS_INFO_NAMED("udp", "UDP sender: %.2f packets per sec, %.2fms delay introduced by sender",
-		packets / 5.0,
-		delay.toSec() / 5.0 / packets * 1000.0
-	);
+	std::uint64_t totalBandwidthBytes = 0;
+	for(auto& pair : topicBandwidth)
+		totalBandwidthBytes += pair.second;
+
+	nimbro_topic_transport::SenderStats msg;
+	msg.header.stamp = ros::Time::now();
+	msg.host = m_hostname;
+
+	for(auto& sock : m_sockets)
+	{
+		auto& m = msg.destinations.emplace_back();
+		m.destination = sock.destination;
+		m.destination_port = m_destinationPort;
+		m.source_port = sock.source_port;
+	}
+
+	msg.label = m_label;
+	msg.node = ros::this_node::getName();
+	msg.protocol = "UDP";
+	msg.bandwidth = totalBandwidthBytes * 8 / deltaTime;
+
+	for(auto& pair : topicBandwidth)
+	{
+		auto& m = msg.topics.emplace_back();
+		m.name = pair.first;
+		m.bandwidth = pair.second * 8 / deltaTime;
+	}
+
+	m_pub_stats.publish(msg);
+
+	m_lastStatTime = now;
 }
 
 }

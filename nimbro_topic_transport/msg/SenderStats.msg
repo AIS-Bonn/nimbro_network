@@ -12,17 +12,8 @@ string label
 # Local hostname
 string host
 
-# Destination address
-string destination
-
-# Destination port
-uint16 destination_port
-
-# Source port
-uint16 source_port
-
-# Is Forward Error Correction enabled?
-bool fec
+# Statistics for each stream destination
+DestinationStats[] destinations
 
 # Bandwidth in bit/s
 float32 bandwidth

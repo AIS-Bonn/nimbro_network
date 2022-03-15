@@ -6,6 +6,8 @@
 
 #include "le_value.h"
 
+#include "topic.h"
+
 #include <array>
 #include <memory>
 
@@ -85,6 +87,7 @@ public:
 	std::array<uint8_t, PACKET_SIZE> data;
 	std::size_t length;
 	ros::Time srcReceiveTime;
+	const Topic* topic = nullptr;
 };
 
 }

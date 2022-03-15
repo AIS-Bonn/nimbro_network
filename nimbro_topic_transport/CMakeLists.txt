@@ -17,6 +17,7 @@ add_message_files(FILES
 	ReceiverStats.msg
 	SenderStats.msg
 	TopicBandwidth.msg
+	DestinationStats.msg
 )
 
 generate_messages(DEPENDENCIES
@@ -161,7 +162,7 @@ target_link_libraries(measure_tf_latency
 )
 
 # GUI
-add_subdirectory(src/gui)
+#add_subdirectory(src/gui)
 
 # Tests
 if(catch_ros_FOUND)
