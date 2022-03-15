@@ -17,7 +17,7 @@
 #include <functional>
 #include <sstream>
 
-#include <ros/console.h>
+#include <fmt/format.h>
 
 namespace route
 {
@@ -92,7 +92,7 @@ std::string Cache::obtainInterfaceForHost(const std::string& host)
 		addrinfo* addr = nullptr;
 		if(getaddrinfo(host.c_str(), nullptr, nullptr, &addr) != 0 || !addr)
 		{
-			ROS_WARN("Could not resolve host '%s'", host.c_str());
+			fmt::print(stderr, "Could not resolve host '{}'\n", host.c_str());
 			return {};
 		}
 
@@ -118,7 +118,7 @@ std::string Cache::obtainInterfaceForHost(const std::string& host)
 			}
 			default:
 			{
-				ROS_WARN("Got unknown address type for host '%s'", host.c_str());
+				fmt::print(stderr, "Got unknown address type for host '{}'\n", host.c_str());
 				return {};
 			}
 		}
@@ -180,7 +180,7 @@ std::string Cache::obtainInterfaceForHost(const std::string& host)
 		{
 			if(mnl_attr_validate(attr, MNL_TYPE_U32) < 0)
 			{
-				ROS_WARN("Got invalid OIF attr, ignoring");
+				fmt::print(stderr, "Got invalid OIF attr, ignoring\n");
 				return MNL_CB_OK;
 			}
 
@@ -204,7 +204,7 @@ std::string Cache::obtainInterfaceForHost(const std::string& host)
 	char ifname[IF_NAMESIZE+1];
 	if(!if_indextoname(outputInterface, ifname))
 	{
-		ROS_WARN("Got invalid output interface index: %d", outputInterface);
+		fmt::print(stderr, "Got invalid output interface index: {}\n", outputInterface);
 		return {};
 	}
 

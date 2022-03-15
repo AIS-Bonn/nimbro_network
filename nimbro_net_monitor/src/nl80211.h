@@ -7,7 +7,7 @@
 #include <memory>
 #include <optional>
 
-#include <nimbro_net_monitor/WifiStats.h>
+#include "standalone_proto.h"
 
 class NL80211
 {
@@ -27,7 +27,7 @@ public:
 
     void dumpFreqs(int phy);
 
-    std::optional<nimbro_net_monitor::WifiStats> getStats(int interface);
+    std::optional<proto::WifiStats> getStats(int interface);
 
 private:
     class Private;

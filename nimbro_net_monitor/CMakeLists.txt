@@ -34,14 +34,22 @@ catkin_package()
 include_directories(${catkin_INCLUDE_DIRS})
 
 set(CMAKE_CXX_STANDARD 17)
-add_executable(net_monitor
-	src/monitor_node.cpp
+
+add_library(net_monitor_internal OBJECT
 	src/route.cpp
 	src/nl80211.cpp
 )
+target_link_libraries(net_monitor_internal PUBLIC
+	PkgConfig::MNL
+)
+
+
+add_executable(net_monitor
+	src/monitor_node.cpp
+)
 target_link_libraries(net_monitor
 	${catkin_LIBRARIES}
-	PkgConfig::MNL
+	net_monitor_internal
 )
 add_dependencies(net_monitor
 	${PROJECT_NAME}_generate_messages_cpp
@@ -56,10 +64,30 @@ target_link_libraries(route_test
 	PkgConfig::MNL
 )
 
+find_package(rosfmt)
+
+add_executable(standalone_monitor
+	src/standalone_monitor.cpp
+)
+target_link_libraries(standalone_monitor
+	net_monitor_internal
+	${rosfmt_LIBRARIES}
+)
+
+add_executable(standalone_receiver
+	src/standalone_receiver.cpp
+)
+target_link_libraries(standalone_receiver
+	${catkin_LIBRARIES}
+)
+add_dependencies(standalone_receiver
+	${PROJECT_NAME}_generate_messages_cpp
+)
+
 # GUI
 add_subdirectory(src/gui)
 
-install(TARGETS net_monitor
+install(TARGETS net_monitor standalone_monitor standalone_receiver
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

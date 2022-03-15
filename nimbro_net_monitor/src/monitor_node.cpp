@@ -232,7 +232,22 @@ struct Interface
 		if(m_isWireless)
 		{
 			if(auto stats = m_nl.getStats(m_wirelessIdx))
-				wifiStats = std::move(*stats);
+			{
+				wifiStats.is_wifi_device = stats->is_wifi_device;
+				wifiStats.associated = stats->associated;
+				wifiStats.associated_since = ros::Duration{}.fromSec(stats->associated_since);
+				wifiStats.ssid = stats->ssid;
+				wifiStats.frequency_mhz = stats->frequency_mhz;
+				wifiStats.signal_dbm = stats->signal_dbm;
+				wifiStats.signal_avg_dbm = stats->signal_avg_dbm;
+				wifiStats.beacon_signal_dbm = stats->beacon_signal_dbm;
+				wifiStats.tx_mcs = stats->tx_mcs;
+				wifiStats.tx_bw = stats->tx_bw;
+				wifiStats.tx_bitrate = stats->tx_bitrate;
+				wifiStats.rx_mcs = stats->rx_mcs;
+				wifiStats.rx_bw = stats->rx_bw;
+				wifiStats.rx_bitrate = stats->rx_bitrate;
+			}
 		}
 
 		rx_bytes = *newRX;

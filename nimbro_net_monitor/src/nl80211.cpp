@@ -215,7 +215,7 @@ namespace
         if(err->error != 0)
         {
             AttrCallbackHelper helper{[&](const nlattr* attr){
-                if(mnl_attr_get_type(attr) == NLMSGERR_ATTR_MSG)
+                if(mnl_attr_get_type(attr) == 1) // NLMSGERR_ATTR_MSG, but this is not defined in libmnl's netlink.h
                 {
                     fmt::print(stderr, "NETLINK ERROR: {}\n", mnl_attr_get_str(attr));
                 }
@@ -651,7 +651,7 @@ void NL80211::dumpFreqs(int phy)
     });
 }
 
-std::optional<nimbro_net_monitor::WifiStats> NL80211::getStats(int iface)
+std::optional<proto::WifiStats> NL80211::getStats(int iface)
 {
     struct BSS_Info
     {
@@ -728,12 +728,12 @@ std::optional<nimbro_net_monitor::WifiStats> NL80211::getStats(int iface)
 
     if(!associatedBSS)
     {
-        nimbro_net_monitor::WifiStats stats;
+        proto::WifiStats stats;
         stats.is_wifi_device = true;
         return stats;
     }
 
-    nimbro_net_monitor::WifiStats stats;
+    proto::WifiStats stats;
     stats.is_wifi_device = true;
     stats.rx_bw = 20;
     stats.tx_bw = 20;
@@ -833,7 +833,7 @@ std::optional<nimbro_net_monitor::WifiStats> NL80211::getStats(int iface)
                         stats.beacon_signal_dbm = mnl_attr_get_u8(attr);
                         break;
                     case NL80211_STA_INFO_CONNECTED_TIME:
-                        stats.associated_since = ros::Duration().fromSec(mnl_attr_get_u32(attr));
+                        stats.associated_since = mnl_attr_get_u32(attr);
                         break;
                 }
             });
