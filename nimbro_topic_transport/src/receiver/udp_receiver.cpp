@@ -99,39 +99,6 @@ void UDPReceiver::thread()
 			throw std::runtime_error(strerror(errno));
 		}
 
-		if(addrlen != m_remoteAddrLen || memcmp(&addr, &m_remoteAddr, addrlen) != 0)
-		{
-			// Perform reverse lookup
-			char nameBuf[256];
-			char serviceBuf[256];
-
-			ros::WallTime startLookup = ros::WallTime::now();
-			if(getnameinfo(
-				(sockaddr*)&addr, addrlen, nameBuf, sizeof(nameBuf),
-				serviceBuf, sizeof(serviceBuf), NI_NUMERICSERV) == 0)
-			{
-				ROS_INFO("New remote: %s:%s", nameBuf, serviceBuf);
-			}
-			else
-			{
-				ROS_ERROR("Could not resolve remote address to name");
-			}
-			ros::WallTime endLookup = ros::WallTime::now();
-
-			// Warn if lookup takes up time (otherwise the user does not know
-			// what is going on)
-			if(endLookup - startLookup > ros::WallDuration(1.0))
-			{
-				ROS_WARN("Reverse address lookup took more than a second. "
-					"Consider adding '%s' to /etc/hosts",
-					nameBuf
-				);
-			}
-
-			m_remoteAddr = addr;
-			m_remoteAddrLen = addrlen;
-		}
-
 		ROS_DEBUG_NAMED("udp", "Received UDP packet of size %ld", size);
 		packet->length = size;
 		packet->srcReceiveTime = ros::Time::now();
