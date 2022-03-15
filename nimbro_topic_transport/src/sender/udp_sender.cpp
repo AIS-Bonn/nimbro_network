@@ -260,6 +260,14 @@ void UDPSender::sendStats()
 	m_pub_stats.publish(msg);
 
 	m_lastStatTime = now;
+
+	for(auto& pair : topicBandwidth)
+		pair.second = 0;
+
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		m_topicBandwidth = topicBandwidth;
+	}
 }
 
 }
