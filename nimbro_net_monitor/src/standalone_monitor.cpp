@@ -13,6 +13,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include <fmt/format.h>
 
@@ -248,13 +249,27 @@ private:
 
 int main(int argc, char** argv)
 {
-	if(argc != 2 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)
+	if(argc < 2 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)
 	{
-		fmt::print(stderr, "Usage: standalone_monitor <destination address>\n");
+		fmt::print(stderr, "Usage: standalone_monitor [-d] <destination address>\n");
+		fmt::print(stderr, "\n");
+		fmt::print(stderr, "  -d: ignore SIGHUP\n");
 		return 1;
 	}
 
-	NetMonitor monitor{argv[1]};
+	char* host = argv[1];
+	if(argc == 3 && strcmp(argv[1], "-d") == 0)
+	{
+		struct sigaction action{};
+		action.sa_handler = SIG_IGN;
+		sigaction(SIGHUP, &action, nullptr);
+
+		host = argv[2];
+	}
+
+	NetMonitor monitor{host};
+
+	fmt::print("Sending packets to {}\n", host);
 
 	while(1)
 	{
