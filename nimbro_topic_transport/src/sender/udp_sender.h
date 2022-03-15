@@ -26,9 +26,13 @@ private:
 
 	//! @name Socket stuff
 	//@{
-	int m_fd;
-	sockaddr_storage m_addr;
-	socklen_t m_addrLen;
+	struct Socket
+	{
+		int fd;
+		sockaddr_storage addr;
+		socklen_t addrLen;
+	};
+	std::vector<Socket> m_sockets;
 	//@}
 
 	std::mutex m_mutex;
