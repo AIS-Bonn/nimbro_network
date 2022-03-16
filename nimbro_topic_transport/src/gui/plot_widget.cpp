@@ -17,9 +17,9 @@ namespace nimbro_topic_transport
 PlotWidget::PlotWidget(QWidget* parent)
  : QOpenGLWidget(parent)
 {
-	QTimer* timer = new QTimer(this);
-	connect(timer, &QTimer::timeout, this, [&](){ update(); });
-	timer->start(50);
+	m_updateTimer = new QTimer(this);
+	connect(m_updateTimer, &QTimer::timeout, this, [&](){ update(); });
+	m_updateTimer->start(50);
 
 	auto fmt = QSurfaceFormat::defaultFormat();
 	fmt.setSamples(4);
@@ -82,11 +82,9 @@ void PlotWidget::initializeGL()
 	if(!fontFile.empty())
 	{
 		m_io->Fonts->AddFontFromFileTTF(fontFile.c_str(), fontInfo().pixelSize(), NULL, NULL);
-		m_font_small = m_io->Fonts->AddFontFromFileTTF(fontFile.c_str(), std::round(fontInfo().pixelSize() * 0.8), NULL, NULL);
 	}
 	else
 	{
-		m_font_small = m_io->Fonts->AddFontDefault();
 	}
 }
 
@@ -94,6 +92,15 @@ void PlotWidget::resizeGL(int w, int h)
 {
 	m_io->DisplaySize.x = w;
 	m_io->DisplaySize.y = h;
+
+	// Adapt update rate for smooth animation
+	float pixelSpeed = static_cast<float>(w) / ScrollingBuffer::HISTORY_SECS;
+	constexpr float MAX_PIXEL_PER_UPDATE = 2.0f;
+	float updateRate = pixelSpeed / MAX_PIXEL_PER_UPDATE;
+
+	updateRate = std::max(5.0f, std::min(60.0f, updateRate));
+
+	m_updateTimer->setInterval(1.0f / updateRate * 1000);
 }
 
 void PlotWidget::paintGL()
@@ -115,10 +122,16 @@ void PlotWidget::paintGL()
 	{
 		ImPlotAxisFlags flags = ImPlotAxisFlags_NoTickLabels;
 		ImPlot::SetupAxes("Time", "Bandwidth [MBit/s]", flags, 0);
-		ImPlot::SetupAxisLimits(ImAxis_X1, time - ScrollingBuffer::HISTORY_SECS, time, ImGuiCond_Always);
-// 		ImPlot::SetupAxisLimits(ImAxis_Y1, 0, 1000); // FIXME
 
-		for(std::size_t row = 0; row < m_topics.size(); ++row)
+		float timeOffset = 1.0f / ScrollingBuffer::DATA_RATE_HZ;
+		ImPlot::SetupAxisLimits(ImAxis_X1,
+			time - timeOffset - ScrollingBuffer::HISTORY_SECS,
+			time - timeOffset,
+			ImGuiCond_Always
+		);
+		ImPlot::SetupAxisLimits(ImAxis_Y1, 0, std::max(1.1f * m_buffer.maximum(), 1.0f), ImGuiCond_Always);
+
+		for(int row = m_topics.size()-1; row >= 0; --row)
 		{
 			if(row == 0)
 			{
@@ -171,6 +184,7 @@ void PlotWidget::integrateData(const nimbro_topic_transport::SenderStatsConstPtr
 		{
 			m_buffer.addRow(idx);
 			data.insert(data.begin() + idx, mbits);
+			m_topics.insert(it, topicMsg.name.c_str());
 		}
 		else
 			data[idx] = mbits;

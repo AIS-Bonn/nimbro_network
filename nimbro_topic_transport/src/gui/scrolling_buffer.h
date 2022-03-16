@@ -38,6 +38,9 @@ public:
 	std::size_t offset() const
 	{ return m_offset; }
 
+	float maximum() const
+	{ return m_max; }
+
 	void reset(std::size_t rows);
 	void addRow(unsigned int row);
 	void push_back(float time, float* data);
@@ -49,6 +52,8 @@ private:
 	std::size_t m_size = 0;
 	std::size_t m_offset = 0;
 	std::size_t m_rows = 0;
+
+	float m_max = 0.0f;
 };
 
 }

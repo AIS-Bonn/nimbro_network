@@ -36,12 +36,13 @@ private:
 	ImGuiContext* m_imgui = {};
 	ImGuiIO* m_io = {};
 	ImPlotContext* m_implot = {};
-	ImFont* m_font_small = {};
 
 	ros::Time m_plotTimeBase = ros::Time::now();
 
 	ScrollingBuffer m_buffer;
 	std::vector<std::string> m_topics;
+
+	QTimer* m_updateTimer = nullptr;
 };
 
 }

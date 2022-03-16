@@ -14,7 +14,12 @@ ScrollingBuffer::ScrollingBuffer()
 
 void ScrollingBuffer::reset(std::size_t rows)
 {
+	m_storage.clear();
 	m_storage.resize(rows * BUFFER_SIZE, 0.0f);
+	m_rows = rows;
+	m_size = 0;
+	m_offset = 0;
+	m_max = 0.0f;
 }
 
 void ScrollingBuffer::addRow(unsigned int row)
@@ -67,6 +72,13 @@ void ScrollingBuffer::push_back(float time, float* data)
 		m_time[m_offset] = time;
 
 		m_offset = (m_offset + 1) % BUFFER_SIZE;
+	}
+
+	// Update maximum
+	m_max = 0.0f;
+	for(std::size_t time = 0; time < BUFFER_SIZE; ++time)
+	{
+		m_max = std::max(m_max, m_storageAcc[(m_rows-1)*BUFFER_SIZE + time]);
 	}
 }
 
