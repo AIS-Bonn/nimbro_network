@@ -38,6 +38,8 @@ void TopicGUI::initPlugin(qt_gui_cpp::PluginContext& ctx)
 	connect(m_ui.refreshTopicsButton, &QPushButton::clicked, this, &TopicGUI::refreshTopics);
 
 	connect(m_ui.topicBox, &QComboBox::currentTextChanged, this, &TopicGUI::handleTopicChange);
+
+	refreshTopics();
 }
 
 void TopicGUI::shutdownPlugin()
@@ -91,6 +93,17 @@ void TopicGUI::handleTopicChange()
 		topic.toStdString(), 10,
 		&TopicGUI::dataReceived, this
 	);
+}
+
+void TopicGUI::saveSettings(Settings&, Settings& instanceSettings) const
+{
+	instanceSettings.setValue("topic", m_ui.topicBox->currentText());
+}
+
+void TopicGUI::restoreSettings(const Settings&, const Settings& instanceSettings)
+{
+	if(instanceSettings.contains("topic"))
+		selectTopic(instanceSettings.value("topic").toString());
 }
 
 }

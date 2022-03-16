@@ -33,6 +33,10 @@ private Q_SLOTS:
 	void handleTopicChange();
 
 private:
+	using Settings = qt_gui_cpp::Settings;
+	void saveSettings(Settings& pluginSettings, Settings& instanceSettings) const override;
+	void restoreSettings(const Settings& pluginSettings, const Settings& instanceSettings) override;
+
 	ros::Subscriber m_sub;
 
 	Ui_TopicGUI m_ui;
