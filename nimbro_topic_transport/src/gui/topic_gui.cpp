@@ -1,199 +1,97 @@
-// Diagnostic GUI for nimbro_topic_transport
-// Author: Max Schwarz <max.schwarz@uni-bonn.de>
+// Display for nimbro_topic_transport
+// Author: Max Schwarz <max.schwarz@ais.uni-bonn.de>
 
 #include "topic_gui.h"
 
-#include <QMetaType>
-
+#include <pluginlib/class_list_macros.hpp>
 #include <ros/node_handle.h>
+#include <rosfmt/rosfmt.h>
 
-#include <set>
+#include <QOpenGLWidget>
+#include <QTimer>
+#include <QPushButton>
 
-#include <pluginlib/class_list_macros.h>
+#include <random>
 
-#include <sstream>
+#include <ros/master.h>
+
 
 Q_DECLARE_METATYPE(nimbro_topic_transport::SenderStatsConstPtr)
-Q_DECLARE_METATYPE(nimbro_topic_transport::ReceiverStatsConstPtr)
 
 namespace nimbro_topic_transport
 {
 
 TopicGUI::TopicGUI()
 {
-}
-
-TopicGUI::~TopicGUI()
-{
+	qRegisterMetaType<nimbro_topic_transport::SenderStatsConstPtr>();
 }
 
 void TopicGUI::initPlugin(qt_gui_cpp::PluginContext& ctx)
 {
-	m_w = new DotWidget;
-	ctx.addWidget(m_w);
+	QWidget* w = new QWidget;
+	m_ui.setupUi(w);
+	ctx.addWidget(w);
 
-	qRegisterMetaType<nimbro_topic_transport::SenderStatsConstPtr>();
-	qRegisterMetaType<nimbro_topic_transport::ReceiverStatsConstPtr>();
+	connect(this, &TopicGUI::dataReceived, this, [=](const nimbro_topic_transport::SenderStatsConstPtr& msg){
+		m_ui.plotWidget->integrateData(msg);
+	}, Qt::QueuedConnection);
 
-	connect(
-		this, SIGNAL(senderStatsReceived(nimbro_topic_transport::SenderStatsConstPtr)),
-		this, SLOT(handleSenderStats(nimbro_topic_transport::SenderStatsConstPtr)),
-		Qt::QueuedConnection
-	);
+	connect(m_ui.refreshTopicsButton, &QPushButton::clicked, this, &TopicGUI::refreshTopics);
 
-	m_sub_senderStats = getPrivateNodeHandle().subscribe(
-		"/network/sender_stats", 1, &TopicGUI::senderStatsReceived, this
-	);
-
-	connect(
-		this, SIGNAL(receiverStatsReceived(nimbro_topic_transport::ReceiverStatsConstPtr)),
-		this, SLOT(handleReceiverStats(nimbro_topic_transport::ReceiverStatsConstPtr)),
-		Qt::QueuedConnection
-	);
-
-	m_sub_receiverStats = getPrivateNodeHandle().subscribe(
-		"/network/receiver_stats", 1, &TopicGUI::receiverStatsReceived, this
-	);
-
-	QTimer* updateTimer = new QTimer(this);
-	connect(updateTimer, SIGNAL(timeout()), SLOT(update()));
-	updateTimer->start(2000);
+	connect(m_ui.topicBox, &QComboBox::currentTextChanged, this, &TopicGUI::handleTopicChange);
 }
 
 void TopicGUI::shutdownPlugin()
 {
-	m_sub_senderStats.shutdown();
-	m_sub_receiverStats.shutdown();
+	m_sub.shutdown();
 }
 
-void TopicGUI::handleSenderStats(const SenderStatsConstPtr& msg)
+void TopicGUI::refreshTopics()
 {
-	ConnectionIdentifier ident;
-	ident.dest = msg->destination;
-	ident.protocol = msg->protocol;
-	ident.sourcePort = msg->source_port;
-	ident.destPort = msg->destination_port;
+	QString selected = m_ui.topicBox->currentText();
 
-	m_senderStats[ident] = msg;
+	std::vector<ros::master::TopicInfo> topics;
+	ros::master::getTopics(topics);
 
-	update();
+	m_ui.topicBox->clear();
+
+	for(auto& topic : topics)
+	{
+		if(topic.datatype == "nimbro_topic_transport/SenderStats")
+			m_ui.topicBox->addItem(QString::fromStdString(topic.name));
+	}
+
+	m_ui.topicBox->addItem("");
+
+	// restore previous selection
+	selectTopic(selected);
 }
 
-void TopicGUI::handleReceiverStats(const ReceiverStatsConstPtr& msg)
+void TopicGUI::selectTopic(const QString& topic)
 {
-	ConnectionIdentifier ident;
-	ident.dest = msg->host;
-	ident.protocol = msg->protocol;
-	ident.sourcePort = msg->remote_port;
-	ident.destPort = msg->local_port;
-
-	m_receiverStats[ident] = msg;
-
-	update();
+	int index = m_ui.topicBox->findText(topic);
+	if(index == -1)
+	{
+		// add topic name to list if not yet in
+		m_ui.topicBox->addItem(topic);
+		index = m_ui.topicBox->findText(topic);
+	}
+	m_ui.topicBox->setCurrentIndex(index);
 }
 
-static std::string sanitize(std::string arg)
+void TopicGUI::handleTopicChange()
 {
-	for(size_t i = 0; i < arg.length(); ++i)
-	{
-		if(!isalnum(arg[i]))
-			arg[i] = '_';
-	}
+	m_ui.plotWidget->clear();
+	m_sub = ros::Subscriber();
 
-	return arg;
-}
+	QString topic = m_ui.topicBox->currentText();
+	if(topic.isEmpty())
+		return;
 
-void TopicGUI::update()
-{
-	ros::Time now = ros::Time::now();
-	ros::Duration timeoutDuration(4.0);
-
-	std::stringstream ss;
-	ss << "digraph G {\n";
-	ss << "K=0.6;\n";
-
-	std::set<ConnectionIdentifier> connections;
-	std::set<std::string> hosts;
-
-	for(auto pair : m_receiverStats)
-	{
-		if(now - pair.second->header.stamp > timeoutDuration)
-			continue;
-
-		connections.insert(pair.first);
-		hosts.insert(pair.second->remote);
-		hosts.insert(pair.first.dest);
-	}
-	for(auto pair : m_senderStats)
-	{
-		if(now - pair.second->header.stamp > timeoutDuration)
-			continue;
-
-		connections.insert(pair.first);
-		hosts.insert(pair.second->host);
-		hosts.insert(pair.first.dest);
-	}
-
-	for(auto& host : hosts)
-	{
-		ss << "node [ label = \"" << host << "\" ]; node_" << sanitize(host) << ";\n";
-	}
-
-	for(const auto& connection : connections)
-	{
-		auto sender_it = m_senderStats.find(connection);
-		auto receiver_it = m_receiverStats.find(connection);
-
-		SenderStatsConstPtr sender;
-		if(sender_it != m_senderStats.end())
-			sender = sender_it->second;
-
-		ReceiverStatsConstPtr receiver;
-		if(receiver_it != m_receiverStats.end())
-			receiver = receiver_it->second;
-
-		std::string source = sender ? sender->host : receiver->remote;
-
-		ss << "node_" << sanitize(source) << " -> node_" << sanitize(connection.dest) << "[ ";
-
-		ss << "label=\"";
-
-		std::string label;
-		if(sender_it != m_senderStats.end() && !sender_it->second->label.empty())
-			label = sender_it->second->label;
-		else if(receiver_it != m_receiverStats.end() && !receiver_it->second->label.empty())
-			label = receiver_it->second->label;
-
-		if(!label.empty())
-			ss << label << "\n";
-
-		ss << connection.protocol << " " << connection.sourcePort << " -> " << connection.destPort << "\n";
-
-		float bandwidth = 0.0;
-		int div = 0;
-		if(sender_it != m_senderStats.end() && now - sender_it->second->header.stamp < timeoutDuration)
-		{
-			bandwidth += sender_it->second->bandwidth;
-			div++;
-		}
-		if(receiver_it != m_receiverStats.end() && now - receiver_it->second->header.stamp < timeoutDuration)
-		{
-			bandwidth += receiver_it->second->bandwidth;
-			div++;
-		}
-
-		char bwBuf[100];
-		snprintf(bwBuf, sizeof(bwBuf), "%.2f MBit/s", bandwidth / 1024 / 1024);
-
-		ss << bwBuf;
-		ss << "\"";
-
-		ss << " ];\n";
-	}
-
-	ss << "}";
-
-	m_w->updateGraph(ss.str());
+	m_sub = getPrivateNodeHandle().subscribe(
+		topic.toStdString(), 10,
+		&TopicGUI::dataReceived, this
+	);
 }
 
 }

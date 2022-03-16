@@ -162,7 +162,7 @@ target_link_libraries(measure_tf_latency
 )
 
 # GUI
-#add_subdirectory(src/gui)
+add_subdirectory(src/gui)
 
 # Tests
 if(catch_ros_FOUND)
@@ -198,6 +198,6 @@ install(TARGETS nimbro_topic_transport sender receiver action_proxy transceiver 
 install(FILES utils/get_msg_def.py
         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
-install(FILES rqt_plugin.xml bandwidth_plugin.xml
+install(FILES rqt_plugin.xml
     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )

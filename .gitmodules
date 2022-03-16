@@ -1,0 +1,6 @@
+[submodule "nimbro_topic_transport/src/gui/contrib/imgui"]
+	path = nimbro_topic_transport/src/gui/contrib/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "nimbro_topic_transport/src/gui/contrib/implot"]
+	path = nimbro_topic_transport/src/gui/contrib/implot
+	url = https://github.com/epezent/implot.git

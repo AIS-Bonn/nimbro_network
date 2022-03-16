@@ -29,7 +29,6 @@
 
 	<export>
 		<rqt_gui plugin="${prefix}/rqt_plugin.xml" />
-		<rqt_gui plugin="${prefix}/bandwidth_plugin.xml" />
 	</export>
 
 </package>

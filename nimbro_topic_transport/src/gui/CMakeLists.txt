@@ -1,69 +1,48 @@
 
-# Decide on a Qt version
 find_package(rqt_gui_cpp)
-message(STATUS "RQT uses Qt version ${qt_gui_cpp_USE_QT_MAJOR_VERSION}")
-if("${qt_gui_cpp_USE_QT_MAJOR_VERSION} " STREQUAL "5 ")
-	set(USE_QT5 true)
-else()
-	set(USE_QT5 false)
-endif()
 
-# Find Qt
-if(USE_QT5)
-	find_package(Qt5Widgets REQUIRED)
-	find_package(Qt5WebKitWidgets REQUIRED)
-	find_package(Qt5DBus REQUIRED)
-	find_package(Qt5PrintSupport REQUIRED)
-	set(QT_LIBRARIES ${Qt5Widgets_LIBRARIES} ${Qt5WebKitWidgets_LIBRARIES} ${Qt5DBus_LIBRARIES} ${Qt5PrintSupport_LIBRARIES})
-else()
-	find_package(Qt4 COMPONENTS QtCore QtGui QtWebKit QtDBus REQUIRED)
-	include(${QT_USE_FILE})
-endif()
+find_package(Qt5 COMPONENTS Widgets REQUIRED)
 
-macro(wrap_cpp)
-	if(USE_QT5)
-		qt5_wrap_cpp(${ARGV})
-	else()
-		qt4_wrap_cpp(${ARGV})
-	endif()
-endmacro()
+find_package(PkgConfig)
+pkg_check_modules(FC fontconfig REQUIRED IMPORTED_TARGET)
 
-wrap_cpp(MOC_SRCS
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+qt5_wrap_cpp(MOC_SRCS
 	topic_gui.h
-	dot_widget.h
 )
 
-wrap_cpp(BAND_MOC_SRCS
-	bandwidth_gui.h
-	contrib/qcustomplot/qcustomplot.h
+qt5_wrap_ui(UI_SRCS
+	topic_gui.ui
 )
 
 add_library(topic_gui
 	${MOC_SRCS}
+	${UI_SRCS}
 	topic_gui.cpp
-	dot_widget.cpp
+	plot_widget.cpp
+	contrib/imgui/imgui.cpp
+	contrib/imgui/imgui_draw.cpp
+	contrib/imgui/imgui_demo.cpp
+	contrib/imgui/imgui_tables.cpp
+	contrib/imgui/imgui_widgets.cpp
+	contrib/imgui/backends/imgui_impl_opengl3.cpp
+	contrib/implot/implot.cpp
+	contrib/implot/implot_items.cpp
 )
 add_dependencies(topic_gui
 	${PROJECT_NAME}_generate_messages_cpp
 )
+target_include_directories(topic_gui PRIVATE
+	contrib/imgui
+	contrib/implot
+)
 target_link_libraries(topic_gui
-	${QT_LIBRARIES}
+	Qt5::Widgets
+	PkgConfig::FC
 )
 
-add_library(bandwidth_gui
-	${BAND_MOC_SRCS}
-	bandwidth_gui.cpp
-	contrib/qcustomplot/qcustomplot.cpp
-)
-add_dependencies(bandwidth_gui
-	${PROJECT_NAME}_generate_messages_cpp
-)
-target_link_libraries(bandwidth_gui
-	${QT_LIBRARIES}
-	yaml-cpp
-)
-
-install(TARGETS topic_gui bandwidth_gui
+install(TARGETS topic_gui
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
