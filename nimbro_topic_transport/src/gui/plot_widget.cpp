@@ -4,6 +4,7 @@
 #include "plot_widget.h"
 
 #include <QTimer>
+#include <QMouseEvent>
 
 #include "contrib/imgui/imgui.h"
 #include "contrib/imgui/backends/imgui_impl_opengl3.h"
@@ -13,6 +14,20 @@
 
 namespace nimbro_topic_transport
 {
+
+namespace
+{
+	ImGuiMouseButton imGuiButton(Qt::MouseButton btn)
+	{
+		switch(btn)
+		{
+			case Qt::LeftButton: return ImGuiMouseButton_Left;
+			case Qt::MiddleButton: return ImGuiMouseButton_Middle;
+			case Qt::RightButton: return ImGuiMouseButton_Right;
+			default: return -1;
+		}
+	}
+}
 
 PlotWidget::PlotWidget(QWidget* parent)
  : QOpenGLWidget(parent)
@@ -24,6 +39,8 @@ PlotWidget::PlotWidget(QWidget* parent)
 	auto fmt = QSurfaceFormat::defaultFormat();
 	fmt.setSamples(4);
 	setFormat(fmt);
+
+	setMouseTracking(true);
 }
 
 PlotWidget::~PlotWidget()
@@ -33,6 +50,41 @@ PlotWidget::~PlotWidget()
 
 	if(m_imgui)
 		ImGui::DestroyContext(m_imgui);
+}
+
+void PlotWidget::mouseMoveEvent(QMouseEvent* event)
+{
+	if(!m_imgui)
+		return;
+
+	ImGui::SetCurrentContext(m_imgui);
+	m_io->AddMousePosEvent(event->x(), event->y());
+}
+
+void PlotWidget::mousePressEvent(QMouseEvent* event)
+{
+	if(!m_imgui)
+		return;
+
+	int button = imGuiButton(event->button());
+	if(button < 0)
+		return;
+
+	ImGui::SetCurrentContext(m_imgui);
+	m_io->AddMouseButtonEvent(button, true);
+}
+
+void PlotWidget::mouseReleaseEvent(QMouseEvent* event)
+{
+	if(!m_imgui)
+		return;
+
+	int button = imGuiButton(event->button());
+	if(button < 0)
+		return;
+
+	ImGui::SetCurrentContext(m_imgui);
+	m_io->AddMouseButtonEvent(button, false);
 }
 
 void PlotWidget::initializeGL()

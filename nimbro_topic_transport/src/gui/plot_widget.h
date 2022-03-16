@@ -24,15 +24,19 @@ public:
 	explicit PlotWidget(QWidget* parent = nullptr);
 	~PlotWidget();
 
+	void integrateData(const nimbro_topic_transport::SenderStatsConstPtr& msg);
+	void clear();
+
+private:
 	void initializeGL() override;
 	void resizeGL(int w, int h) override;
 
 	void paintGL() override;
 
-	void integrateData(const nimbro_topic_transport::SenderStatsConstPtr& msg);
-	void clear();
+	void mouseMoveEvent(QMouseEvent * event) override;
+	void mousePressEvent(QMouseEvent * event) override;
+	void mouseReleaseEvent(QMouseEvent * event) override;
 
-private:
 	ImGuiContext* m_imgui = {};
 	ImGuiIO* m_io = {};
 	ImPlotContext* m_implot = {};
