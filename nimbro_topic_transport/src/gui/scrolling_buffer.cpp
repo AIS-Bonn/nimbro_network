@@ -45,6 +45,8 @@ void ScrollingBuffer::addRow(unsigned int row)
 
 void ScrollingBuffer::push_back(float time, float* data)
 {
+	// Attention: m_rows may be zero. In that case, data may be nullptr.
+
 	if(m_size < BUFFER_SIZE)
 	{
 		float accum = 0.0f;
@@ -75,10 +77,13 @@ void ScrollingBuffer::push_back(float time, float* data)
 	}
 
 	// Update maximum
-	m_max = 0.0f;
-	for(std::size_t time = 0; time < BUFFER_SIZE; ++time)
+	if(m_rows != 0)
 	{
-		m_max = std::max(m_max, m_storageAcc[(m_rows-1)*BUFFER_SIZE + time]);
+		m_max = 0.0f;
+		for(std::size_t time = 0; time < BUFFER_SIZE; ++time)
+		{
+			m_max = std::max(m_max, m_storageAcc[(m_rows-1)*BUFFER_SIZE + time]);
+		}
 	}
 }
 
