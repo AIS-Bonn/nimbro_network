@@ -21,6 +21,7 @@ add_library(topic_gui
 	${UI_SRCS}
 	topic_gui.cpp
 	plot_widget.cpp
+	scrolling_buffer.cpp
 	contrib/imgui/imgui.cpp
 	contrib/imgui/imgui_draw.cpp
 	contrib/imgui/imgui_demo.cpp

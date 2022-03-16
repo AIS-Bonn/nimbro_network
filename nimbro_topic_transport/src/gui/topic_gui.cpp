@@ -5,7 +5,6 @@
 
 #include <pluginlib/class_list_macros.hpp>
 #include <ros/node_handle.h>
-#include <rosfmt/rosfmt.h>
 
 #include <QOpenGLWidget>
 #include <QTimer>

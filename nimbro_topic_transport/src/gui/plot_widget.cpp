@@ -107,9 +107,6 @@ void PlotWidget::paintGL()
 	ros::Time now = ros::Time::now();
 	float time = (now - m_plotTimeBase).toSec();
 
-	float w = m_io->DisplaySize.x;
-	float h = m_io->DisplaySize.y;
-
 	ImGui::SetNextWindowPos({0,0});
 	ImGui::SetNextWindowSize(m_io->DisplaySize);
 	ImGui::Begin("network", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize);
@@ -118,51 +115,33 @@ void PlotWidget::paintGL()
 	{
 		ImPlotAxisFlags flags = ImPlotAxisFlags_NoTickLabels;
 		ImPlot::SetupAxes("Time", "Bandwidth [MBit/s]", flags, 0);
-		ImPlot::SetupAxisLimits(ImAxis_X1, time - PLOT_HISTORY_SECS, time, ImGuiCond_Always);
+		ImPlot::SetupAxisLimits(ImAxis_X1, time - ScrollingBuffer::HISTORY_SECS, time, ImGuiCond_Always);
 // 		ImPlot::SetupAxisLimits(ImAxis_Y1, 0, 1000); // FIXME
 
-// 		ImPlot::SetNextFillStyle(IMPLOT_AUTO_COL,0.5f);
-// 		ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, IMPLOT_AUTO, ImVec4{1.0f,0.0f,0.0f,1.0f});
-
-		std::vector<float> timeBuf(PLOT_BUFFER_SIZE, 0.0f);
-
-		// First half
-		std::size_t firstHalfSize = std::min<int>(m_timeBuffer.size(), PLOT_BUFFER_SIZE - m_timeBuffer.offset());
-		auto it = std::copy(
-			m_timeBuffer.data() + m_timeBuffer.offset(),
-			m_timeBuffer.data() + m_timeBuffer.offset() + firstHalfSize,
-			timeBuf.begin()
-		);
-		// Second half
-		std::copy(
-			m_timeBuffer.data(),
-			m_timeBuffer.data() + m_timeBuffer.size() - firstHalfSize,
-			it
-		);
-
-		std::vector<float> current(PLOT_BUFFER_SIZE, 0.0f);
-		std::vector<float> next(PLOT_BUFFER_SIZE, 0.0f);
-
-		for(auto& pair : m_topics)
+		for(std::size_t row = 0; row < m_topics.size(); ++row)
 		{
-			auto& buf = pair.second.bandwidth;
-
-			if(buf.size() == 0)
-				continue;
-
-			for(std::size_t i = 0; i < PLOT_BUFFER_SIZE; ++i)
+			if(row == 0)
 			{
-				next[i] = current[i] + buf.data()[(i + buf.offset()) % PLOT_BUFFER_SIZE] / (1000ULL * 1000ULL);
+				ImPlot::PlotShaded(
+					m_topics[row].c_str(),
+					m_buffer.timeData(),
+					m_buffer.rowAccData(0),
+					m_buffer.size(),
+					0.0f,
+					m_buffer.offset()
+				);
 			}
-
-			ImPlot::PlotShaded(
-				pair.first.c_str(),
-				timeBuf.data(),
-				current.data(), next.data(),
-				m_timeBuffer.size()
-			);
-
-			std::swap(current, next);
+			else
+			{
+				ImPlot::PlotShaded(
+					m_topics[row].c_str(),
+					m_buffer.timeData(),
+					m_buffer.rowAccData(row-1),
+					m_buffer.rowAccData(row),
+					m_buffer.size(),
+					m_buffer.offset()
+				);
+			}
 		}
 
 		ImPlot::EndPlot();
@@ -179,23 +158,31 @@ void PlotWidget::paintGL()
 
 void PlotWidget::integrateData(const nimbro_topic_transport::SenderStatsConstPtr& msg)
 {
+	std::vector<float> data(m_buffer.rows(), 0.0f);
+
 	for(auto topicMsg : msg->topics)
 	{
-		auto it = m_topics.find(topicMsg.name);
-		if(it == m_topics.end())
-		{
-			std::tie(it, std::ignore) = m_topics.emplace(topicMsg.name, m_timeBuffer.size());
-		}
+		auto it = std::lower_bound(m_topics.begin(), m_topics.end(), topicMsg.name);
+		int idx = it - m_topics.begin();
 
-		it->second.bandwidth.push_back(topicMsg.bandwidth);
+		float mbits = topicMsg.bandwidth / 1000ULL / 1000ULL; // MBit/s
+
+		if(it == m_topics.end() || *it != topicMsg.name)
+		{
+			m_buffer.addRow(idx);
+			data.insert(data.begin() + idx, mbits);
+		}
+		else
+			data[idx] = mbits;
 	}
 
-	m_timeBuffer.push_back((msg->header.stamp - m_plotTimeBase).toSec());
+	m_buffer.push_back((msg->header.stamp - m_plotTimeBase).toSec(), data.data());
 }
 
 void PlotWidget::clear()
 {
 	m_topics.clear();
+	m_buffer.reset(0);
 }
 
 }
