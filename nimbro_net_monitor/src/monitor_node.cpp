@@ -231,22 +231,35 @@ struct Interface
 
 		if(m_isWireless)
 		{
-			if(auto stats = m_nl.getStats(m_wirelessIdx))
+			while(true)
 			{
-				wifiStats.is_wifi_device = stats->is_wifi_device;
-				wifiStats.associated = stats->associated;
-				wifiStats.associated_since = ros::Duration{}.fromSec(stats->associated_since);
-				wifiStats.ssid = stats->ssid;
-				wifiStats.frequency_mhz = stats->frequency_mhz;
-				wifiStats.signal_dbm = stats->signal_dbm;
-				wifiStats.signal_avg_dbm = stats->signal_avg_dbm;
-				wifiStats.beacon_signal_dbm = stats->beacon_signal_dbm;
-				wifiStats.tx_mcs = stats->tx_mcs;
-				wifiStats.tx_bw = stats->tx_bw;
-				wifiStats.tx_bitrate = stats->tx_bitrate;
-				wifiStats.rx_mcs = stats->rx_mcs;
-				wifiStats.rx_bw = stats->rx_bw;
-				wifiStats.rx_bitrate = stats->rx_bitrate;
+				try
+				{
+					if(auto stats = m_nl.getStats(m_wirelessIdx))
+					{
+						wifiStats.is_wifi_device = stats->is_wifi_device;
+						wifiStats.associated = stats->associated;
+						wifiStats.associated_since = ros::Duration{}.fromSec(stats->associated_since);
+						wifiStats.ssid = stats->ssid;
+						wifiStats.frequency_mhz = stats->frequency_mhz;
+						wifiStats.signal_dbm = stats->signal_dbm;
+						wifiStats.signal_avg_dbm = stats->signal_avg_dbm;
+						wifiStats.beacon_signal_dbm = stats->beacon_signal_dbm;
+						wifiStats.tx_mcs = stats->tx_mcs;
+						wifiStats.tx_bw = stats->tx_bw;
+						wifiStats.tx_bitrate = stats->tx_bitrate;
+						wifiStats.rx_mcs = stats->rx_mcs;
+						wifiStats.rx_bw = stats->rx_bw;
+						wifiStats.rx_bitrate = stats->rx_bitrate;
+					}
+				}
+				catch(NL80211::RetryException&)
+				{
+					ROSFMT_WARN("Retrying failed NL80211 dump");
+					continue;
+				}
+
+				break;
 			}
 		}
 
@@ -285,13 +298,18 @@ public:
 	{
 		ros::NodeHandle nh("~");
 
-		double nodePeriod;
-		nh.param("node_period", nodePeriod, 4.0);
+		nh.getParam("enable_ros_stats", m_enableROSStats);
 
-		m_nodeTimer = nh.createSteadyTimer(
-			ros::WallDuration(nodePeriod),
-			std::bind(&NetMonitor::updateNodes, this)
-		);
+		if(m_enableROSStats)
+		{
+			double nodePeriod;
+			nh.param("node_period", nodePeriod, 4.0);
+
+			m_nodeTimer = nh.createSteadyTimer(
+				ros::WallDuration(nodePeriod),
+				std::bind(&NetMonitor::updateNodes, this)
+			);
+		}
 
 		double statsPeriod;
 		nh.param("stats_period", statsPeriod, 2.0);
@@ -317,7 +335,9 @@ public:
 
 		freeifaddrs(addrs);
 
-		updateNodes();
+		if(m_enableROSStats)
+			updateNodes();
+
 		updateStats();
 	}
 
@@ -573,52 +593,53 @@ public:
 			}
 		}
 
-		for(auto& pair : m_nodesByURI)
+		if(m_enableROSStats)
 		{
-			auto& node = pair.second;
-
-			if(node->host != ros::network::getHost())
-				continue;
-
-// 			ROS_INFO(" - %s at %s", node->name.c_str(), node->uri.c_str());
-
-			updateNodeStats(*node, dt);
-		}
-
-		// Prune old information
-		for(auto ifaceIt = m_interfaces.begin(); ifaceIt != m_interfaces.end(); ++ifaceIt)
-		{
-			auto& peers = ifaceIt->second.peers;
-			for(auto it = peers.begin(); it != peers.end();)
+			for(auto& pair : m_nodesByURI)
 			{
-				if(it->second.active)
+				auto& node = pair.second;
+
+				if(node->host != ros::network::getHost())
+					continue;
+
+				updateNodeStats(*node, dt);
+			}
+
+			// Prune old information
+			for(auto ifaceIt = m_interfaces.begin(); ifaceIt != m_interfaces.end(); ++ifaceIt)
+			{
+				auto& peers = ifaceIt->second.peers;
+				for(auto it = peers.begin(); it != peers.end();)
 				{
-					auto& peer = it->second;
-
-					for(auto nodeIt = peer.nodes.begin(); nodeIt != peer.nodes.end();)
+					if(it->second.active)
 					{
-						if(nodeIt->second.active)
+						auto& peer = it->second;
+
+						for(auto nodeIt = peer.nodes.begin(); nodeIt != peer.nodes.end();)
 						{
-							auto& node = nodeIt->second;
-
-							for(auto conIt = node.connections.begin(); conIt != node.connections.end();)
+							if(nodeIt->second.active)
 							{
-								if(conIt->second.active)
-									++conIt;
-								else
-									conIt = node.connections.erase(conIt);
+								auto& node = nodeIt->second;
+
+								for(auto conIt = node.connections.begin(); conIt != node.connections.end();)
+								{
+									if(conIt->second.active)
+										++conIt;
+									else
+										conIt = node.connections.erase(conIt);
+								}
+
+								++nodeIt;
 							}
-
-							++nodeIt;
+							else
+								nodeIt = peer.nodes.erase(nodeIt);
 						}
-						else
-							nodeIt = peer.nodes.erase(nodeIt);
-					}
 
-					++it;
+						++it;
+					}
+					else
+						it = peers.erase(it);
 				}
-				else
-					it = peers.erase(it);
 			}
 		}
 
@@ -717,6 +738,8 @@ private:
 	route::Cache m_routeCache;
 
 	NL80211 m_nl80211;
+
+	bool m_enableROSStats = true;
 };
 
 int main(int argc, char** argv)

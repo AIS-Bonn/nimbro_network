@@ -12,26 +12,40 @@
 class NL80211
 {
 public:
-    NL80211();
-    ~NL80211();
+	class NLException : public std::runtime_error
+	{
+	public:
+		explicit NLException(const std::string& str) : std::runtime_error{str}
+		{}
+	};
 
-    NL80211(const NL80211&) = delete;
-    NL80211& operator=(const NL80211&) = delete;
+	class RetryException : public NLException
+	{
+	public:
+		explicit RetryException(const std::string& str) : NLException{str}
+		{}
+	};
 
-    std::optional<int> getPhyByName(const std::string& name);
-    std::optional<int> getInterfaceByName(const std::string& name);
-    std::optional<int> getPhyByMACAddress(const std::string& addr);
-    std::optional<int> getPhyForInterface(const std::string& ifaceName);
+	NL80211();
+	~NL80211();
 
-    std::optional<std::string> getPhyName(int phy);
+	NL80211(const NL80211&) = delete;
+	NL80211& operator=(const NL80211&) = delete;
 
-    void dumpFreqs(int phy);
+	std::optional<int> getPhyByName(const std::string& name);
+	std::optional<int> getInterfaceByName(const std::string& name);
+	std::optional<int> getPhyByMACAddress(const std::string& addr);
+	std::optional<int> getPhyForInterface(const std::string& ifaceName);
 
-    std::optional<proto::WifiStats> getStats(int interface);
+	std::optional<std::string> getPhyName(int phy);
+
+	void dumpFreqs(int phy);
+
+	std::optional<proto::WifiStats> getStats(int interface);
 
 private:
-    class Private;
-    std::unique_ptr<Private> m_d;
+	class Private;
+	std::unique_ptr<Private> m_d;
 };
 
 #endif

@@ -101,8 +101,21 @@ struct Interface
 
 		if(m_isWireless)
 		{
-			if(auto stats = m_nl.getStats(m_wirelessIdx))
-				wifiStats = std::move(*stats);
+			while(true)
+			{
+				try
+				{
+					if(auto stats = m_nl.getStats(m_wirelessIdx))
+						wifiStats = std::move(*stats);
+				}
+				catch(NL80211::RetryException&)
+				{
+					fmt::print(stderr, "Retrying interrupted NL80211 dump\n");
+					continue;
+				}
+
+				break;
+			}
 		}
 
 		rx_bytes = *newRX;
