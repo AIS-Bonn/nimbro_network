@@ -224,6 +224,15 @@ void PlotWidget::integrateData(const nimbro_topic_transport::SenderStatsConstPtr
 {
 	std::vector<float> data(m_buffer.rows(), 0.0f);
 
+	float time = (msg->header.stamp - m_plotTimeBase).toSec();
+
+	// If the last point was a longer time ago, insert two zero points to prevent interpolation
+	if(m_buffer.size() > 0 && time - m_buffer.lastTime() > 0.5f)
+	{
+		m_buffer.push_back(m_buffer.lastTime()+0.01f, data.data());
+		m_buffer.push_back(time-0.01f, data.data());
+	}
+
 	for(auto topicMsg : msg->topics)
 	{
 		auto it = std::lower_bound(m_topics.begin(), m_topics.end(), topicMsg.name);
@@ -241,7 +250,7 @@ void PlotWidget::integrateData(const nimbro_topic_transport::SenderStatsConstPtr
 			data[idx] = mbits;
 	}
 
-	m_buffer.push_back((msg->header.stamp - m_plotTimeBase).toSec(), data.data());
+	m_buffer.push_back(time, data.data());
 }
 
 void PlotWidget::clear()

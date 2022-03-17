@@ -41,6 +41,14 @@ public:
 	float maximum() const
 	{ return m_max; }
 
+	float lastTime() const
+	{
+		if(m_size != BUFFER_SIZE)
+            return m_time[m_size-1];
+        else
+            return m_time[(m_offset + BUFFER_SIZE - 1) % BUFFER_SIZE];
+	}
+
 	void reset(std::size_t rows);
 	void addRow(unsigned int row);
 	void push_back(float time, float* data);
