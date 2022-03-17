@@ -22,6 +22,7 @@
 
 #include "route.h"
 #include "nl80211.h"
+#include "rtnetlink.h"
 
 using XMLRPCManager = ros::XMLRPCManager;
 
@@ -157,8 +158,9 @@ struct Peer
 
 struct Interface
 {
-	Interface(const std::string& name, NL80211& nl)
+	Interface(const std::string& name, RTNetlink& rtnl, NL80211& nl)
 	 : name(name)
+	 , m_rtnl{rtnl}
 	 , m_nl{nl}
 	{
 		// Read speed
@@ -189,8 +191,6 @@ struct Interface
 			else
 				m_isWireless = false;
 		}
-
-		updateStats();
 	}
 
 // GCC produces a spurious warning here, see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=80635
@@ -215,19 +215,15 @@ struct Interface
 	}
 #pragma GCC diagnostic pop
 
-	void updateStats()
+	void updateStats(const RTNetlink::Stats& linkStats)
 	{
 		ros::SteadyTime now = ros::SteadyTime::now();
 
-		auto newRX = readProp("statistics/rx_bytes");
-		auto newTX = readProp("statistics/tx_bytes");
-
-		if(!newRX || !newTX)
-			return;
-
 		double timeDelta = (now - lastStatsTime).toSec();
-		rx_bandwidth = 8 * ((*newRX) - rx_bytes) / timeDelta;
-		tx_bandwidth = 8 * ((*newTX) - tx_bytes) / timeDelta;
+		rx_bandwidth = 8 * (linkStats.rx_bytes - lastStats.rx_bytes) / timeDelta;
+		tx_bandwidth = 8 * (linkStats.tx_bytes - lastStats.tx_bytes) / timeDelta;
+		rx_packet_rate = linkStats.rx_packets - lastStats.rx_packets;
+		tx_packet_rate = linkStats.tx_packets - lastStats.tx_packets;
 
 		if(m_isWireless)
 		{
@@ -263,8 +259,7 @@ struct Interface
 			}
 		}
 
-		rx_bytes = *newRX;
-		tx_bytes = *newTX;
+		lastStats = linkStats;
 		lastStatsTime = now;
 	}
 
@@ -273,17 +268,19 @@ struct Interface
 	bool duplex = false;
 	std::map<std::string, Peer> peers;
 
-	uint64_t rx_bytes = 0;
-	uint64_t tx_bytes = 0;
+	RTNetlink::Stats lastStats;
 
 	double rx_bandwidth = 0;
+	double rx_packet_rate = 0;
 	double tx_bandwidth = 0;
+	double tx_packet_rate = 0;
 
 	ros::SteadyTime lastStatsTime;
 
 	nimbro_net_monitor::WifiStats wifiStats;
 
 private:
+	RTNetlink& m_rtnl;
 	NL80211& m_nl;
 	bool m_isWireless = false;
 	unsigned int m_wirelessIdx = 0;
@@ -330,7 +327,7 @@ public:
 
 		for(ifaddrs* addr = addrs; addr; addr = addr->ifa_next)
 		{
-			m_interfaces.insert(std::make_pair(std::string{addr->ifa_name}, Interface(addr->ifa_name, m_nl80211)));
+			m_interfaces.insert(std::make_pair(std::string{addr->ifa_name}, Interface(addr->ifa_name, m_rtnl, m_nl80211)));
 		}
 
 		freeifaddrs(addrs);
@@ -414,7 +411,7 @@ public:
 		auto ifaceIt = m_interfaces.find(interfaceName);
 		if(ifaceIt == m_interfaces.end())
 		{
-			Interface interface(interfaceName, m_nl80211);
+			Interface interface(interfaceName, m_rtnl, m_nl80211);
 			ifaceIt = m_interfaces.insert(std::make_pair(interfaceName, interface)).first;
 		}
 
@@ -575,9 +572,15 @@ public:
 
 		ros::WallDuration dt = now - m_lastTime;
 
+		auto linkStats = m_rtnl.getLinkStats();
+		RTNetlink::Stats dummyStats{};
 		for(auto& iface : m_interfaces)
 		{
-			iface.second.updateStats();
+			auto it = linkStats.find(iface.first);
+			if(it == linkStats.end())
+				iface.second.updateStats(dummyStats);
+			else
+				iface.second.updateStats(it->second);
 
 			for(auto& peer : iface.second.peers)
 			{
@@ -665,6 +668,8 @@ public:
 			ifaceStats.duplex = iface.duplex;
 			ifaceStats.rx_bandwidth = iface.rx_bandwidth;
 			ifaceStats.tx_bandwidth = iface.tx_bandwidth;
+			ifaceStats.rx_packet_rate = iface.rx_packet_rate;
+			ifaceStats.tx_packet_rate = iface.tx_packet_rate;
 
 			ifaceStats.wifi = ifacePair.second.wifiStats;
 
@@ -737,6 +742,7 @@ private:
 
 	route::Cache m_routeCache;
 
+	RTNetlink m_rtnl;
 	NL80211 m_nl80211;
 
 	bool m_enableROSStats = true;

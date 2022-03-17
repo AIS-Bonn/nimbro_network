@@ -38,6 +38,7 @@ set(CMAKE_CXX_STANDARD 17)
 add_library(net_monitor_internal OBJECT
 	src/route.cpp
 	src/nl80211.cpp
+	src/rtnetlink.cpp
 )
 target_link_libraries(net_monitor_internal PUBLIC
 	PkgConfig::MNL
