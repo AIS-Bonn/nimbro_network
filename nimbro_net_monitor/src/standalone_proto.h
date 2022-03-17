@@ -58,6 +58,8 @@ namespace proto
 		bool duplex = false;
 		double tx_bandwidth = 0;
 		double rx_bandwidth = 0;
+		double tx_packet_rate = 0;
+		double rx_packet_rate = 0;
 		WifiStats wifi;
 
 		template <class T>
@@ -69,6 +71,8 @@ namespace proto
 				& duplex
 				& tx_bandwidth
 				& rx_bandwidth
+				& tx_packet_rate
+				& rx_packet_rate
 				& wifi
 			;
 		}

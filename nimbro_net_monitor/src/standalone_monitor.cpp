@@ -21,6 +21,7 @@
 
 #include "route.h"
 #include "nl80211.h"
+#include "rtnetlink.h"
 
 #include "standalone_proto.h"
 
@@ -59,8 +60,6 @@ struct Interface
 			else
 				m_isWireless = false;
 		}
-
-		updateStats();
 	}
 
 // GCC produces a spurious warning here, see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=80635
@@ -85,19 +84,15 @@ struct Interface
 	}
 #pragma GCC diagnostic pop
 
-	void updateStats()
+	void updateStats(const RTNetlink::Stats& linkStats)
 	{
 		auto now = std::chrono::steady_clock::now();
 
-		auto newRX = readProp("statistics/rx_bytes");
-		auto newTX = readProp("statistics/tx_bytes");
-
-		if(!newRX || !newTX)
-			return;
-
 		double timeDelta = std::chrono::duration_cast<std::chrono::duration<double>>(now - lastStatsTime).count();
-		rx_bandwidth = 8 * ((*newRX) - rx_bytes) / timeDelta;
-		tx_bandwidth = 8 * ((*newTX) - tx_bytes) / timeDelta;
+		rx_bandwidth = 8 * (linkStats.rx_bytes - lastStats.rx_bytes) / timeDelta;
+		tx_bandwidth = 8 * (linkStats.tx_bytes - lastStats.tx_bytes) / timeDelta;
+		rx_packet_rate = linkStats.rx_packets - lastStats.rx_packets;
+		tx_packet_rate = linkStats.tx_packets - lastStats.tx_packets;
 
 		if(m_isWireless)
 		{
@@ -118,8 +113,7 @@ struct Interface
 			}
 		}
 
-		rx_bytes = *newRX;
-		tx_bytes = *newTX;
+		lastStats = linkStats;
 		lastStatsTime = now;
 	}
 
@@ -127,11 +121,12 @@ struct Interface
 	uint64_t bitsPerSecond = 0;
 	bool duplex = false;
 
-	uint64_t rx_bytes = 0;
-	uint64_t tx_bytes = 0;
+	RTNetlink::Stats lastStats;
 
 	double rx_bandwidth = 0;
+	double rx_packet_rate = 0;
 	double tx_bandwidth = 0;
+	double tx_packet_rate = 0;
 
 	proto::WifiStats wifiStats;
 
@@ -202,8 +197,17 @@ public:
 
 	void updateStats()
 	{
+		auto linkStats = m_rtnl.getLinkStats();
+		RTNetlink::Stats dummyStats;
+
 		for(auto& iface : m_interfaces)
-			iface.second.updateStats();
+		{
+			auto it = linkStats.find(iface.first);
+			if(it != linkStats.end())
+				iface.second.updateStats(it->second);
+			else
+				iface.second.updateStats(dummyStats);
+		}
 
 		// Generate message
 		proto::NetworkStats stats;
@@ -231,6 +235,8 @@ public:
 			ifaceStats.duplex = iface.duplex;
 			ifaceStats.rx_bandwidth = iface.rx_bandwidth;
 			ifaceStats.tx_bandwidth = iface.tx_bandwidth;
+			ifaceStats.rx_packet_rate = iface.rx_packet_rate;
+			ifaceStats.tx_packet_rate = iface.tx_packet_rate;
 
 			ifaceStats.wifi = ifacePair.second.wifiStats;
 
@@ -255,6 +261,7 @@ private:
 
 	route::Cache m_routeCache;
 
+	RTNetlink m_rtnl;
 	NL80211 m_nl80211;
 
 	int m_socket = -1;

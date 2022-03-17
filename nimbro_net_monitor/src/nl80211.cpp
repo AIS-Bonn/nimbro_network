@@ -281,13 +281,12 @@ public:
 		controlCallbacks[NLMSG_OVERRUN] = cb_noop;
 
 		int ret = 0;
-		bool changed = false;
 		while(true)
 		{
 			ret = mnl_socket_recvfrom(mnl.get(), buf, sizeof(buf));
 			if(ret < 0)
 			{
-				// Blind retry
+				// Signal interrrupted us -> blind retry
 				if(errno == EINTR)
 					continue;
 
@@ -300,19 +299,23 @@ public:
 				break;
 
 			ret = mnl_cb_run2(buf, ret, seq, portid, &CallbackHelper::callback, &helper, &controlCallbacks[0], sizeof(controlCallbacks));
-			if(ret < 0 && errno == EINTR)
+			if(ret < 0 && errno == EPROTO)
 			{
-				// A dump changed while we were retrieving it. We process the rest of the readback, but raise an exception below.
-				changed = true;
+				// Protocol synchronization is lost. Probably we are reading old messages, so just try again
+				fmt::print(stderr, "nl80211: Protocol synchronization lost. Trying to read ahead...\n");
 				continue;
+			}
+			else if(ret < 0 && errno == EINTR)
+			{
+				// A dump changed while we were retrieving it.
+				// Unfortunately, this loses protocol synchronization, since libmnl does not process the
+				// rest of the packet.
+				throw RetryException{"NL80211 dump changed during retrieval"};
 			}
 
 			if(ret <= 0)
 				break;
 		}
-
-		if(changed)
-			throw RetryException{"NL80211 dump changed during retrieval"};
 
 		if(ret == -1)
 		{

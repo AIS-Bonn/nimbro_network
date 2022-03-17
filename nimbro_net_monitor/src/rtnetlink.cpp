@@ -62,15 +62,19 @@ namespace
 	{
 		using Type = rtnl_link_stats64;
 		static constexpr mnl_attr_data_type NLType = MNL_TYPE_BINARY;
-		static rtnl_link_stats64& getter(const nlattr* attr)
+		static rtnl_link_stats64 getter(const nlattr* attr)
 		{
 			if(mnl_attr_validate(attr, MNL_TYPE_BINARY) < 0)
 				throw std::runtime_error{"Expected a binary attr"};
 
-			if(mnl_attr_get_payload_len(attr) != sizeof(rtnl_link_stats64))
-				throw std::runtime_error{"Wrong stats size"};
+			// This structure may be different on older Linux kernels, but we only use the first few elements.
+			rtnl_link_stats64 ret{};
+			std::memcpy(
+				&ret, mnl_attr_get_payload(attr),
+				std::min<std::size_t>(sizeof(ret), mnl_attr_get_payload_len(attr))
+			);
 
-			return *reinterpret_cast<rtnl_link_stats64*>(mnl_attr_get_payload(attr));
+			return ret;
 		}
 	};
 

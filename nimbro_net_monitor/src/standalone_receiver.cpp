@@ -69,6 +69,8 @@ int main(int argc, char** argv)
 			msg_iface.duplex = iface.duplex;
 			msg_iface.tx_bandwidth = iface.tx_bandwidth;
 			msg_iface.rx_bandwidth = iface.rx_bandwidth;
+			msg_iface.tx_packet_rate = iface.tx_packet_rate;
+			msg_iface.rx_packet_rate = iface.rx_packet_rate;
 			msg_iface.wifi.is_wifi_device = iface.wifi.is_wifi_device;
 			msg_iface.wifi.associated = iface.wifi.associated;
 			msg_iface.wifi.associated_since = ros::Duration{}.fromSec(iface.wifi.associated_since);
