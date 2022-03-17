@@ -10,6 +10,7 @@ namespace nimbro_topic_transport
 
 namespace
 {
+	constexpr bool PRINT_STATS = false;
 	constexpr double STAT_PERIOD = 60.0;
 
 	class VectorBuffer
@@ -108,7 +109,8 @@ Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh, const std::
 		}
 	}
 
-	m_statTimer = nh.createSteadyTimer(ros::WallDuration(STAT_PERIOD), std::bind(&Subscriber::printStats, this));
+	if constexpr(PRINT_STATS)
+		m_statTimer = nh.createSteadyTimer(ros::WallDuration(STAT_PERIOD), std::bind(&Subscriber::printStats, this));
 }
 
 void Subscriber::registerCallback(const Callback& cb)
@@ -119,7 +121,9 @@ void Subscriber::registerCallback(const Callback& cb)
 void Subscriber::handleData(const ros::MessageEvent<topic_tools::ShapeShifter>& event)
 {
 	ROS_DEBUG("sender: message on topic '%s'", m_topic->name.c_str());
-	m_incomingMessages++;
+
+	if constexpr(PRINT_STATS)
+		m_incomingMessages++;
 
 	// Is this publisher allowed?
 	if(!m_excludedPublishers.empty())
@@ -141,7 +145,8 @@ void Subscriber::handleData(const ros::MessageEvent<topic_tools::ShapeShifter>& 
 		}
 	}
 
-	m_filteredMessages++;
+	if constexpr(PRINT_STATS)
+		m_filteredMessages++;
 
 	auto data = event.getMessage();
 	auto msg = std::make_shared<Message>();
