@@ -100,6 +100,8 @@ void PlotWidget::initializeGL()
 
 	m_implot = ImPlot::CreateContext();
 	ImPlot::SetCurrentContext(m_implot);
+	ImPlot::StyleColorsLight();
+	ImPlot::GetStyle().Colors[ImPlotCol_AxisBgHovered] = ImPlot::GetStyle().Colors[ImPlotCol_AxisBg];
 
 	ImGui_ImplOpenGL3_Init("#version 130");
 
@@ -135,9 +137,6 @@ void PlotWidget::initializeGL()
 	{
 		m_io->Fonts->AddFontFromFileTTF(fontFile.c_str(), fontInfo().pixelSize(), NULL, NULL);
 	}
-	else
-	{
-	}
 }
 
 void PlotWidget::resizeGL(int w, int h)
@@ -172,7 +171,7 @@ void PlotWidget::paintGL()
 
 	if(ImPlot::BeginPlot("##Bandwidth", ImGui::GetContentRegionAvail()))
 	{
-		ImPlotAxisFlags flags = ImPlotAxisFlags_NoTickLabels;
+		ImPlotAxisFlags flags = ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_NoMenus;
 		ImPlot::SetupAxes("Time", "Bandwidth [MBit/s]", flags, 0);
 
 		float timeOffset = 1.0f / ScrollingBuffer::DATA_RATE_HZ;
