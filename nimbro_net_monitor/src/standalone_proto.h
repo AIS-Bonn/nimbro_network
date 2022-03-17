@@ -23,11 +23,11 @@ namespace proto
 
 		std::uint8_t tx_mcs = 0;
 		std::uint16_t tx_bw = 0;
-		std::uint16_t tx_bitrate = 0;
+		std::uint64_t tx_bitrate = 0;
 
 		std::uint8_t rx_mcs = 0;
 		std::uint16_t rx_bw = 0;
-		std::uint16_t rx_bitrate = 0;
+		std::uint64_t rx_bitrate = 0;
 
 		template <class T>
 		void Serialize(T& archive)
