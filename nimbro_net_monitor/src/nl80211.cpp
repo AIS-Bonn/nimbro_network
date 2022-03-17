@@ -281,6 +281,7 @@ public:
 		controlCallbacks[NLMSG_OVERRUN] = cb_noop;
 
 		int ret = 0;
+		bool changed = false;
 		while(true)
 		{
 			ret = mnl_socket_recvfrom(mnl.get(), buf, sizeof(buf));
@@ -299,22 +300,24 @@ public:
 				break;
 
 			ret = mnl_cb_run2(buf, ret, seq, portid, &CallbackHelper::callback, &helper, &controlCallbacks[0], sizeof(controlCallbacks));
+			if(ret < 0 && errno == EINTR)
+			{
+				// A dump changed while we were retrieving it. We process the rest of the readback, but raise an exception below.
+				changed = true;
+				continue;
+			}
 
 			if(ret <= 0)
 				break;
 		}
 
+		if(changed)
+			throw RetryException{"NL80211 dump changed during retrieval"};
+
 		if(ret == -1)
 		{
 			perror("NL error");
-			if(errno == EINTR)
-			{
-				// This means mnl_cb_run2 returned EINTR, which means a dump changed while we
-				// were retrieving it. The caller needs to decide whether to restart the dump.
-				throw RetryException{fmt::format("NL80211 error: {}", strerror(errno))};
-			}
-			else
-				throw NLException{fmt::format("NL80211 error: {}", strerror(errno))};
+			throw NLException{fmt::format("NL80211 error: {}", strerror(errno))};
 		}
 	}
 
