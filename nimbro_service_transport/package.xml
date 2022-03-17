@@ -11,6 +11,7 @@
 	<depend>roscpp</depend>
 	<depend>topic_tools</depend>
 	<depend>rqt_gui_cpp</depend>
+	<depend>qtbase5-dev</depend>
 
 	<build_depend>message_generation</build_depend>
 

@@ -12,6 +12,7 @@
 	<depend>rqt_gui</depend>
 	<depend>libmnl-dev</depend>
 	<depend>rosfmt</depend>
+	<depend>qtbase5-dev</depend>
 
 	<export>
 		<rqt_gui plugin="${prefix}/rqt_plugins.xml" />
