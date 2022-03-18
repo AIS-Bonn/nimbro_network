@@ -290,8 +290,14 @@ public:
 				if(errno == EINTR)
 					continue;
 
+				if(errno == EBUSY)
+				{
+					fmt::print(stderr, "NL80211: got EBUSY => retry\n");
+					throw RetryException{"NL80211 socket busy"};
+				}
+
 				// Report error
-				break;
+				throw NLException{fmt::format("NL80211 error: mnl_socket_recvfrom: {}", strerror(errno))};
 			}
 
 			// Nothing received, stop.
@@ -299,18 +305,23 @@ public:
 				break;
 
 			ret = mnl_cb_run2(buf, ret, seq, portid, &CallbackHelper::callback, &helper, &controlCallbacks[0], sizeof(controlCallbacks));
-			if(ret < 0 && errno == EPROTO)
+			if(ret < 0)
 			{
-				// Protocol synchronization is lost. Probably we are reading old messages, so just try again
-				fmt::print(stderr, "nl80211: Protocol synchronization lost. Trying to read ahead...\n");
-				continue;
-			}
-			else if(ret < 0 && errno == EINTR)
-			{
-				// A dump changed while we were retrieving it.
-				// Unfortunately, this loses protocol synchronization, since libmnl does not process the
-				// rest of the packet.
-				throw RetryException{"NL80211 dump changed during retrieval"};
+				if(errno == EPROTO)
+				{
+					// Protocol synchronization is lost. Probably we are reading old messages, so just try again
+					fmt::print(stderr, "nl80211: Protocol synchronization lost. Trying to read ahead...\n");
+					continue;
+				}
+				else if(errno == EINTR)
+				{
+					// A dump changed while we were retrieving it.
+					// Unfortunately, this loses protocol synchronization, since libmnl does not process the
+					// rest of the packet.
+					throw RetryException{"NL80211 dump changed during retrieval"};
+				}
+				else
+					throw NLException{fmt::format("NL80211 error: mnl_cb_run2: {}", strerror(errno))};
 			}
 
 			if(ret <= 0)
