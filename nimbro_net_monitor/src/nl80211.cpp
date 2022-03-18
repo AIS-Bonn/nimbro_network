@@ -313,7 +313,7 @@ public:
 					fmt::print(stderr, "nl80211: Protocol synchronization lost. Trying to read ahead...\n");
 					continue;
 				}
-				else if(errno == EINTR)
+				else if(errno == EINTR || errno == EBUSY)
 				{
 					// A dump changed while we were retrieving it.
 					// Unfortunately, this loses protocol synchronization, since libmnl does not process the
