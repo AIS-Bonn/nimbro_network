@@ -222,8 +222,8 @@ struct Interface
 		double timeDelta = (now - lastStatsTime).toSec();
 		rx_bandwidth = 8 * (linkStats.rx_bytes - lastStats.rx_bytes) / timeDelta;
 		tx_bandwidth = 8 * (linkStats.tx_bytes - lastStats.tx_bytes) / timeDelta;
-		rx_packet_rate = linkStats.rx_packets - lastStats.rx_packets;
-		tx_packet_rate = linkStats.tx_packets - lastStats.tx_packets;
+		rx_packet_rate = (linkStats.rx_packets - lastStats.rx_packets) / timeDelta;
+		tx_packet_rate = (linkStats.tx_packets - lastStats.tx_packets) / timeDelta;
 
 		if(m_isWireless)
 		{
