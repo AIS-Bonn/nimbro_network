@@ -73,6 +73,9 @@ target_compile_options(nimbro_topic_transport PUBLIC
 target_include_directories(nimbro_topic_transport PRIVATE
 	${CMAKE_CURRENT_BINARY_DIR}
 )
+add_dependencies(nimbro_topic_transport
+	${PROJECT_NAME}_generate_messages_cpp
+)
 
 add_library(precompiled_header OBJECT
 	src/receiver/ros_includes.cpp
