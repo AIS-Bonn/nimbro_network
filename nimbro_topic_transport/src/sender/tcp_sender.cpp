@@ -61,12 +61,13 @@ TCPSender::~TCPSender()
 {
 }
 
-bool TCPSender::connect()
+bool TCPSender::connect(Verbosity verbosity)
 {
 	m_fd = socket(m_addrFamily, SOCK_STREAM, 0);
 	if(m_fd < 0)
 	{
-		ROS_ERROR("Could not create socket: %s", strerror(errno));
+		if(verbosity != Verbosity::Quiet)
+			ROS_ERROR("Could not create socket: %s", strerror(errno));
 		return false;
 	}
 
@@ -99,7 +100,8 @@ bool TCPSender::connect()
 
 	if(::connect(m_fd, (sockaddr*)&m_addr, m_addrLen) != 0)
 	{
-		ROS_ERROR_THROTTLE(5.0, "Could not connect: %s", strerror(errno));
+		if(verbosity != Verbosity::Quiet)
+			ROS_ERROR_THROTTLE(5.0, "Could not connect: %s", strerror(errno));
 		return false;
 	}
 	ROS_INFO("Connected to destination");
@@ -172,25 +174,28 @@ void TCPSender::send(const Message::ConstPtr& msg)
 
 	std::size_t totalSize = headerStorage.size() + msg->payload.size();
 
+	// Don't print any error messages for advertisements (which have empty payload)
+	Verbosity verbosity = msg->payload.size() == 0 ? Verbosity::Quiet : Verbosity::Print;
+
 	// Lock and send
 	// NOTE: Protected part starts here
 	std::unique_lock<std::mutex> lock(m_mutex);
 
 	// Try to send the packet
-	for(int tries = 0; tries < 10; ++tries)
+	for(int tries = 0; tries < 2; ++tries)
 	{
 		if(m_fd == -1)
 		{
-			if(!connect())
+			if(!connect(verbosity))
 			{
-				ROS_WARN_THROTTLE(1.0, "Connection failed, trying again");
+// 				ROS_WARN_THROTTLE(1.0, "Connection failed, trying again");
 				continue;
 			}
 		}
 
 		if(writev(m_fd, iovecs.data(), iovecs.size()) != (int)totalSize)
 		{
-			ROS_WARN_THROTTLE(1.0, "Could not send data, trying again");
+// 			ROS_WARN_THROTTLE(1.0, "Could not send data, trying again");
 			close(m_fd);
 			m_fd = -1;
 			continue;
@@ -200,7 +205,7 @@ void TCPSender::send(const Message::ConstPtr& msg)
 		uint8_t ack;
 		if(read(m_fd, &ack, 1) != 1)
 		{
-			ROS_WARN("Could not read ACK, sending again (!)");
+// 			ROS_WARN("Could not read ACK, sending again (!)");
 			close(m_fd);
 			m_fd = -1;
 			continue;
@@ -209,10 +214,13 @@ void TCPSender::send(const Message::ConstPtr& msg)
 		return;
 	}
 
-	ROS_ERROR_THROTTLE(5.0,
-		"Could not send TCP packet. Dropping message from topic %s!",
-		msg->topic->name.c_str()
-	);
+	if(verbosity != Verbosity::Quiet)
+	{
+		ROS_ERROR_THROTTLE(5.0,
+			"Could not send TCP packet. Dropping message from topic %s!",
+			msg->topic->name.c_str()
+		);
+	}
 }
 
 }

@@ -22,7 +22,13 @@ public:
 	//! @note may be called from multiple threads
 	void send(const Message::ConstPtr& msg);
 private:
-	bool connect();
+	enum Verbosity
+	{
+		Print,
+		Quiet
+	};
+
+	bool connect(Verbosity verbosity = Verbosity::Print);
 	void updateStats();
 
 	ros::NodeHandle m_nh;
