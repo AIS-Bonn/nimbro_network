@@ -196,7 +196,9 @@ void UDPSender::send(const std::vector<Packet::Ptr>& packets)
 			}
 		}
 
-		delay += ros::Time::now() - packet->srcReceiveTime;
+		ros::Time now = ros::Time::now();
+		if(packet->srcReceiveTime != ros::Time(0) && now > packet->srcReceiveTime)
+			delay += now - packet->srcReceiveTime;
 	}
 
 	{
