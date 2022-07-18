@@ -867,6 +867,12 @@ std::optional<proto::WifiStats> NL80211::getStats(int iface)
 					case NL80211_STA_INFO_CONNECTED_TIME:
 						stats.associated_since = mnl_attr_get_u32(attr);
 						break;
+					case NL80211_STA_INFO_CHAIN_SIGNAL:
+						stats.signal_per_chain_dbm.clear();
+						parseNested(attr, [&](const nlattr* signal_attr){
+							stats.signal_per_chain_dbm.push_back(mnl_attr_get_u8(attr));
+						});
+						break;
 				}
 			});
 		});

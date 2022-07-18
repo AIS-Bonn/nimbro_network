@@ -11,6 +11,7 @@ uint16 frequency_mhz
 int8 signal_dbm
 int8 signal_avg_dbm
 int8 beacon_signal_dbm
+int8[] signal_per_chain_dbm
 
 # TX Bitrate
 uint8 tx_mcs

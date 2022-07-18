@@ -20,6 +20,7 @@ namespace proto
 		std::int16_t signal_dbm = 0;
 		std::int16_t signal_avg_dbm = 0;
 		std::int16_t beacon_signal_dbm = 0;
+		std::vector<std::int16_t> signal_per_chain_dbm;
 
 		std::uint8_t tx_mcs = 0;
 		std::uint16_t tx_bw = 0;
@@ -41,6 +42,7 @@ namespace proto
 				& signal_dbm
 				& signal_avg_dbm
 				& beacon_signal_dbm
+				& signal_per_chain_dbm
 				& tx_mcs
 				& tx_bw
 				& tx_bitrate
