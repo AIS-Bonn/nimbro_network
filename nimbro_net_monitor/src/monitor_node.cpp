@@ -241,15 +241,17 @@ struct Interface
 						wifiStats.signal_dbm = stats->signal_dbm;
 						wifiStats.signal_avg_dbm = stats->signal_avg_dbm;
 						wifiStats.beacon_signal_dbm = stats->beacon_signal_dbm;
-						wifiStats.signal_per_chain_dbm.reserve(stats->signal_per_chain_dbm.size());
-						for(auto& s : stats->signal_per_chain_dbm)
-							wifiStats.signal_per_chain_dbm.push_back(s);
 						wifiStats.tx_mcs = stats->tx_mcs;
 						wifiStats.tx_bw = stats->tx_bw;
 						wifiStats.tx_bitrate = stats->tx_bitrate;
 						wifiStats.rx_mcs = stats->rx_mcs;
 						wifiStats.rx_bw = stats->rx_bw;
 						wifiStats.rx_bitrate = stats->rx_bitrate;
+
+						wifiStats.signal_per_chain_dbm.clear();
+						wifiStats.signal_per_chain_dbm.reserve(stats->signal_per_chain_dbm.size());
+						for(auto& s : stats->signal_per_chain_dbm)
+							wifiStats.signal_per_chain_dbm.push_back(s);
 					}
 				}
 				catch(NL80211::RetryException&)
