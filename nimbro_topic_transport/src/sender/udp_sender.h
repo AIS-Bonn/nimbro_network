@@ -8,6 +8,8 @@
 
 #include <arpa/inet.h>
 
+#include <nimbro_topic_transport/SetDestinations.h>
+
 #include "../message.h"
 #include "../udp_packet.h"
 
@@ -23,6 +25,10 @@ public:
 	void send(const std::vector<Packet::Ptr>& packets);
 private:
 	void sendStats();
+	bool handleSetDestinations(SetDestinationsRequest& req, SetDestinationsResponse& resp);
+	void setupSockets(const std::vector<std::string>& destination_addrs);
+
+	ros::NodeHandle m_nh;
 
 	std::string m_label;
 
@@ -30,6 +36,9 @@ private:
 	//@{
 	struct Socket
 	{
+		~Socket()
+		{ close(fd); }
+
 		int fd;
 		sockaddr_storage addr;
 		socklen_t addrLen;
@@ -55,6 +64,8 @@ private:
 	std::map<std::string, std::uint64_t> m_topicBandwidth;
 
 	ros::Publisher m_pub_stats;
+
+	ros::ServiceServer m_srv_setDestinations;
 };
 
 }
