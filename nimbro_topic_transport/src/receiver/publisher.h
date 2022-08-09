@@ -29,6 +29,10 @@ private:
 
 	Topic::ConstPtr m_topic;
 
+	std::mutex m_messageIDMutex;
+	uint16_t m_lastMessageID = 0;
+	uint32_t m_seed = 0;
+
 	bool m_advertised = false;
 
 	bool m_inHoldoffTime = true;

@@ -158,8 +158,9 @@ void Depacketizer::handleMessagePacket(std::list<PartialMessage>::iterator it, c
 	output->type = data->header.topic_type;
 	topic_info::unpackMD5(data->header.topic_md5, &output->md5);
 
-	output->flags = data->header.flags();
+	output->flags = data->header.flags() | Message::FLAG_VALID_COUNTER;
 	output->counter = data->header.topic_msg_counter;
+	output->seed = header.prng_seed;
 	output->receiveTime = msg->earliestPacketTime;
 
 	output->payload.resize(data->header.size());
