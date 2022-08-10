@@ -39,7 +39,7 @@ private:
 		~Socket()
 		{ close(fd); }
 
-		int fd;
+		int fd = -1;
 		sockaddr_storage addr;
 		socklen_t addrLen;
 

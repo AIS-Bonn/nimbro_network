@@ -189,7 +189,7 @@ bool UDPSender::setupSockets(const std::vector<std::string>& destination_addrs)
 
 	for(auto& dest_host : destination_addrs)
 	{
-		auto& sock = m_sockets.emplace_back();
+		Socket sock;
 
 		sock.destination = dest_host;
 
@@ -285,6 +285,8 @@ bool UDPSender::setupSockets(const std::vector<std::string>& destination_addrs)
 		}
 
 		freeaddrinfo(info);
+
+		m_sockets.push_back(sock);
 	}
 
 	return true;
