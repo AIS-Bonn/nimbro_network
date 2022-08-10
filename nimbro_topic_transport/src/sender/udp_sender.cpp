@@ -286,7 +286,7 @@ bool UDPSender::setupSockets(const std::vector<std::string>& destination_addrs)
 
 		freeaddrinfo(info);
 
-		m_sockets.push_back(sock);
+		m_sockets.push_back(std::move(sock));
 	}
 
 	return true;

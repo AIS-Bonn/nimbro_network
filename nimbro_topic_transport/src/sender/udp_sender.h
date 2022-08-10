@@ -36,8 +36,23 @@ private:
 	//@{
 	struct Socket
 	{
+		Socket() {}
+
 		~Socket()
-		{ close(fd); }
+		{ if(fd >= 0) close(fd); }
+
+		Socket(const Socket&) = delete;
+		Socket& operator=(const Socket&) = delete;
+
+		Socket(Socket&& other)
+		{
+			fd = other.fd;
+			addr = other.addr;
+			addrLen = other.addrLen;
+			destination = other.destination;
+			source_port = other.source_port;
+			other.fd = -1;
+		}
 
 		int fd = -1;
 		sockaddr_storage addr;
