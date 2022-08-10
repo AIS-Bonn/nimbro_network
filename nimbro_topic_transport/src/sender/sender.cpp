@@ -91,7 +91,7 @@ void Sender::initTCP(XmlRpc::XmlRpcValue& topicList)
 
 		std::unique_ptr<Subscriber> sub(new Subscriber(topic, m_nh, fullName));
 
-		unsigned int level = Compressor::getCompressionLevel(*topic);
+		int level = Compressor::getCompressionLevel(*topic);
 		if(level != 0)
 		{
 			auto compressor = std::make_shared<Compressor>(topic, level);

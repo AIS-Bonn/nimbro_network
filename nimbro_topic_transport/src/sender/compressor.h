@@ -24,16 +24,16 @@ public:
 
 	explicit Compressor(
 		const Topic::ConstPtr& topic,
-		unsigned int compressionLevel = 1,
+		int compressionLevel = 1,
 		Algorithm algorithm = Algorithm::ZSTD
 	);
 	~Compressor();
 
 	Message::ConstPtr compress(const Message::ConstPtr& msg);
 
-	static unsigned int getCompressionLevel(const Topic& topic);
+	static int getCompressionLevel(const Topic& topic);
 private:
-	unsigned int m_compressionLevel = 1;
+	int m_compressionLevel = 1;
 	Algorithm m_algorithm = Algorithm::ZSTD;
 };
 
