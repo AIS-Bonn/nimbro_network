@@ -11,6 +11,8 @@
 
 #include "../topic_info.h"
 
+constexpr int QUEUE_LENGTH = 64;
+
 namespace nimbro_topic_transport
 {
 
@@ -28,6 +30,19 @@ void Depacketizer::addPacket(const Packet::Ptr& packet)
 	std::unique_lock<std::mutex> lock(m_mutex);
 
 	uint32_t msg_id = packet->packet()->header.msg_id;
+
+	if(packet->packet()->header.prng_seed == m_seed)
+	{
+		int16_t thisID = packet->packet()->header.msg_id;
+		int16_t lastID = m_lastMessageID;
+		int16_t diff = thisID - lastID;
+		if(diff < -QUEUE_LENGTH + 10)
+			return;
+	}
+	else
+		m_seed = packet->packet()->header.prng_seed;
+
+	m_lastMessageID = packet->packet()->header.msg_id;
 
 	auto it = std::find_if(m_messageBuffer.begin(), m_messageBuffer.end(),
 		[=](const PartialMessage& m) { return m.id == msg_id; }
@@ -158,8 +173,9 @@ void Depacketizer::handleMessagePacket(std::list<PartialMessage>::iterator it, c
 	output->type = data->header.topic_type;
 	topic_info::unpackMD5(data->header.topic_md5, &output->md5);
 
-	output->flags = data->header.flags() | Message::FLAG_VALID_COUNTER;
+	output->flags = data->header.flags();
 	output->counter = data->header.topic_msg_counter;
+	output->counterValid = true;
 	output->seed = header.prng_seed;
 	output->receiveTime = msg->earliestPacketTime;
 
@@ -184,7 +200,7 @@ void Depacketizer::pruneMessages()
 	{
 		auto itr = m_messageBuffer.begin();
 		auto it_end = m_messageBuffer.end();
-		for(int i = 0; i < 64; ++i)
+		for(int i = 0; i < QUEUE_LENGTH; ++i)
 		{
 			itr++;
 			if(itr == it_end)

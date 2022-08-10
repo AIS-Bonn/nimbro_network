@@ -47,7 +47,7 @@ void Publisher::publish(const Message::ConstPtr& msg)
 {
 	ROS_DEBUG("Publisher::publish() for topic '%s'", msg->topic->name.c_str());
 
-	if(msg->flags & Message::FLAG_VALID_COUNTER)
+	if(msg->counterValid)
 	{
 		std::unique_lock<std::mutex> lock(m_messageIDMutex);
 

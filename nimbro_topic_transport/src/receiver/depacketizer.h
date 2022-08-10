@@ -55,6 +55,8 @@ private:
 
 	std::mutex m_mutex;
 	std::list<PartialMessage> m_messageBuffer;
+	std::uint16_t m_lastMessageID = 0;
+	std::uint32_t m_seed = 0;
 };
 
 }

@@ -20,8 +20,7 @@ public:
 	enum Flag
 	{
 		FLAG_COMPRESSED_BZ2      = (1 << 0),
-		FLAG_COMPRESSED_ZSTD     = (1 << 1),
-		FLAG_VALID_COUNTER       = (1 << 2)
+		FLAG_COMPRESSED_ZSTD     = (1 << 1)
 	};
 
 	void copyMetaInfoFrom(const Message& other)
@@ -43,8 +42,9 @@ public:
 
 	//! Sequential counter (incremented in Subscriber class)
 	uint32_t counter;
+	bool counterValid = false;
 
-	//! Random seed set in the sender (valid if FLAG_VALID_COUNTER is set)
+	//! Random seed set in the sender (valid if counterValid)
 	uint32_t seed;
 };
 
