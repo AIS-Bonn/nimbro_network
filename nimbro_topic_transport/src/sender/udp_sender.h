@@ -26,7 +26,7 @@ public:
 private:
 	void sendStats();
 	bool handleSetDestinations(SetDestinationsRequest& req, SetDestinationsResponse& resp);
-	void setupSockets(const std::vector<std::string>& destination_addrs);
+	bool setupSockets(const std::vector<std::string>& destination_addrs);
 
 	ros::NodeHandle m_nh;
 

@@ -50,7 +50,11 @@ UDPSender::UDPSender(ros::NodeHandle& nh)
 	if(!nh.getParam("udp/port", m_destinationPort))
 		nh.param("port", m_destinationPort, 5050);
 
-	setupSockets(destination_addrs);
+	if(!setupSockets(destination_addrs))
+	{
+		ROS_FATAL("Could not create sockets to destination");
+		std::exit(1);
+	}
 
 	char buf[256];
 	if(gethostname(buf, sizeof(buf)) != 0)
@@ -177,7 +181,7 @@ void UDPSender::sendStats()
 	}
 }
 
-void UDPSender::setupSockets(const std::vector<std::string>& destination_addrs)
+bool UDPSender::setupSockets(const std::vector<std::string>& destination_addrs)
 {
 	std::string dest_port_str = std::to_string(m_destinationPort);
 
@@ -197,21 +201,21 @@ void UDPSender::setupSockets(const std::vector<std::string>& destination_addrs)
 			ROS_FATAL("Could not lookup destination address\n '%s': %s",
 				dest_host.c_str(), strerror(errno)
 			);
-			throw std::runtime_error(strerror(errno));
+			return false;
 		}
 
 		sock.fd = socket(info->ai_family, SOCK_DGRAM, 0);
 		if(sock.fd < 0)
 		{
 			ROS_FATAL("Could not create socket: %s", strerror(errno));
-			throw std::runtime_error(strerror(errno));
+			return false;
 		}
 
 		int on = 1;
 		if(setsockopt(sock.fd, SOL_SOCKET, SO_BROADCAST, &on, sizeof(on)) != 0)
 		{
 			ROS_FATAL("Could not enable SO_BROADCAST flag: %s", strerror(errno));
-			throw std::runtime_error(strerror(errno));
+			return false;
 		}
 
 		memcpy(&sock.addr, info->ai_addr, info->ai_addrlen);
@@ -225,7 +229,7 @@ void UDPSender::setupSockets(const std::vector<std::string>& destination_addrs)
 			if(!m_nh.getParam("udp/source_port", source_port) && !m_nh.getParam("source_port", source_port))
 			{
 				ROS_FATAL("Invalid source_port");
-				throw std::runtime_error("Invalid source port");
+				return false;
 			}
 		}
 
@@ -242,7 +246,7 @@ void UDPSender::setupSockets(const std::vector<std::string>& destination_addrs)
 		if(getaddrinfo(NULL, source_port_str.c_str(), &hints, &localInfo) != 0 || !localInfo)
 		{
 			ROS_FATAL("Could not get local address: %s", strerror(errno));
-			throw std::runtime_error("Could not get local address");
+			return false;
 		}
 
 		// If we have multiple destination addrs, set SO_REUSEPORT so that we can share
@@ -259,7 +263,7 @@ void UDPSender::setupSockets(const std::vector<std::string>& destination_addrs)
 		if(bind(sock.fd, localInfo->ai_addr, localInfo->ai_addrlen) != 0)
 		{
 			ROS_FATAL("Could not bind to source port: %s", strerror(errno));
-			throw std::runtime_error(strerror(errno));
+			return false;
 		}
 
 		freeaddrinfo(localInfo);
@@ -282,6 +286,8 @@ void UDPSender::setupSockets(const std::vector<std::string>& destination_addrs)
 
 		freeaddrinfo(info);
 	}
+
+	return true;
 }
 
 bool UDPSender::handleSetDestinations(SetDestinationsRequest& req, SetDestinationsResponse& resp)
@@ -291,8 +297,7 @@ bool UDPSender::handleSetDestinations(SetDestinationsRequest& req, SetDestinatio
 		ss << " " << dest;
 
 	ROS_INFO("Reconnect to destinations:%s", ss.str().c_str());
-	setupSockets(req.destinations);
-	resp.success = true;
+	resp.success = setupSockets(req.destinations);
 	return true;
 }
 
