@@ -81,8 +81,16 @@ Subscriber::Subscriber(const Topic::Ptr& topic, ros::NodeHandle& nh, const std::
 	// Initialize rate control
 	if(topic->config.hasMember("rate"))
 	{
-		double rate = topic->config["rate"];
-		      m_durationBetweenMsgs = ros::Duration(1.0 / rate);
+		XmlRpc::XmlRpcValue value = topic->config["rate"];
+		double rate;
+		if(value.getType() == XmlRpc::XmlRpcValue::TypeDouble)
+			rate = value;
+		else if(value.getType() == XmlRpc::XmlRpcValue::TypeInt)
+			rate = static_cast<int>(value);
+		else
+			throw std::runtime_error{"Invalid type of rate"};
+
+		m_durationBetweenMsgs = ros::Duration(1.0 / rate);
 
 		if(topic->config.hasMember("resend") && (bool)topic->config["resend"])
 		{
