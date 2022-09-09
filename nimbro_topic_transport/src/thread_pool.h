@@ -19,7 +19,7 @@ class ThreadPool
 public:
 	typedef std::function<void(const Message::ConstPtr& msg)> Callback;
 
-	ThreadPool();
+	explicit ThreadPool(int threadCount = -1);
 	~ThreadPool();
 
 	ThreadPool(const ThreadPool&) = delete;

@@ -35,7 +35,7 @@ private:
 
 	std::unique_ptr<UDPSender> m_udp_sender;
 
-	ThreadPool m_threadPool;
+	std::unique_ptr<ThreadPool> m_threadPool;
 	std::shared_ptr<Packetizer> m_packetizer;
 
 	std::string m_stripPrefix;

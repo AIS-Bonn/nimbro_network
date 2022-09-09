@@ -25,6 +25,10 @@ namespace String
 Sender::Sender(ros::NodeHandle nh)
  : m_nh{std::move(nh)}
 {
+	int threadCount = -1;
+	m_nh.getParam("thread_count", threadCount);
+	m_threadPool = std::make_unique<ThreadPool>(threadCount);
+
 	m_nh.getParam("strip_prefix", m_stripPrefix);
 
 	if(m_nh.hasParam("tcp_topics"))
@@ -100,7 +104,7 @@ void Sender::initTCP(XmlRpc::XmlRpcValue& topicList)
 				m_tcp_sender->send(compressor->compress(msg));
 			};
 
-			sub->registerCallback(m_threadPool.createInputHandler(cb));
+			sub->registerCallback(m_threadPool->createInputHandler(cb));
 		}
 		else
 		{
@@ -157,7 +161,7 @@ void Sender::initUDP(XmlRpc::XmlRpcValue& topicList)
 			};
 		}
 
-		sub->registerCallback(m_threadPool.createInputHandler(sink));
+		sub->registerCallback(m_threadPool->createInputHandler(sink));
 		m_subs.emplace_back(std::move(sub));
 	}
 }

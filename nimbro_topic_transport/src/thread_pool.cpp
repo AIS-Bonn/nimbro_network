@@ -6,14 +6,16 @@
 namespace nimbro_topic_transport
 {
 
-ThreadPool::ThreadPool()
+ThreadPool::ThreadPool(int threadCount)
 {
-	unsigned int threadCount = std::thread::hardware_concurrency();
-	if(threadCount == 0)
+	if(threadCount <= 0)
+		threadCount = std::thread::hardware_concurrency();
+
+	if(threadCount <= 0)
 		threadCount = 2;
 
-	ROS_INFO("Starting %u worker threads", threadCount);
-	for(unsigned int i = 0; i < threadCount; ++i)
+	ROS_INFO("Starting %d worker threads", threadCount);
+	for(int i = 0; i < threadCount; ++i)
 		m_threads.emplace_back(std::bind(&ThreadPool::work, this));
 }
 
