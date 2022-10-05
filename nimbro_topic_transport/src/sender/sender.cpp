@@ -150,14 +150,14 @@ void Sender::initUDP(XmlRpc::XmlRpcValue& topicList)
 
 			// Compress, packetize, and send
 			sink = [compressor,packetizer,this](const Message::ConstPtr& msg) {
-				m_udp_sender->send(packetizer->packetize(compressor->compress(msg)));
+				m_udp_sender->send(msg, packetizer->packetize(compressor->compress(msg)));
 			};
 		}
 		else
 		{
 			// Packetize and send
 			sink = [packetizer,this](const Message::ConstPtr& msg) {
-				m_udp_sender->send(packetizer->packetize(msg));
+				m_udp_sender->send(msg, packetizer->packetize(msg));
 			};
 		}
 
