@@ -343,6 +343,7 @@ bool UDPSender::dumpLog(DumpLogRequest& req, DumpLogResponse& resp)
 	std::ofstream out(req.destination_path);
 
 	out << "Topic MessageID Receive StartSend EndSend\n";
+	out << std::fixed << std::setprecision(15);
 
 	std::size_t size = m_logBuffer.size();
 	for(std::size_t i = 0; i < m_logBufferCount; ++i)
