@@ -23,7 +23,6 @@ add_message_files(FILES
 add_service_files(FILES
 	SetDestinations.srv
 	DumpLog.srv
-	SetTimeout.srv
 )
 
 generate_messages(DEPENDENCIES
