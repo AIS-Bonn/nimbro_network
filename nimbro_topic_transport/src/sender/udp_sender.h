@@ -101,6 +101,8 @@ private:
 	std::vector<LogEntry> m_logBuffer;
 
 	ros::ServiceServer m_srv_dumpLog;
+
+	int m_timeoutUSec = 0;
 };
 
 }

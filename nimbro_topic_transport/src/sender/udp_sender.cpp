@@ -85,6 +85,13 @@ UDPSender::UDPSender(ros::NodeHandle& nh)
 	m_srv_dumpLog = nh.advertiseService(
 		"udp/dump_log", &UDPSender::dumpLog, this
 	);
+
+	nh.getParam("timeout_usec", m_timeoutUSec);
+	if(m_timeoutUSec < 0)
+	{
+		ROS_FATAL("Invalid timeout value");
+		std::exit(1);
+	}
 }
 
 UDPSender::~UDPSender()
@@ -330,7 +337,8 @@ bool UDPSender::setupSockets(const std::vector<std::string>& destination_addrs)
 		freeaddrinfo(info);
 
 		timeval timeout{};
-		timeout.tv_usec = 1 * 1000;
+		timeout.tv_usec = m_timeoutUSec;
+		ROS_INFO("Setting socket timeout to %dus", m_timeoutUSec);
 		if(setsockopt(sock.fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)))
 		{
 			ROS_WARN("Could not set socket timeout: %s", strerror(errno));
