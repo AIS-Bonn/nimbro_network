@@ -52,6 +52,13 @@ UDPSender::UDPSender(ros::NodeHandle& nh)
 	if(!nh.getParam("udp/port", m_destinationPort))
 		nh.param("port", m_destinationPort, 5050);
 
+	nh.getParam("timeout_usec", m_timeoutUSec);
+	if(m_timeoutUSec < 0)
+	{
+		ROS_FATAL("Invalid timeout value");
+		std::exit(1);
+	}
+
 	if(!setupSockets(destination_addrs))
 	{
 		ROS_FATAL("Could not create sockets to destination");
@@ -85,13 +92,6 @@ UDPSender::UDPSender(ros::NodeHandle& nh)
 	m_srv_dumpLog = nh.advertiseService(
 		"udp/dump_log", &UDPSender::dumpLog, this
 	);
-
-	nh.getParam("timeout_usec", m_timeoutUSec);
-	if(m_timeoutUSec < 0)
-	{
-		ROS_FATAL("Invalid timeout value");
-		std::exit(1);
-	}
 }
 
 UDPSender::~UDPSender()
