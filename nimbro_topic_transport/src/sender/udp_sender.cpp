@@ -117,7 +117,7 @@ void UDPSender::send(const Message::ConstPtr& msg, const std::vector<Packet::Ptr
 			if(sendto(sock.fd, packet->data.data(), packet->length, 0, (sockaddr*)&sock.addr, sock.addrLen) != (ssize_t)packet->length)
 			{
 				if(errno == EWOULDBLOCK || errno == EINPROGRESS)
-					ROS_WARN_THROTTLE(2.0, "wifi interface overloaded...");
+					ROS_WARN_THROTTLE(2.0, "Network interface for %s overloaded, dropping packet(s).", sock.destination.c_str());
 				else
 					ROS_ERROR("Could not send data of size %d: %s", (int)packet->length, strerror(errno));
 				return;
