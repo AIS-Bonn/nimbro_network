@@ -116,7 +116,10 @@ void UDPSender::send(const Message::ConstPtr& msg, const std::vector<Packet::Ptr
 		{
 			if(sendto(sock.fd, packet->data.data(), packet->length, 0, (sockaddr*)&sock.addr, sock.addrLen) != (ssize_t)packet->length)
 			{
-				ROS_ERROR("Could not send data of size %d: %s", (int)packet->length, strerror(errno));
+				if(errno == EWOULDBLOCK || errno == EINPROGRESS)
+					ROS_WARN_THROTTLE(2.0, "wifi interface overloaded...");
+				else
+					ROS_ERROR("Could not send data of size %d: %s", (int)packet->length, strerror(errno));
 				return;
 			}
 		}
@@ -318,6 +321,13 @@ bool UDPSender::setupSockets(const std::vector<std::string>& destination_addrs)
 		}
 
 		freeaddrinfo(info);
+
+		timeval timeout{};
+		timeout.tv_usec = 1 * 1000;
+		if(setsockopt(sock.fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)))
+		{
+			ROS_WARN("Could not set socket timeout: %s", strerror(errno));
+		}
 
 		m_sockets.push_back(std::move(sock));
 	}
