@@ -63,6 +63,8 @@ private:
 		std::string destination;
 
 		int source_port = 0;
+
+		std::atomic_uint64_t drops = 0;
 	};
 	std::vector<Socket> m_sockets;
 

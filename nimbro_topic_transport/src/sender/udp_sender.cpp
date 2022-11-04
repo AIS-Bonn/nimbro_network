@@ -117,7 +117,10 @@ void UDPSender::send(const Message::ConstPtr& msg, const std::vector<Packet::Ptr
 			if(sendto(sock.fd, packet->data.data(), packet->length, 0, (sockaddr*)&sock.addr, sock.addrLen) != (ssize_t)packet->length)
 			{
 				if(errno == EWOULDBLOCK || errno == EINPROGRESS)
+				{
 					ROS_WARN_THROTTLE(2.0, "Network interface for %s overloaded, dropping packet(s).", sock.destination.c_str());
+					sock.drops++;
+				}
 				else
 					ROS_ERROR("Could not send data of size %d: %s", (int)packet->length, strerror(errno));
 				return;
@@ -190,6 +193,10 @@ void UDPSender::sendStats()
 		m.destination = sock.destination;
 		m.destination_port = m_destinationPort;
 		m.source_port = sock.source_port;
+
+		uint64_t dropsInStatPeriod = sock.drops.exchange(0);
+
+		m.packet_drops = dropsInStatPeriod / deltaTime;
 	}
 
 	msg.label = m_label;
