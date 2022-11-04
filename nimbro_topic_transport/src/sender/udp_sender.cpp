@@ -118,7 +118,7 @@ void UDPSender::send(const Message::ConstPtr& msg, const std::vector<Packet::Ptr
 			{
 				if(errno == EWOULDBLOCK || errno == EINPROGRESS)
 				{
-					ROS_WARN_THROTTLE(2.0, "Network interface for %s overloaded, dropping packet(s).", sock.destination.c_str());
+					// ROS_WARN_THROTTLE(2.0, "Network interface for %s overloaded, dropping packet(s).", sock.destination.c_str());
 					sock.drops++;
 				}
 				else
