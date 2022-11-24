@@ -18,6 +18,8 @@ class TopicPacketizer;
 class Packetizer
 {
 public:
+	Packetizer();
+
 	typedef std::shared_ptr<Packetizer> Ptr;
 	typedef std::shared_ptr<const Packetizer> ConstPtr;
 
@@ -28,6 +30,8 @@ private:
 
 	std::mutex m_mutex;
 	uint32_t m_messageID = 0;
+
+	uint32_t m_randomSeed = 0;
 };
 
 class TopicPacketizer

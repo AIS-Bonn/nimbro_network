@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 
 #include <nimbro_topic_transport/SetDestinations.h>
+#include <nimbro_topic_transport/DumpLog.h>
 
 #include "../message.h"
 #include "../udp_packet.h"
@@ -22,10 +23,11 @@ public:
 	explicit UDPSender(ros::NodeHandle& nh);
 	~UDPSender();
 
-	void send(const std::vector<Packet::Ptr>& packets);
+	void send(const Message::ConstPtr& msg, const std::vector<Packet::Ptr>& packets);
 private:
 	void sendStats();
 	bool handleSetDestinations(SetDestinationsRequest& req, SetDestinationsResponse& resp);
+	bool dumpLog(DumpLogRequest& req, DumpLogResponse& resp);
 	bool setupSockets(const std::vector<std::string>& destination_addrs);
 
 	ros::NodeHandle m_nh;
@@ -61,6 +63,8 @@ private:
 		std::string destination;
 
 		int source_port = 0;
+
+		std::atomic_uint64_t drops = 0;
 	};
 	std::vector<Socket> m_sockets;
 
@@ -81,6 +85,24 @@ private:
 	ros::Publisher m_pub_stats;
 
 	ros::ServiceServer m_srv_setDestinations;
+
+	struct LogEntry
+	{
+		const Topic* topic = nullptr;
+		std::uint16_t messageID = 0;
+		ros::Time receiptTime;
+		ros::Time startSend;
+		ros::Time endSend;
+	};
+
+	std::mutex m_logMutex;
+	std::size_t m_logBufferCount = 0;
+	std::size_t m_logBufferOffset = 0;
+	std::vector<LogEntry> m_logBuffer;
+
+	ros::ServiceServer m_srv_dumpLog;
+
+	int m_timeoutUSec = 0;
 };
 
 }

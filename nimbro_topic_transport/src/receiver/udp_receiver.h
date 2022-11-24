@@ -8,8 +8,13 @@
 
 #include <thread>
 #include <functional>
+#include <mutex>
 
 #include <netinet/in.h>
+
+#include <nimbro_topic_transport/DumpLog.h>
+
+#include <ros/service_server.h>
 
 namespace ros
 {
@@ -34,6 +39,7 @@ public:
 
 	void start();
 private:
+	bool dumpLog(DumpLogRequest& req, DumpLogResponse& resp);
 	void thread();
 
 	int m_fd;
@@ -41,6 +47,20 @@ private:
 	bool m_shouldExit = false;
 
 	Callback m_callback;
+
+	struct LogEntry
+	{
+		std::uint16_t messageID = 0;
+		std::uint32_t symbolID = 0;
+		ros::Time receiptTime;
+	};
+
+	std::mutex m_logMutex;
+	std::size_t m_logBufferCount = 0;
+	std::size_t m_logBufferOffset = 0;
+	std::vector<LogEntry> m_logBuffer;
+
+	ros::ServiceServer m_srv_dumpLog;
 };
 
 }

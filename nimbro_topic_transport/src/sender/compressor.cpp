@@ -11,7 +11,7 @@ namespace nimbro_topic_transport
 //! Optimization: re-use source buffers for storing compressed results
 static thread_local std::vector<uint8_t> g_compressionBuf;
 
-unsigned int Compressor::getCompressionLevel(const Topic& topic)
+int Compressor::getCompressionLevel(const Topic& topic)
 {
 	if(!topic.config.hasMember("compress"))
 		return 0;
@@ -19,7 +19,7 @@ unsigned int Compressor::getCompressionLevel(const Topic& topic)
 	// XmlRpc is not const-correct, so we need a copy here :-(
 	auto config = topic.config;
 
-	unsigned int level = 1; // Default ZSTD compression level (fast!)
+	int level = 1; // Default ZSTD compression level (fast!)
 
 	XmlRpc::XmlRpcValue compress = config["compress"];
 	if(compress.getType() == XmlRpc::XmlRpcValue::TypeBoolean)
@@ -40,7 +40,7 @@ unsigned int Compressor::getCompressionLevel(const Topic& topic)
 	return level;
 }
 
-Compressor::Compressor(const Topic::ConstPtr&, unsigned int compressionLevel, Algorithm algorithm)
+Compressor::Compressor(const Topic::ConstPtr&, int compressionLevel, Algorithm algorithm)
  : m_compressionLevel(compressionLevel)
  , m_algorithm(algorithm)
 {

@@ -25,6 +25,10 @@ namespace String
 Sender::Sender(ros::NodeHandle nh)
  : m_nh{std::move(nh)}
 {
+	int threadCount = -1;
+	m_nh.getParam("thread_count", threadCount);
+	m_threadPool = std::make_unique<ThreadPool>(threadCount);
+
 	m_nh.getParam("strip_prefix", m_stripPrefix);
 
 	if(m_nh.hasParam("tcp_topics"))
@@ -91,7 +95,7 @@ void Sender::initTCP(XmlRpc::XmlRpcValue& topicList)
 
 		std::unique_ptr<Subscriber> sub(new Subscriber(topic, m_nh, fullName));
 
-		unsigned int level = Compressor::getCompressionLevel(*topic);
+		int level = Compressor::getCompressionLevel(*topic);
 		if(level != 0)
 		{
 			auto compressor = std::make_shared<Compressor>(topic, level);
@@ -100,7 +104,7 @@ void Sender::initTCP(XmlRpc::XmlRpcValue& topicList)
 				m_tcp_sender->send(compressor->compress(msg));
 			};
 
-			sub->registerCallback(m_threadPool.createInputHandler(cb));
+			sub->registerCallback(m_threadPool->createInputHandler(cb));
 		}
 		else
 		{
@@ -146,18 +150,18 @@ void Sender::initUDP(XmlRpc::XmlRpcValue& topicList)
 
 			// Compress, packetize, and send
 			sink = [compressor,packetizer,this](const Message::ConstPtr& msg) {
-				m_udp_sender->send(packetizer->packetize(compressor->compress(msg)));
+				m_udp_sender->send(msg, packetizer->packetize(compressor->compress(msg)));
 			};
 		}
 		else
 		{
 			// Packetize and send
 			sink = [packetizer,this](const Message::ConstPtr& msg) {
-				m_udp_sender->send(packetizer->packetize(msg));
+				m_udp_sender->send(msg, packetizer->packetize(msg));
 			};
 		}
 
-		sub->registerCallback(m_threadPool.createInputHandler(sink));
+		sub->registerCallback(m_threadPool->createInputHandler(sink));
 		m_subs.emplace_back(std::move(sub));
 	}
 }

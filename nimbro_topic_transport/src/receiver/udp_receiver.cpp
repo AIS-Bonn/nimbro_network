@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <netdb.h>
 
+#include <fstream>
+
 namespace nimbro_topic_transport
 {
 
@@ -43,6 +45,17 @@ UDPReceiver::UDPReceiver(ros::NodeHandle& nh)
 	{
 		ROS_FATAL("Could not set broadcast flag: %s", strerror(errno));
 		throw std::runtime_error(strerror(errno));
+	}
+
+	int logBufferSize = 0;
+	if(nh.getParam("log_buffer_size", logBufferSize))
+	{
+		if(logBufferSize < 0)
+			throw std::runtime_error{"Invalid buffer size"};
+
+		m_logBuffer.resize(logBufferSize);
+
+		m_srv_dumpLog = nh.advertiseService("dump_log", &UDPReceiver::dumpLog, this);
 	}
 }
 
@@ -104,12 +117,54 @@ void UDPReceiver::thread()
 		packet->srcReceiveTime = ros::Time::now();
 
 		m_callback(packet);
+
+		if(!m_logBuffer.empty())
+		{
+			std::unique_lock<std::mutex> lock{m_logMutex};
+
+			std::uint16_t messageID = -1;
+			std::uint32_t packetID = -1;
+
+			if(packet->length >= sizeof(UDPPacket::Header))
+			{
+				messageID = packet->packet()->header.msg_id;
+				packetID = packet->packet()->header.symbol_id;
+			}
+
+			if(m_logBufferCount != m_logBuffer.size())
+				m_logBuffer[m_logBufferCount++] = {messageID, packetID, packet->srcReceiveTime};
+			else
+			{
+				m_logBuffer[m_logBufferOffset] = {messageID, packetID, packet->srcReceiveTime};
+				m_logBufferOffset = (m_logBufferOffset + 1) % m_logBuffer.size();
+			}
+		}
 	}
 }
 
 void UDPReceiver::setCallback(const Callback& cb)
 {
 	m_callback = cb;
+}
+
+bool UDPReceiver::dumpLog(DumpLogRequest& req, DumpLogResponse& resp)
+{
+	std::unique_lock<std::mutex> lock{m_logMutex};
+
+	std::ofstream out(req.destination_path);
+
+	out << "Stamp MessageID SymbolID\n";
+	out << std::fixed << std::setprecision(15);
+
+	std::size_t size = m_logBuffer.size();
+	for(std::size_t i = 0; i < m_logBufferCount; ++i)
+	{
+		auto& entry = m_logBuffer[(i + m_logBufferOffset) % size];
+
+		out << entry.receiptTime.toSec() << " " << entry.messageID << " " << entry.symbolID << "\n";
+	}
+
+	return true;
 }
 
 }

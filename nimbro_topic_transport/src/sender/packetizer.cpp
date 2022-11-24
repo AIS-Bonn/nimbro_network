@@ -31,6 +31,11 @@ namespace
 	}
 }
 
+Packetizer::Packetizer()
+{
+	m_randomSeed = std::random_device()();
+}
+
 uint32_t Packetizer::allocateMessageID()
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
@@ -112,8 +117,6 @@ std::vector<Packet::Ptr> TopicPacketizer::packetize(const Message::ConstPtr& msg
 	// Copy data
 	memcpy(messageData.data() + sizeof(UDPData::Header), msg->payload.data(), msg->payload.size());
 
-	uint32_t seed = rand(); // TODO: REMOVE
-
 	std::vector<Packet::Ptr> packets;
 
 	// Write source packets
@@ -138,7 +141,7 @@ std::vector<Packet::Ptr> TopicPacketizer::packetize(const Message::ConstPtr& msg
 			packet->header.source_symbols = sourceSymbols;
 			packet->header.repair_symbols = repairSymbols;
 			packet->header.symbol_id = packetID;
-			packet->header.prng_seed = seed;
+			packet->header.prng_seed = m_packetizer->m_randomSeed;
 			packetBuf->srcReceiveTime = msg->receiveTime;
 
 			packetBuf->length = sizeof(UDPPacket::Header) + take_now;
@@ -194,7 +197,7 @@ std::vector<Packet::Ptr> TopicPacketizer::packetize(const Message::ConstPtr& msg
 				packet->header.source_symbols = sourceSymbols;
 				packet->header.repair_symbols = repairSymbols;
 				packet->header.symbol_id = sourceSymbols + i;
-				packet->header.prng_seed = seed;
+				packet->header.prng_seed = m_packetizer->m_randomSeed;
 
 				uint32_t length = 0;
 

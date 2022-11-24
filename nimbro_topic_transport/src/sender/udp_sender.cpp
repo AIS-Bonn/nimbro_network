@@ -5,6 +5,8 @@
 
 #include <nimbro_topic_transport/SenderStats.h>
 
+#include <fstream>
+
 #include <netdb.h>
 #include <sys/uio.h>
 
@@ -50,6 +52,13 @@ UDPSender::UDPSender(ros::NodeHandle& nh)
 	if(!nh.getParam("udp/port", m_destinationPort))
 		nh.param("port", m_destinationPort, 5050);
 
+	nh.getParam("timeout_usec", m_timeoutUSec);
+	if(m_timeoutUSec < 0)
+	{
+		ROS_FATAL("Invalid timeout value");
+		std::exit(1);
+	}
+
 	if(!setupSockets(destination_addrs))
 	{
 		ROS_FATAL("Could not create sockets to destination");
@@ -64,6 +73,15 @@ UDPSender::UDPSender(ros::NodeHandle& nh)
 	}
 	m_hostname = buf;
 
+	int logBufferSize;
+	if(nh.getParam("udp/log_buffer_size", logBufferSize))
+	{
+		if(logBufferSize < 0)
+			throw std::runtime_error{"Invalid log buffer size"};
+
+		m_logBuffer.resize(logBufferSize);
+	}
+
 	m_pub_stats = nh.advertise<nimbro_topic_transport::SenderStats>("udp/stats", 1);
 
 	m_statTimer = nh.createSteadyTimer(ros::WallDuration(0.1), std::bind(&UDPSender::sendStats, this));
@@ -71,13 +89,16 @@ UDPSender::UDPSender(ros::NodeHandle& nh)
 	m_srv_setDestinations = nh.advertiseService(
 		"udp/set_destinations", &UDPSender::handleSetDestinations, this
 	);
+	m_srv_dumpLog = nh.advertiseService(
+		"udp/dump_log", &UDPSender::dumpLog, this
+	);
 }
 
 UDPSender::~UDPSender()
 {
 }
 
-void UDPSender::send(const std::vector<Packet::Ptr>& packets)
+void UDPSender::send(const Message::ConstPtr& msg, const std::vector<Packet::Ptr>& packets)
 {
 	// Reserve range of packet IDs. As long as our messages do not
 	// approach 2^24 bytes (~25GB), this is fine.
@@ -90,6 +111,8 @@ void UDPSender::send(const std::vector<Packet::Ptr>& packets)
 
 	ros::Duration delay;
 
+	ros::Time startSend = ros::Time::now();
+
 	for(auto& packet : packets)
 	{
 		// Patch the packet ID
@@ -100,7 +123,13 @@ void UDPSender::send(const std::vector<Packet::Ptr>& packets)
 		{
 			if(sendto(sock.fd, packet->data.data(), packet->length, 0, (sockaddr*)&sock.addr, sock.addrLen) != (ssize_t)packet->length)
 			{
-				ROS_ERROR("Could not send data of size %d: %s", (int)packet->length, strerror(errno));
+				if(errno == EWOULDBLOCK || errno == EINPROGRESS)
+				{
+					// ROS_WARN_THROTTLE(2.0, "Network interface for %s overloaded, dropping packet(s).", sock.destination.c_str());
+					sock.drops++;
+				}
+				else
+					ROS_ERROR("Could not send data of size %d: %s", (int)packet->length, strerror(errno));
 				return;
 			}
 		}
@@ -108,6 +137,23 @@ void UDPSender::send(const std::vector<Packet::Ptr>& packets)
 		ros::Time now = ros::Time::now();
 		if(packet->srcReceiveTime != ros::Time(0) && now > packet->srcReceiveTime)
 			delay += now - packet->srcReceiveTime;
+	}
+
+	if(!m_logBuffer.empty())
+	{
+		ros::Time endSend = ros::Time::now();
+
+		std::unique_lock<std::mutex> lock{m_logMutex};
+
+		std::uint16_t messageID = packets.empty() ? -1 : packets.front()->packet()->header.msg_id;
+
+		if(m_logBufferCount != m_logBuffer.size())
+			m_logBuffer[m_logBufferCount++] = {msg->topic.get(), messageID, msg->receiveTime, startSend, endSend};
+		else
+		{
+			m_logBuffer[m_logBufferOffset] = {msg->topic.get(), messageID, msg->receiveTime, startSend, endSend};
+			m_logBufferOffset = (m_logBufferOffset + 1) % m_logBuffer.size();
+		}
 	}
 
 	{
@@ -154,6 +200,10 @@ void UDPSender::sendStats()
 		m.destination = sock.destination;
 		m.destination_port = m_destinationPort;
 		m.source_port = sock.source_port;
+
+		uint64_t dropsInStatPeriod = sock.drops.exchange(0);
+
+		m.packet_drops = dropsInStatPeriod / deltaTime;
 	}
 
 	msg.label = m_label;
@@ -286,6 +336,14 @@ bool UDPSender::setupSockets(const std::vector<std::string>& destination_addrs)
 
 		freeaddrinfo(info);
 
+		timeval timeout{};
+		timeout.tv_usec = m_timeoutUSec;
+		ROS_INFO("Setting socket timeout to %dus", m_timeoutUSec);
+		if(setsockopt(sock.fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)))
+		{
+			ROS_WARN("Could not set socket timeout: %s", strerror(errno));
+		}
+
 		m_sockets.push_back(std::move(sock));
 	}
 
@@ -300,6 +358,28 @@ bool UDPSender::handleSetDestinations(SetDestinationsRequest& req, SetDestinatio
 
 	ROS_INFO("Reconnect to destinations:%s", ss.str().c_str());
 	resp.success = setupSockets(req.destinations);
+	return true;
+}
+
+bool UDPSender::dumpLog(DumpLogRequest& req, DumpLogResponse& resp)
+{
+	std::unique_lock<std::mutex> lock{m_logMutex};
+
+	std::ofstream out(req.destination_path);
+
+	out << "Topic MessageID Receive StartSend EndSend\n";
+	out << std::fixed << std::setprecision(15);
+
+	std::size_t size = m_logBuffer.size();
+	for(std::size_t i = 0; i < m_logBufferCount; ++i)
+	{
+		auto& entry = m_logBuffer[(i + m_logBufferOffset) % size];
+		if(!entry.topic)
+			continue;
+
+		out << entry.topic->name << " " << entry.messageID << " " << entry.receiptTime.toSec() << " " << entry.startSend.toSec() << " " << entry.endSend.toSec() << "\n";
+	}
+
 	return true;
 }
 
