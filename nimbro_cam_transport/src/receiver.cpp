@@ -15,8 +15,10 @@ extern "C"
 
 ros::Publisher g_pub;
 AVCodecContext* g_codec = 0;
+AVCodecParserContext* g_parser = 0;
 SwsContext* g_sws = 0;
 AVFrame* g_frame = 0;
+AVPacket packet;
 
 const char* averror(int code)
 {
@@ -27,70 +29,81 @@ const char* averror(int code)
 
 void handleImage(const sensor_msgs::CompressedImageConstPtr& img)
 {
-	AVPacket packet;
-	av_init_packet(&packet);
-	packet.data = const_cast<uint8_t*>(img->data.data());
-	packet.size = img->data.size();
-	packet.pts = AV_NOPTS_VALUE;
-	packet.dts = AV_NOPTS_VALUE;
+        std::size_t in_len = img->data.size();
+        const uint8_t* inptr = img->data.data();
 
+        while(in_len > 0)
+        {
+            int len = av_parser_parse2(g_parser, g_codec, &packet.data, &packet.size, inptr, in_len, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+            if(len < 0)
+            {
+                ROS_ERROR("Could not parse");
+                return;
+            }
+            inptr += len;
+            in_len -= len;
+
+            if(packet.size != 0)
+            {
 #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57,48,101)
-	// Input packet to the encoder
-	int ret = avcodec_send_packet(g_codec, &packet);
-	if(ret < 0)
-	{
-		ROS_ERROR("Could not send packet to decoder: %s", averror(ret));
-		return;
-	}
+                // Input packet to the encoder
+                int ret = avcodec_send_packet(g_codec, &packet);
+                if(ret < 0)
+                {
+                    ROS_ERROR("Could not send packet to decoder: %s", averror(ret));
+                    return;
+                }
 
-	// Try to retrieve output frame
-	ret = avcodec_receive_frame(g_codec, g_frame);
-	if(ret == AVERROR(EAGAIN))
-		return;
+                // Try to retrieve output frame
+                ret = avcodec_receive_frame(g_codec, g_frame);
+                if(ret == AVERROR(EAGAIN))
+                    return;
 
-	if(ret < 0)
-	{
-		ROS_ERROR("Could not retrieve frame from decoder: %s", averror(ret));
-		return;
-	}
+                if(ret < 0)
+                {
+                    ROS_ERROR("Could not retrieve frame from decoder: %s", averror(ret));
+                    return;
+                }
 #else
-	// old API
+                // old API
 
-	int gotPicture = 0;
-	if(avcodec_decode_video2(g_codec, g_frame, &gotPicture, &packet) < 0)
-	{
-		ROS_ERROR("avcodec_decode_video2 error");
-		return;
-	}
+                int gotPicture = 0;
+                if(avcodec_decode_video2(g_codec, g_frame, &gotPicture, &packet) < 0)
+                {
+                    ROS_ERROR("avcodec_decode_video2 error");
+                    return;
+                }
 
-	if(!gotPicture)
-		return;
+                if(!gotPicture)
+                    return;
 #endif
 
-	g_sws = sws_getCachedContext(
-		g_sws,
-		g_frame->width, g_frame->height, AV_PIX_FMT_YUV420P,
-		g_frame->width, g_frame->height, AV_PIX_FMT_RGB24,
-		0, 0, 0, 0
-	);
+                g_sws = sws_getCachedContext(
+                            g_sws,
+                            g_frame->width, g_frame->height, AV_PIX_FMT_YUV420P,
+                            g_frame->width, g_frame->height, AV_PIX_FMT_RGB24,
+                            0, 0, 0, 0
+                            );
 
-	sensor_msgs::ImagePtr out_img(new sensor_msgs::Image);
+                sensor_msgs::ImagePtr out_img(new sensor_msgs::Image);
 
-	out_img->encoding = "rgb8";
-	out_img->data.resize(g_frame->width * g_frame->height * 3);
-	out_img->step = g_frame->width * 3;
-	out_img->width = g_frame->width;
-	out_img->height = g_frame->height;
-	out_img->header.frame_id = "cam";
-	out_img->header.stamp = ros::Time::now(); // FIXME
+                out_img->encoding = "rgb8";
+                out_img->data.resize(g_frame->width * g_frame->height * 3);
+                out_img->step = g_frame->width * 3;
+                out_img->width = g_frame->width;
+                out_img->height = g_frame->height;
+                out_img->header.frame_id = "cam";
+                out_img->header.stamp = ros::Time::now(); // FIXME
 
-	uint8_t* destData[1] = {out_img->data.data()};
-	int linesize[1] = {(int)out_img->step};
+                uint8_t* destData[1] = {out_img->data.data()};
+                int linesize[1] = {(int)out_img->step};
 
-	sws_scale(g_sws, g_frame->data, g_frame->linesize, 0, g_frame->height,
-		destData, linesize);
+                sws_scale(g_sws, g_frame->data, g_frame->linesize, 0, g_frame->height,
+                          destData, linesize);
 
-	g_pub.publish(out_img);
+                g_pub.publish(out_img);
+            }
+        }
 }
 
 int main(int argc, char** argv)
@@ -113,13 +126,24 @@ int main(int argc, char** argv)
 
 	g_codec = avcodec_alloc_context3(decoder);
 
-	g_codec->flags |= AV_CODEC_FLAG_LOW_DELAY;
+        g_codec->flags |= AV_CODEC_FLAG_LOW_DELAY;
 
 #ifdef AV_CODEC_FLAG2_SHOW_ALL
 	g_codec->flags2 |= AV_CODEC_FLAG2_SHOW_ALL;
+
 #else
 #warning This version of FFMPEG does not offer AV_CODEC_FLAG2_SHOW_ALL. Consider upgrading your FFMPEG.
 #endif
+
+        g_parser = av_parser_init(AV_CODEC_ID_H264);
+        if(!g_parser)
+            throw std::runtime_error("H264 parsing not supported in this build of ffmpeg");
+
+        av_init_packet(&packet);
+        packet.data = 0;
+        packet.size = 0;
+        packet.pts = AV_NOPTS_VALUE;
+        packet.dts = AV_NOPTS_VALUE;
 
 	g_codec->thread_type = 0;
 
@@ -128,7 +152,7 @@ int main(int argc, char** argv)
 
 	g_pub = nh.advertise<sensor_msgs::Image>("image", 1);
 	
-	ros::Subscriber sub = nh.subscribe("encoded", 25, &handleImage);
+        ros::Subscriber sub = nh.subscribe("encoded", 250, &handleImage);
 	
 	ros::spin();
 
